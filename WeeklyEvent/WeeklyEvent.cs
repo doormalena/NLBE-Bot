@@ -1,4 +1,4 @@
-﻿using DiscordHelper;
+using DiscordHelper;
 using DSharpPlus.Entities;
 using System;
 using System.Collections.Generic;
@@ -54,7 +54,7 @@ namespace NLBE_Bot
             }
             catch (Exception e)
             {
-                Bot.handleError("While editing HOF message: ", e.Message, e.StackTrace).Wait();
+                Bot.HandleError("While editing HOF message: ", e.Message, e.StackTrace).Wait();
             }
             return null;
         }

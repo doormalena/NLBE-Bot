@@ -1,4 +1,4 @@
-﻿using DSharpPlus.Entities;
+using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
 using System;
 using System.Collections.Generic;
@@ -109,7 +109,7 @@ namespace NLBE_Bot
                         }
                         else if (!Bot.ignoreEvents)
                         {
-                            await Bot.sendThibeastmo("Last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method!", string.Empty, string.Empty);
+                            await Bot.SendThibeastmo("Last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method!", string.Empty, string.Empty);
                         }
                     }
                 }
@@ -118,7 +118,7 @@ namespace NLBE_Bot
             {
                 if (ex.Message != "Not found: 404")
                 {
-                    await Bot.handleError("Something went wrong at ReadWeeklyEvent:", ex.Message, ex.StackTrace);
+                    await Bot.HandleError("Something went wrong at ReadWeeklyEvent:", ex.Message, ex.StackTrace);
                 }
             }
         }

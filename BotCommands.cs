@@ -1,4 +1,4 @@
-﻿using DiscordHelper;
+using DiscordHelper;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
@@ -31,9 +31,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     if (tiers_gesplitst_met_spatie.Length > 0)
                     {
                         bool allInt = true;
@@ -51,7 +51,7 @@ namespace NLBE_Bot
                         }
                         if (allInt)
                         {
-                            if (Bot.checkIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
+                            if (Bot.CheckIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
                             {
                                 DiscordChannel toernooiAanmeldenChannel = await Bot.GetToernooiAanmeldenChannel(ctx.Guild.Id);
                                 if (toernooiAanmeldenChannel != null)
@@ -76,7 +76,7 @@ namespace NLBE_Bot
                                     List<DiscordEmoji> emojiList = new List<DiscordEmoji>();
                                     for (int i = 0; i < tiers_gesplitst_met_spatie.Length; i++)
                                     {
-                                        emojiList.Add(Bot.getDiscordEmoji(Emoj.getName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
+                                        emojiList.Add(Bot.GetDiscordEmoji(Emoj.getName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
                                     }
 
                                     await Bot.CreateEmbed(toernooiAanmeldenChannel, string.Empty, "@everyone", "Toernooi", string.Empty, deflist, emojiList, string.Empty, null);
@@ -100,7 +100,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je moet minstens één tier geven!**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -118,18 +118,18 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     //remove message
                     await ctx.Channel.DeleteMessageAsync(ctx.Message);
 
                     //execute rest of command
-                    List<Tier> tiers = await Bot.readTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, new string[] { "1" });
+                    List<Tier> tiers = await Bot.ReadTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, new string[] { "1" });
                     if (tiers != null)
                     {
-                        List<Tuple<ulong, string>> uniqueMemberList = await Bot.getIndividualParticipants(tiers, ctx.Guild);
-                        List<string> mentionList = await Bot.getMentions(uniqueMemberList, ctx.Guild.Id);
+                        List<Tuple<ulong, string>> uniqueMemberList = await Bot.GetIndividualParticipants(tiers, ctx.Guild);
+                        List<string> mentionList = await Bot.GetMentions(uniqueMemberList, ctx.Guild.Id);
                         if (mentionList != null)
                         {
                             if (mentionList.Count > 0)
@@ -293,10 +293,10 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
-                    List<Tier> tiers = await Bot.readTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
+                    List<Tier> tiers = await Bot.ReadTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt);
                     if (tiers != null && tiers.Count > 0)
                     {
                         List<DEF> deflist = new List<DEF>();
@@ -345,8 +345,8 @@ namespace NLBE_Bot
                             def.Value = sb.ToString();
                             deflist.Add(def);
                         }
-                        List<Tuple<ulong, string>> tempParticipants = await Bot.getIndividualParticipants(tiers, ctx.Guild);
-                        List<Tuple<ulong, string>> participants = Bot.removeSyntaxes(tempParticipants);
+                        List<Tuple<ulong, string>> tempParticipants = await Bot.GetIndividualParticipants(tiers, ctx.Guild);
+                        List<Tuple<ulong, string>> participants = Bot.RemoveSyntaxes(tempParticipants);
                         if (tiers.Count > 1)
                         {
                             participants.Sort();
@@ -369,7 +369,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De teams konden niet geladen worden.**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -385,9 +385,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     DiscordChannel pollChannel = await Bot.GetPollsChannel(false, ctx.Guild.Id);
                     if (pollChannel != null)
                     {
@@ -401,7 +401,7 @@ namespace NLBE_Bot
                             DiscordEmoji emoji = null;
                             try
                             {
-                                emoji = Bot.getDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
+                                emoji = Bot.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
                                 string temp = emoji.GetDiscordName();
                                 DiscordEmoji tempEmoji = DiscordEmoji.FromName(Bot.discordClient, temp);
                                 isEmoji = true;
@@ -440,7 +440,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #polls kon niet gevonden worden!**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -460,9 +460,9 @@ namespace NLBE_Bot
             // 3 reacties voorzien, :thumbsup: :thinking: :thumbsdown:
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     bool validChannel = false;
                     DiscordChannel deputiesChannel = await Bot.GetDeputiesChannel();
                     if (deputiesChannel != null && ctx.Channel.Id.Equals(deputiesChannel.Id))
@@ -583,7 +583,7 @@ namespace NLBE_Bot
                                             break;
                                         }
                                     }
-                                    account = await Bot.searchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, speler_naam);
+                                    account = await Bot.SearchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, speler_naam);
                                     if (account != null)
                                     {
                                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Is dit de gebruiker dat je zocht? ( ja / nee )**");
@@ -668,9 +668,9 @@ namespace NLBE_Bot
                                                 if (allGood)
                                                 {
                                                     List<DiscordEmoji> emojies = new List<DiscordEmoji>();
-                                                    emojies.Add(Bot.getDiscordEmoji(":thumbsup:"));
-                                                    emojies.Add(Bot.getDiscordEmoji(":thinking:"));
-                                                    emojies.Add(Bot.getDiscordEmoji(":thumbsdown:"));
+                                                    emojies.Add(Bot.GetDiscordEmoji(":thumbsup:"));
+                                                    emojies.Add(Bot.GetDiscordEmoji(":thinking:"));
+                                                    emojies.Add(Bot.GetDiscordEmoji(":thumbsdown:"));
                                                     DiscordEmbedBuilder.EmbedAuthor author = new DiscordEmbedBuilder.EmbedAuthor();
                                                     author.Name = ctx.Member.DisplayName;
                                                     author.IconUrl = ctx.Member.AvatarUrl;
@@ -703,7 +703,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je mag deze commando enkel vanuit " + (deputiesChannel != null ? deputiesChannel.Mention : "#deputies") + " uitvoeren!**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -719,10 +719,10 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
-                    List<Tuple<string, string>> images = await Bot.getAllMaps(ctx.Guild.Id);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
+                    List<Tuple<string, string>> images = await Bot.GetAllMaps(ctx.Guild.Id);
                     if (images != null)
                     {
                         StringBuilder sbMap = new StringBuilder();
@@ -843,7 +843,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon de mappen niet uit een kanaal halen.**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -859,9 +859,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     var channels = ctx.Guild.Channels.Values;
                     foreach (var channel in channels)
                     {
@@ -872,7 +872,7 @@ namespace NLBE_Bot
                             {
                                 if (i == (hoeveelste_bericht - 1))
                                 {
-                                    DiscordEmoji theEmoji = Bot.getDiscordEmoji(emoji);
+                                    DiscordEmoji theEmoji = Bot.GetDiscordEmoji(emoji);
                                     string temp = theEmoji.GetDiscordName();
                                     bool isEmoji = false;
                                     try
@@ -904,7 +904,7 @@ namespace NLBE_Bot
                             }
                         }
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -920,9 +920,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     int hoeveelste = -1;
                     bool goodNumber = true;
                     try
@@ -945,7 +945,7 @@ namespace NLBE_Bot
                                 channelFound = true;
                                 var zMessages = channel.GetMessagesAsync(hoeveelste + 1).Result;
                                 IReadOnlyList<DiscordUser> userReactionsFromTheEmoji = new List<DiscordUser>();
-                                DiscordEmoji theEmoji = Bot.getDiscordEmoji(emoji);
+                                DiscordEmoji theEmoji = Bot.GetDiscordEmoji(emoji);
                                 string temp = theEmoji.GetDiscordName();
                                 bool isEmoji = false;
                                 try
@@ -982,7 +982,7 @@ namespace NLBE_Bot
                                         }
                                         catch (Exception ex)
                                         {
-                                            await Bot.handleError("Could not load messages from " + channel.Name + ": ", ex.Message, ex.StackTrace);
+                                            await Bot.HandleError("Could not load messages from " + channel.Name + ": ", ex.Message, ex.StackTrace);
                                         }
                                         if (messages.Count == (hoeveelste + 1))
                                         {
@@ -995,11 +995,11 @@ namespace NLBE_Bot
                                                     if (logChannel != null)
                                                     {
                                                         var logMessages = await logChannel.GetMessagesAsync(100);
-                                                        Dictionary<DateTime, List<DiscordMessage>> sortedMessages = Bot.sortMessages(logMessages);
+                                                        Dictionary<DateTime, List<DiscordMessage>> sortedMessages = Bot.SortMessages(logMessages);
                                                         foreach (KeyValuePair<DateTime, List<DiscordMessage>> sMessage in sortedMessages)
                                                         {
-                                                            string xdate = Bot.convertToDate(theMessage.Timestamp);
-                                                            string ydate = Bot.convertToDate(sMessage.Key);
+                                                            string xdate = Bot.ConvertToDate(theMessage.Timestamp);
+                                                            string ydate = Bot.ConvertToDate(sMessage.Key);
                                                             if (xdate.Equals(ydate))
                                                             {
                                                                 List<DiscordMessage> messagesToDelete = new List<DiscordMessage>();
@@ -1017,7 +1017,7 @@ namespace NLBE_Bot
                                                                             {
                                                                                 if (tempMemberByUser.DisplayName.Equals(splitted[2]))
                                                                                 {
-                                                                                    if (Bot.getEmojiAsString(theEmoji).Equals(Bot.getEmojiAsString(splitted[3])))
+                                                                                    if (Bot.GetEmojiAsString(theEmoji).Equals(Bot.GetEmojiAsString(splitted[3])))
                                                                                     {
                                                                                         messagesToDelete.Add(discMessage);
                                                                                     }
@@ -1040,7 +1040,7 @@ namespace NLBE_Bot
                                                     }
                                                     else
                                                     {
-                                                        await Bot.handleError("Could not find log channel!", string.Empty, string.Empty);
+                                                        await Bot.HandleError("Could not find log channel!", string.Empty, string.Empty);
                                                     }
                                                 }
                                             }
@@ -1074,7 +1074,7 @@ namespace NLBE_Bot
                             await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Dat getal is geen bruikbaar getal!**");
                         }
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -1090,9 +1090,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     if (optioneel_commando.Length == 0)
                     {
                         StringBuilder sb = new StringBuilder();
@@ -1102,7 +1102,7 @@ namespace NLBE_Bot
                         {
                             if (!commandoList.Contains(command.Name))
                             {
-                                if (Bot.hasRight(ctx.Member, command))
+                                if (Bot.HasRight(ctx.Member, command))
                                 {
                                     commandoList.Add(command.Name);
                                     sb.AppendLine(command.Name);
@@ -1233,7 +1233,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel parameters! Max 1 parameter!**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -1245,9 +1245,9 @@ namespace NLBE_Bot
         [Description("Negeert alle commando's behalve deze commando zelf tot de gebruiker dit weer inschakelt. Indien \"event\" of \"events\" als parameter meegegeven wordt, negeert hij de events. Je kan de events met dezelfde commando terug inschakelen.")]
         public async Task ignore(CommandContext ctx, params string[] optioneel_events)
         {
-            if (Bot.hasRight(ctx.Member, ctx.Command))
+            if (Bot.HasRight(ctx.Member, ctx.Command))
             {
-                await Bot.confirmCommandExecuting(ctx.Message);
+                await Bot.ConfirmCommandExecuting(ctx.Message);
                 if (optioneel_events.Length > 0)
                 {
                     if (!optioneel_events[0].ToLower().Contains("events") && !optioneel_events[0].ToLower().Contains("event"))
@@ -1290,7 +1290,7 @@ namespace NLBE_Bot
                     Bot.discordClient.Logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
                     await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Bot.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
                 }
-                await Bot.confirmCommandExecuted(ctx.Message);
+                await Bot.ConfirmCommandExecuted(ctx.Message);
             }
             else
             {
@@ -1305,12 +1305,12 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     string searchTerm = "";
                     string conditie = "";
-                    List<string> temp = Bot.getSearchTermAndCondition(optioneel_zoeken_op_id__zoekterm);
+                    List<string> temp = Bot.GetSearchTermAndCondition(optioneel_zoeken_op_id__zoekterm);
                     if (temp[0] != string.Empty)
                     {
                         searchTerm = temp[0];
@@ -1339,14 +1339,14 @@ namespace NLBE_Bot
                                 DiscordUser discordUser = await Bot.discordClient.GetUserAsync(tempID);
                                 if (discordUser != null)
                                 {
-                                    await Bot.showMemberInfo(ctx.Channel, discordUser);
+                                    await Bot.ShowMemberInfo(ctx.Channel, discordUser);
                                     found = true;
                                 }
                             }
                             catch (Exception e)
                             {
                                 error = true;
-                                await Bot.handleError("Something went wrong while showing the memberInfo:\n", e.Message, e.StackTrace);
+                                await Bot.HandleError("Something went wrong while showing the memberInfo:\n", e.Message, e.StackTrace);
                                 await Bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name);
                             }
                             if (!found && !error)
@@ -1400,7 +1400,7 @@ namespace NLBE_Bot
                                     {
                                         if (number > 0 && number <= foundMemberList.Count)
                                         {
-                                            await Bot.showMemberInfo(ctx.Channel, foundMemberList[(number - 1)]);
+                                            await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[(number - 1)]);
                                         }
                                         else if (number > foundMemberList.Count)
                                         {
@@ -1421,7 +1421,7 @@ namespace NLBE_Bot
                                     List<DiscordEmoji> reacted = new List<DiscordEmoji>();
                                     for (int i = 1; i <= 10; i++)
                                     {
-                                        DiscordEmoji emoji = Bot.getDiscordEmoji(Emoj.getName(i));
+                                        DiscordEmoji emoji = Bot.GetDiscordEmoji(Emoj.getName(i));
                                         if (emoji != null)
                                         {
                                             var users = discMessage.GetReactionsAsync(emoji).Result;
@@ -1437,10 +1437,10 @@ namespace NLBE_Bot
 
                                     if (reacted.Count == 1)
                                     {
-                                        int index = Emoj.getIndex(Bot.getEmojiAsString(reacted[0].Name));
+                                        int index = Emoj.getIndex(Bot.GetEmojiAsString(reacted[0].Name));
                                         if (index > 0 && index <= foundMemberList.Count)
                                         {
-                                            await Bot.showMemberInfo(ctx.Channel, foundMemberList[(index - 1)]);
+                                            await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[(index - 1)]);
                                         }
                                         else
                                         {
@@ -1463,19 +1463,19 @@ namespace NLBE_Bot
                             }
                             else
                             {
-                                await Bot.SayBeMoreSpecific(ctx.Channel, ctx.Member, ctx.Guild.Name);
+                                await Bot.SayBeMoreSpecific(ctx.Channel);
                             }
                         }
                         else if (foundMemberList.Count == 1)
                         {
-                            await Bot.showMemberInfo(ctx.Channel, foundMemberList[0]);
+                            await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[0]);
                         }
                         else if (foundMemberList.Count == 0)
                         {
                             await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Gebruiker(**`" + conditie.Replace("\\", string.Empty) + "`**) kon niet gevonden worden! (In een lijst van " + aantalGebruikers + " gebruikers)**");
                         }
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -1497,14 +1497,14 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     const int COLUMNS = 3;
                     string searchTerm = "ud";
                     string conditie = "";
                     bool usersFound = false;
-                    List<string> temp = Bot.getSearchTermAndCondition(optioneel_optie_met_als_default_ud__waarde);
+                    List<string> temp = Bot.GetSearchTermAndCondition(optioneel_optie_met_als_default_ud__waarde);
                     if (temp[0] != string.Empty)
                     {
                         searchTerm = temp[0];
@@ -1664,7 +1664,7 @@ namespace NLBE_Bot
                                                     {
                                                         if (account.created_at.HasValue)
                                                         {
-                                                            dateMemberList.Add(Bot.convertToDateTime(account.created_at.Value), member);
+                                                            dateMemberList.Add(Bot.ConvertToDateTime(account.created_at.Value), member);
                                                             used = true;
                                                         }
                                                     }
@@ -1675,7 +1675,7 @@ namespace NLBE_Bot
                                                     {
                                                         if (account.clan.joined_at.HasValue)
                                                         {
-                                                            dateMemberList.Add(Bot.convertToDateTime(account.clan.joined_at.Value), member);
+                                                            dateMemberList.Add(Bot.ConvertToDateTime(account.clan.joined_at.Value), member);
                                                             used = true;
                                                         }
                                                     }
@@ -1730,7 +1730,7 @@ namespace NLBE_Bot
 
                     if (amountOfMembers > 0)
                     {
-                        deflist = Bot.listInMemberEmbed(COLUMNS, memberList, searchTerm);
+                        deflist = Bot.ListInMemberEmbed(COLUMNS, memberList, searchTerm);
                     }
 
                     if (dateNotFoundList.Count > 0)
@@ -1854,7 +1854,7 @@ namespace NLBE_Bot
                     //    await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Geen gebruikers gevonden!**");
                     //}
                     #endregion
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -1869,15 +1869,15 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     try
                     {
-                        WGClan clan = await Bot.searchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, clan_naam, false, ctx.User, ctx.Command);
+                        WGClan clan = await Bot.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, clan_naam, false, ctx.User, ctx.Command);
                         if (clan != null)
                         {
-                            await Bot.showClanInfo(ctx.Channel, clan);
+                            await Bot.ShowClanInfo(ctx.Channel, clan);
                         }
                         else
                         {
@@ -1889,7 +1889,7 @@ namespace NLBE_Bot
                         Bot.discordClient.Logger.LogWarning("(" + ctx.Command.Name + ") " + e.Message);
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel resultaten waren gevonden, wees specifieker!**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -1904,19 +1904,19 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     string searchTerm = "";
                     string conditie = "";
-                    List<string> temp = Bot.getSearchTermAndCondition(optioneel_discordmembers_aanduiden_en_of_sorteren_op_laatst_actief__clan_naam);
+                    List<string> temp = Bot.GetSearchTermAndCondition(optioneel_discordmembers_aanduiden_en_of_sorteren_op_laatst_actief__clan_naam);
                     if (temp[0] != string.Empty)
                     {
                         searchTerm = temp[0];
                     }
                     conditie = temp[1];
 
-                    WGClan clan = await Bot.searchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, conditie, true, ctx.User, ctx.Command);
+                    WGClan clan = await Bot.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, conditie, true, ctx.User, ctx.Command);
                     if (clan != null)
                     {
                         List<Members> playersList = new List<Members>();
@@ -1929,7 +1929,7 @@ namespace NLBE_Bot
                             playersList = clan.members;
                         }
 
-                        List<DEF> defList = Bot.listInPlayerEmbed(3, playersList, searchTerm, ctx.Guild);
+                        List<DEF> defList = Bot.ListInPlayerEmbed(3, playersList, searchTerm, ctx.Guild);
                         string sorting = "alfabetisch";
                         if (searchTerm.Contains('d'))
                         {
@@ -1941,7 +1941,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -1956,13 +1956,13 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     // -i --> zoek op ID
                     string searchTerm = "";
                     string conditie = "";
-                    List<string> temp = Bot.getSearchTermAndCondition(optioneel_zoeken_op_ID__ign_naam);
+                    List<string> temp = Bot.GetSearchTermAndCondition(optioneel_zoeken_op_ID__ign_naam);
                     if (temp[0] != string.Empty)
                     {
                         searchTerm = temp[0];
@@ -1987,7 +1987,7 @@ namespace NLBE_Bot
                             WGAccount account = new WGAccount(Bot.WarGamingAppId, id, false, true, true);
                             if (account != null)
                             {
-                                await Bot.showMemberInfo(ctx.Channel, account);
+                                await Bot.ShowMemberInfo(ctx.Channel, account);
                             }
                             else
                             {
@@ -2001,9 +2001,9 @@ namespace NLBE_Bot
                     }
                     else
                     {
-                        await Bot.searchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, conditie);
+                        await Bot.SearchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, conditie);
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -2154,9 +2154,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     DiscordChannel channel = await Bot.GetHallOfFameChannel(ctx.Guild.Id);
                     if (channel != null)
                     {
@@ -2181,7 +2181,7 @@ namespace NLBE_Bot
                                                 {
                                                     if (embed.Title != null)
                                                     {
-                                                        if (embed.Title.Contains(Bot.getDiscordEmoji(Emoj.getName(i))))
+                                                        if (embed.Title.Contains(Bot.GetDiscordEmoji(Emoj.getName(i))))
                                                         {
                                                             tiersFound.Add(new Tuple<int, DiscordMessage>(i, message));
                                                             containsItem = true;
@@ -2201,12 +2201,12 @@ namespace NLBE_Bot
                         }
                         catch (Exception e)
                         {
-                            await Bot.handleError("While getting the HOF messages (" + ctx.Command.Name + "): ", e.Message, e.StackTrace);
+                            await Bot.HandleError("While getting the HOF messages (" + ctx.Command.Name + "): ", e.Message, e.StackTrace);
                             noErrors = false;
                         }
                         if (noErrors)
                         {
-                            if (await Bot.createOrCleanHOFMessages(channel, tiersFound))
+                            if (await Bot.CreateOrCleanHOFMessages(channel, tiersFound))
                             {
                                 await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame is gereset!**");
                             }
@@ -2224,7 +2224,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gereset worden!**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -2238,9 +2238,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     bool foundAtLeastOnce = false;
                     naam = naam.Replace(Bot.UNDERSCORE_REPLACEMENT_CHAR, '_');
                     naam = naam.Replace('_', Bot.UNDERSCORE_REPLACEMENT_CHAR);
@@ -2250,11 +2250,11 @@ namespace NLBE_Bot
                         IReadOnlyList<DiscordMessage> messages = await channel.GetMessagesAsync(100);
                         for (int i = 1; i <= 10; i++)
                         {
-                            List<DiscordMessage> tempTierMessages = Bot.getTierMessages(i, messages);
+                            List<DiscordMessage> tempTierMessages = Bot.GetTierMessages(i, messages);
                             foreach (DiscordMessage message in tempTierMessages)
                             {
                                 bool playerRemoved = false;
-                                List<Tuple<string, List<TankHof>>> tupleList = Bot.convertHOFMessageToTupleListAsync(message, i);
+                                List<Tuple<string, List<TankHof>>> tupleList = Bot.ConvertHOFMessageToTupleListAsync(message, i);
                                 if (tupleList != null)
                                 {
                                     List<Tuple<string, List<TankHof>>> tempTupleList = new List<Tuple<string, List<TankHof>>>();
@@ -2288,8 +2288,8 @@ namespace NLBE_Bot
                                     {
                                         foundAtLeastOnce = true;
                                     }
-                                    await Bot.editHOFMessage(message, tupleList);
-                                    await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + Bot.getDiscordEmoji(Emoj.getName(i)) + "**");
+                                    await Bot.EditHOFMessage(message, tupleList);
+                                    await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + Bot.GetDiscordEmoji(Emoj.getName(i)) + "**");
                                 }
                             }
                         }
@@ -2298,7 +2298,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + naam + "` als naam komt niet voor in de HOF.**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -2312,9 +2312,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     bool foundAtLeastOnce = false;
                     oldName = oldName.Replace(Bot.UNDERSCORE_REPLACEMENT_CHAR, '_');
                     oldName = oldName.Replace('_', Bot.UNDERSCORE_REPLACEMENT_CHAR);
@@ -2325,11 +2325,11 @@ namespace NLBE_Bot
                         IReadOnlyList<DiscordMessage> messages = await channel.GetMessagesAsync(100);
                         for (int i = 1; i <= 10; i++)
                         {
-                            List<DiscordMessage> tempTierMessages = Bot.getTierMessages(i, messages);
+                            List<DiscordMessage> tempTierMessages = Bot.GetTierMessages(i, messages);
                             foreach (DiscordMessage message in tempTierMessages)
                             {
                                 bool nameChanged = false;
-                                List<Tuple<string, List<TankHof>>> tupleList = Bot.convertHOFMessageToTupleListAsync(message, i);
+                                List<Tuple<string, List<TankHof>>> tupleList = Bot.ConvertHOFMessageToTupleListAsync(message, i);
                                 if (tupleList != null)
                                 {
                                     foreach (Tuple<string, List<TankHof>> tupleItem in tupleList)
@@ -2353,8 +2353,8 @@ namespace NLBE_Bot
                                     {
                                         foundAtLeastOnce = true;
                                     }
-                                    await Bot.editHOFMessage(message, tupleList);
-                                    await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + Bot.getDiscordEmoji(Emoj.getName(i)) + "**");
+                                    await Bot.EditHOFMessage(message, tupleList);
+                                    await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + Bot.GetDiscordEmoji(Emoj.getName(i)) + "**");
                                 }
                             }
                         }
@@ -2363,7 +2363,7 @@ namespace NLBE_Bot
                     {
                         await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + oldName + "` als naam komt niet voor in de HOF.**");
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -2378,10 +2378,10 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
-                    List<Tuple<string, List<TankHof>>> playerList = await Bot.getTankHofsPerPlayer(ctx.Guild.Id);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
+                    List<Tuple<string, List<TankHof>>> playerList = await Bot.GetTankHofsPerPlayer(ctx.Guild.Id);
                     playerList = playerList.OrderBy(x => x.Item2.Count).ToList();
                     playerList.Reverse();
                     StringBuilder sb = new StringBuilder("```");
@@ -2405,7 +2405,7 @@ namespace NLBE_Bot
                     }
                     sb.Append("```");
                     await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Hall Of Fame plekken per speler", sb.ToString(), null, null, string.Empty, null);
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
             }
         }
@@ -2416,11 +2416,11 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
                     name = name.Replace('_', Bot.UNDERSCORE_REPLACEMENT_CHAR);
-                    await Bot.confirmCommandExecuting(ctx.Message);
-                    List<Tuple<string, List<TankHof>>> playerList = await Bot.getTankHofsPerPlayer(ctx.Guild.Id);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
+                    List<Tuple<string, List<TankHof>>> playerList = await Bot.GetTankHofsPerPlayer(ctx.Guild.Id);
                     List<DEF> defList = new List<DEF>();
                     playerList.Reverse();
                     bool found = false;
@@ -2498,7 +2498,7 @@ namespace NLBE_Bot
                         }
                     }
                     await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Hall Of Fame plekken van " + name.Replace(Bot.UNDERSCORE_REPLACEMENT_CHAR, '_'), (found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald."), defList, null, string.Empty, null);
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
             }
         }
@@ -2789,7 +2789,7 @@ namespace NLBE_Bot
         [Description("Geeft zowel de recente toernooien als de komende toernooien.")]
         public async Task toernooien(CommandContext ctx, params string[] optioneel_nummer)
         {
-            await Bot.confirmCommandExecuting(ctx.Message);
+            await Bot.ConfirmCommandExecuting(ctx.Message);
             if (optioneel_nummer.Length <= 1)
             {
                 bool isInt = true;
@@ -2814,10 +2814,10 @@ namespace NLBE_Bot
                     isInt = false;
                 }
                 theNumber--;
-                List<WGTournament> tournamentsList = await Bot.initialiseTournaments(true);
+                List<WGTournament> tournamentsList = await Bot.InitialiseTournaments(true);
                 if (isInt)
                 {
-                    await Bot.showTournamentInfo(ctx.Channel, tournamentsList[theNumber], (theNumber + 1) + (theNumber == 0 ? "ste" : "de") + " toernooi");
+                    await Bot.ShowTournamentInfo(ctx.Channel, tournamentsList[theNumber], (theNumber + 1) + (theNumber == 0 ? "ste" : "de") + " toernooi");
                 }
                 else
                 {
@@ -2860,7 +2860,7 @@ namespace NLBE_Bot
             {
                 await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je mag maar 1 extra waarde meegeven.**");
             }
-            await Bot.confirmCommandExecuted(ctx.Message);
+            await Bot.ConfirmCommandExecuted(ctx.Message);
         }
         #endregion
         #region Bonus Code
@@ -2871,12 +2871,12 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name,
                         "**Redeem code:**\nhttps://eu.wargaming.net/shop/redeem/?utm_content=bonus-code&utm_source=global-nav&utm_medium=link&utm_campaign=wotb-portal");
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
@@ -2892,9 +2892,9 @@ namespace NLBE_Bot
         {
             if (!Bot.ignoreCommands)
             {
-                if (Bot.hasRight(ctx.Member, ctx.Command))
+                if (Bot.HasRight(ctx.Member, ctx.Command))
                 {
-                    await Bot.confirmCommandExecuting(ctx.Message);
+                    await Bot.ConfirmCommandExecuting(ctx.Message);
                     if (optioneel_tank_naam.Length > 0)
                     {
                         StringBuilder sb = new StringBuilder();
@@ -2914,7 +2914,7 @@ namespace NLBE_Bot
                         await ctx.Member.SendMessageAsync("Hallo\nWelke tank wil je bij het volgende wekelijkse event instellen?"); //deze triggert OOK het dmchannelcreated event
                         Bot.weeklyEventWinner = new Tuple<ulong, DateTime>(ctx.Member.Id, DateTime.Now);
                     }
-                    await Bot.confirmCommandExecuted(ctx.Message);
+                    await Bot.ConfirmCommandExecuted(ctx.Message);
                 }
                 else
                 {
