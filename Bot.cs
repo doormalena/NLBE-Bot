@@ -4419,11 +4419,14 @@ internal class Bot
 			List<WGAccount> wgAccountList = [];
 			wgAccountList.AddRange(from Members member in memberList
 								   select new WGAccount(WarGamingAppId, member.account_id, false, false, false));
-			wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time)];
-			wgAccountList.Reverse();
 
-			nameList.AddRange(from WGAccount memberx in wgAccountList
-							  select memberx.nickname);
+			if (wgAccountList.Count > 0)
+			{
+				wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time)];
+				wgAccountList.Reverse();
+				nameList.AddRange(from WGAccount memberx in wgAccountList
+								  select memberx.nickname);
+			}
 		}
 		else
 		{
