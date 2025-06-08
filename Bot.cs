@@ -1515,10 +1515,7 @@ internal class Bot
 								string goodDisplayName = '[' + currentClanTag + "] " + wgAccounts[0].nickname;
 								if (wgAccounts[0].nickname != null && !member.DisplayName.Equals(goodDisplayName))
 								{
-									if (!memberChanges.Keys.Contains(member))
-									{
-										memberChanges.Add(member, goodDisplayName);
-									}
+									memberChanges.TryAdd(member, goodDisplayName);
 								}
 								else if (member.DisplayName.Equals(goodDisplayName))
 								{
@@ -1532,10 +1529,7 @@ internal class Bot
 									clanTag = wgAccounts[0].clan.tag;
 								}
 								string goodDisplayName = '[' + clanTag + "] " + wgAccounts[0].nickname;
-								if (!memberChanges.Keys.Contains(member))
-								{
-									memberChanges.Add(member, goodDisplayName);
-								}
+								memberChanges.TryAdd(member, goodDisplayName);
 							}
 						}
 						if (!accountFound)
@@ -4411,32 +4405,24 @@ internal class Bot
 		return [];
 	}
 
-	public static List<DEF> ListInPlayerEmbed(int columns, object memberList, string searchTerm, DiscordGuild guild)
+	public static List<DEF> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, DiscordGuild guild)
 	{
 		List<string> nameList = [];
 
-		if (memberList is List<Members> list)
+		if (searchTerm.Contains('d'))
 		{
-			if (searchTerm.Contains('d'))
-			{
-				List<WGAccount> wgAccountList = [];
-				wgAccountList.AddRange(from Members memberx in list
-									   select new WGAccount(WarGamingAppId, memberx.account_id, false, false, false));
-				wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time).Reverse()];
+			List<WGAccount> wgAccountList = [];
+			wgAccountList.AddRange(from Members memberx in memberList
+								   select new WGAccount(WarGamingAppId, memberx.account_id, false, false, false));
+			wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time).Reverse()];
 
-				nameList.AddRange(from WGAccount memberx in wgAccountList
-								  select memberx.nickname);
-			}
-			else
-			{
-				nameList.AddRange(from Members memberx in list
-								  select memberx.account_name);
-			}
-		}
-		else if (memberList is List<WGAccount> memberListx)
-		{
-			nameList.AddRange(from WGAccount memberx in memberListx
+			nameList.AddRange(from WGAccount memberx in wgAccountList
 							  select memberx.nickname);
+		}
+		else
+		{
+			nameList.AddRange(from Members memberx in memberList
+							  select memberx.account_name);
 		}
 
 		List<StringBuilder> sbs = [];
