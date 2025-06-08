@@ -4414,38 +4414,29 @@ internal class Bot
 	public static List<DEF> ListInPlayerEmbed(int columns, object memberList, string searchTerm, DiscordGuild guild)
 	{
 		List<string> nameList = [];
+
 		if (memberList is List<Members> list)
 		{
 			if (searchTerm.Contains('d'))
 			{
-				List<Members> memberListx = list;
 				List<WGAccount> wgAccountList = [];
-				foreach (Members memberx in memberListx)
-				{
-					wgAccountList.Add(new WGAccount(WarGamingAppId, memberx.account_id, false, false, false));
-				}
-				wgAccountList = wgAccountList.OrderBy(p => p.last_battle_time).ToList();
-				wgAccountList.Reverse();
-				foreach (WGAccount memberx in wgAccountList)
-				{
-					nameList.Add(memberx.nickname);
-				}
+				wgAccountList.AddRange(from Members memberx in list
+									   select new WGAccount(WarGamingAppId, memberx.account_id, false, false, false));
+				wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time).Reverse()];
+
+				nameList.AddRange(from WGAccount memberx in wgAccountList
+								  select memberx.nickname);
 			}
 			else
 			{
-				List<Members> memberListx = list;
-				foreach (Members memberx in memberListx)
-				{
-					nameList.Add(memberx.account_name);
-				}
+				nameList.AddRange(from Members memberx in list
+								  select memberx.account_name);
 			}
 		}
 		else if (memberList is List<WGAccount> memberListx)
 		{
-			foreach (WGAccount memberx in memberListx)
-			{
-				nameList.Add(memberx.nickname);
-			}
+			nameList.AddRange(from WGAccount memberx in memberListx
+							  select memberx.nickname);
 		}
 
 		List<StringBuilder> sbs = [];
