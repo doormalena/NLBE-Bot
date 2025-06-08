@@ -4407,6 +4407,11 @@ internal class Bot
 
 	public static List<DEF> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, DiscordGuild guild)
 	{
+		if (memberList.Count == 0)
+		{
+			return [];
+		}
+
 		List<string> nameList = [];
 
 		if (searchTerm.Contains('d'))
@@ -4414,7 +4419,7 @@ internal class Bot
 			List<WGAccount> wgAccountList = [];
 			wgAccountList.AddRange(from Members member in memberList
 								   select new WGAccount(WarGamingAppId, member.account_id, false, false, false));
-			wgAccountList = wgAccountList.OrderBy(p => p.last_battle_time).ToList();
+			wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time)];
 			wgAccountList.Reverse();
 
 			nameList.AddRange(from WGAccount memberx in wgAccountList
@@ -4424,11 +4429,6 @@ internal class Bot
 		{
 			nameList.AddRange(from Members member in memberList
 							  select member.account_name);
-		}
-
-		if (nameList.Count == 0)
-		{
-			return [];
 		}
 
 		List<StringBuilder> sbs = [];
