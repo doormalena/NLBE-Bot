@@ -4412,17 +4412,23 @@ internal class Bot
 		if (searchTerm.Contains('d'))
 		{
 			List<WGAccount> wgAccountList = [];
-			wgAccountList.AddRange(from Members memberx in memberList
-								   select new WGAccount(WarGamingAppId, memberx.account_id, false, false, false));
-			wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time).Reverse()];
+			wgAccountList.AddRange(from Members member in memberList
+								   select new WGAccount(WarGamingAppId, member.account_id, false, false, false));
+			wgAccountList = wgAccountList.OrderBy(p => p.last_battle_time).ToList();
+			wgAccountList.Reverse();
 
 			nameList.AddRange(from WGAccount memberx in wgAccountList
 							  select memberx.nickname);
 		}
 		else
 		{
-			nameList.AddRange(from Members memberx in memberList
-							  select memberx.account_name);
+			nameList.AddRange(from Members member in memberList
+							  select member.account_name);
+		}
+
+		if (nameList.Count == 0)
+		{
+			return [];
 		}
 
 		List<StringBuilder> sbs = [];
@@ -4431,116 +4437,112 @@ internal class Bot
 			sbs.Add(new StringBuilder());
 		}
 
-		if (nameList.Count > 0)
-		{
-			int counter = 0;
-			int columnCounter = 0;
-			int rest = nameList.Count % columns;
-			int membersPerColumn = (nameList.Count - rest) / columns;
+		int counter = 0;
+		int columnCounter = 0;
+		int rest = nameList.Count % columns;
+		int membersPerColumn = (nameList.Count - rest) / columns;
 
-			IReadOnlyCollection<DiscordMember> members = [];
-			if (searchTerm.Contains('s'))
+		IReadOnlyCollection<DiscordMember> members = [];
+		if (searchTerm.Contains('s'))
+		{
+			members = guild.GetAllMembersAsync().Result;
+		}
+		while (nameList.Count > 0)
+		{
+			try
 			{
-				members = guild.GetAllMembersAsync().Result;
-			}
-			while (nameList.Count > 0)
-			{
-				try
+				if (searchTerm.Contains('s'))
 				{
-					if (searchTerm.Contains('s'))
+					bool found = false;
+					foreach (DiscordMember memberx in members)
 					{
-						bool found = false;
-						foreach (DiscordMember memberx in members)
+						string[] splittedName = memberx.DisplayName.Split(']');
+						if (splittedName.Length > 1)
 						{
-							string[] splittedName = memberx.DisplayName.Split(']');
-							if (splittedName.Length > 1)
+							string tempName = splittedName[1].Trim(' ');
+							if (tempName.ToLower().Equals(nameList[0].ToLower()))
 							{
-								string tempName = splittedName[1].Trim(' ');
-								if (tempName.ToLower().Equals(nameList[0].ToLower()))
-								{
-									sbs[columnCounter].AppendLine("`" + nameList[0] + "`");
-									found = true;
-									break;
-								}
+								sbs[columnCounter].AppendLine("`" + nameList[0] + "`");
+								found = true;
+								break;
 							}
 						}
-						if (!found)
-						{
-							sbs[columnCounter].AppendLine("**" + nameList[0].adaptToDiscordChat() + "**");
-						}
 					}
-					else
+					if (!found)
 					{
-						sbs[columnCounter].AppendLine(nameList[0].adaptToDiscordChat());
-					}
-
-					nameList.RemoveAt(0);
-
-					if (counter == (membersPerColumn + (columnCounter == columns - 1 ? rest : 0)) || nameList.Count == 1)
-					{
-						if (columnCounter < (columns - 1))
-						{
-							columnCounter++;
-						}
-						counter = 0;
-					}
-					else
-					{
-						counter++;
+						sbs[columnCounter].AppendLine("**" + nameList[0].adaptToDiscordChat() + "**");
 					}
 				}
-				catch (Exception ex)
+				else
 				{
-					HandleError("Error in listInPlayerEmbed:", ex.Message, ex.StackTrace).Wait();
+					sbs[columnCounter].AppendLine(nameList[0].adaptToDiscordChat());
+				}
+
+				nameList.RemoveAt(0);
+
+				if (counter == (membersPerColumn + (columnCounter == columns - 1 ? rest : 0)) || nameList.Count == 1)
+				{
+					if (columnCounter < (columns - 1))
+					{
+						columnCounter++;
+					}
+					counter = 0;
+				}
+				else
+				{
+					counter++;
 				}
 			}
-
-			List<DEF> deflist = [];
-			bool firstTime = true;
-			foreach (StringBuilder item in sbs)
+			catch (Exception ex)
 			{
-				if (item.Length > 0)
+				HandleError("Error in listInPlayerEmbed:", ex.Message, ex.StackTrace).Wait();
+			}
+		}
+
+		List<DEF> deflist = [];
+		bool firstTime = true;
+		foreach (StringBuilder item in sbs)
+		{
+			if (item.Length > 0)
+			{
+				string[] splitted = item.ToString().Split(Environment.NewLine);
+				string firstChar = RemoveSyntaxe(splitted[0]).Substring(0, 1);
+				string lastChar = string.Empty;
+				for (int i = splitted.Length - 1; i > 0; i--)
 				{
-					string[] splitted = item.ToString().Split(Environment.NewLine);
-					string firstChar = RemoveSyntaxe(splitted[0]).Substring(0, 1);
-					string lastChar = string.Empty;
-					for (int i = splitted.Length - 1; i > 0; i--)
+					if (splitted[i] != string.Empty)
 					{
-						if (splitted[i] != string.Empty)
-						{
-							lastChar = RemoveSyntaxe(splitted[i]).ToUpper().First().ToString();
-							break;
-						}
+						lastChar = RemoveSyntaxe(splitted[i]).ToUpper().First().ToString();
+						break;
 					}
-					string defName = string.Empty;
-					if (searchTerm.Contains('d'))
+				}
+				string defName = string.Empty;
+				if (searchTerm.Contains('d'))
+				{
+					if (firstTime)
 					{
-						if (firstTime)
-						{
-							firstTime = false;
-							defName = "Recentst";
-						}
-						else
-						{
-							defName = item.Equals(sbs[sbs.Count - 1]) ? "minst recent" : "minder recent";
-						}
+						firstTime = false;
+						defName = "Recentst";
 					}
 					else
 					{
-						defName = (firstChar.ToUpper() + (splitted.Length > 2 ? " - " + lastChar.ToUpper() : ""));
+						defName = item.Equals(sbs[sbs.Count - 1]) ? "minst recent" : "minder recent";
 					}
-					DEF newDef = new()
-					{
-						Inline = true,
-						Name = defName.adaptToDiscordChat(),
-						Value = item.ToString()
-					};
-					deflist.Add(newDef);
 				}
+				else
+				{
+					defName = (firstChar.ToUpper() + (splitted.Length > 2 ? " - " + lastChar.ToUpper() : ""));
+				}
+				DEF newDef = new()
+				{
+					Inline = true,
+					Name = defName.adaptToDiscordChat(),
+					Value = item.ToString()
+				};
+				deflist.Add(newDef);
 			}
-			return deflist;
 		}
-		return [];
+		return deflist;
 	}
 
 	public static List<string> GetSearchTermAndCondition(params string[] parameter)
