@@ -228,7 +228,7 @@ internal class Bot
 		{
 			newDiscEmbedBuilder.Author = embedAuthor;
 		}
-		bool imageWorked = true;
+
 		try
 		{
 			if (imageURL != string.Empty)
@@ -236,12 +236,10 @@ internal class Bot
 				newDiscEmbedBuilder.ImageUrl = imageURL;
 			}
 		}
-		catch
+		catch (Exception ex)
 		{
-			imageWorked = false;
-		}
-		if (!imageWorked)
-		{
+			_logger.LogDebug(ex, ex.Message);
+
 			try
 			{
 				if (imageURL != string.Empty)
@@ -249,9 +247,9 @@ internal class Bot
 					newDiscEmbedBuilder.WithImageUrl(new Uri(imageURL.Replace("\\", string.Empty)));
 				}
 			}
-			catch (Exception ex)
+			catch (Exception innerEx)
 			{
-				await HandleError("Could not set imageurl for embed: ", ex.Message, ex.StackTrace);
+				await HandleError("Could not set imageurl for embed: ", innerEx.Message, innerEx.StackTrace);
 			}
 		}
 
@@ -4455,13 +4453,14 @@ internal class Bot
 		{
 			sbs.Add(new StringBuilder());
 		}
-		int counter = 0;
-		int columnCounter = 0;
-		int rest = nameList.Count % columns;
-		int membersPerColumn = (nameList.Count - rest) / columns;
-		int amountOfMembers = nameList.Count;
-		if (amountOfMembers > 0)
+
+		if (nameList.Count > 0)
 		{
+			int counter = 0;
+			int columnCounter = 0;
+			int rest = nameList.Count % columns;
+			int membersPerColumn = (nameList.Count - rest) / columns;
+
 			IReadOnlyCollection<DiscordMember> members = [];
 			if (searchTerm.Contains('s'))
 			{
