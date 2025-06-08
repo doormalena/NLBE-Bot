@@ -4412,26 +4412,18 @@ internal class Bot
 			return [];
 		}
 
-		List<string> nameList = [];
+		List<string> nameList;
 
 		if (searchTerm.Contains('d'))
 		{
-			List<WGAccount> wgAccountList = [];
-			wgAccountList.AddRange(from Members member in memberList
-								   select new WGAccount(WarGamingAppId, member.account_id, false, false, false));
+			List<WGAccount> wgAccountList = memberList.Select(member => new WGAccount(WarGamingAppId, member.account_id, false, false, false))
+													  .OrderBy(p => p.last_battle_time).Reverse().ToList();
 
-			if (wgAccountList.Count > 0)
-			{
-				wgAccountList = [.. wgAccountList.OrderBy(p => p.last_battle_time)];
-				wgAccountList.Reverse();
-				nameList.AddRange(from WGAccount memberx in wgAccountList
-								  select memberx.nickname);
-			}
+			nameList = wgAccountList.Select(member => member.nickname).ToList();
 		}
 		else
 		{
-			nameList.AddRange(from Members member in memberList
-							  select member.account_name);
+			nameList = memberList.Select(member => member.account_name).ToList();
 		}
 
 		List<StringBuilder> sbs = [];
