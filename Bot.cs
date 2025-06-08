@@ -4941,7 +4941,6 @@ internal class Bot
 				bool alreadyAdded = false;
 				if (tierHOF != null)
 				{
-					alreadyAdded = false;
 					foreach (Tuple<string, List<TankHof>> tank in tierHOF)
 					{
 						foreach (TankHof hof in tank.Item2)
@@ -5027,10 +5026,9 @@ internal class Bot
 						return new Tuple<string, DiscordMessage>(string.Empty, tempMessage);//string empty omdat dan hofafterupload het niet verkeerd opvat
 					}
 				}
-				tierHOF ??= [];
-				if (!alreadyAdded)
+				else
 				{
-					DiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, tierHOF);
+					DiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, []);
 					return new Tuple<string, DiscordMessage>((tempMessage != null ? tempMessage.Content : string.Empty), tempMessage);
 				}
 			}
