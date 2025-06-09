@@ -2073,11 +2073,11 @@ internal class Bot
 							_logger.LogDebug(ex, ex.Message);
 						}
 
-						temp = string.IsNullOrEmpty(temp) ? participant.Item2 : RemoveSyntaxe(participant.Item2);
+						temp = string.IsNullOrEmpty(temp) ? participant.Item2 : RemoveSyntax(participant.Item2);
 						bool alreadyInList = false;
 						foreach (Tuple<ulong, string> participantX in participants)
 						{
-							if ((participantX.Item1.Equals(participant.Item1) && participant.Item1 > 0) || participantX.Item2.Equals(RemoveSyntaxe(participant.Item2)))
+							if ((participantX.Item1.Equals(participant.Item1) && participant.Item1 > 0) || participantX.Item2.Equals(RemoveSyntax(participant.Item2)))
 							{
 								alreadyInList = true;
 								break;
@@ -2102,40 +2102,28 @@ internal class Bot
 			return participants;
 		}
 	}
-	private static string RemoveSyntaxe(string stringItem)
+	private static string RemoveSyntax(string stringItem)
 	{
 		stringItem = stringItem.Replace("\\", string.Empty);
+
 		if (stringItem.StartsWith("**") && stringItem.EndsWith("**"))
 		{
 			return stringItem.Trim('*');
 		}
-		else if (stringItem.StartsWith('`') && stringItem.EndsWith('`'))
+
+		if (stringItem.StartsWith('`') && stringItem.EndsWith('`'))
 		{
 			return stringItem.Trim('`');
 		}
-		else
-		{
-			return stringItem;
-		}
+
+		return stringItem;
 	}
-	public static List<string> RemoveSyntaxes(List<string> stringList)
-	{
-		List<string> tempList = [];
-		foreach (string item in stringList)
-		{
-			tempList.Add(RemoveSyntaxe(item));
-		}
-		return tempList;
-	}
+
 	public static List<Tuple<ulong, string>> RemoveSyntaxes(List<Tuple<ulong, string>> stringList)
 	{
-		List<Tuple<ulong, string>> tempList = [];
-		foreach (Tuple<ulong, string> item in stringList)
-		{
-			tempList.Add(new Tuple<ulong, string>(item.Item1, RemoveSyntaxe(item.Item2)));
-		}
-		return tempList;
+		return stringList.Select(item => Tuple.Create(item.Item1, RemoveSyntax(item.Item2))).ToList();
 	}
+
 	public static async Task<List<string>> GetMentions(List<Tuple<ulong, string>> memberList, ulong guildID)
 	{
 		DiscordGuild guild = await GetGuild(guildID);
@@ -2580,187 +2568,34 @@ internal class Bot
 
 	public static bool HasRight(DiscordMember member, Command command)
 	{
-		if (member.Guild.Id.Equals(Constants.DA_BOIS_ID) || member.Guild.Id.Equals(Constants.NLBE_SERVER_ID))
+		if (member.Guild.Id.Equals(Constants.DA_BOIS_ID))
 		{
-			bool hasRights = false;
-			if (member.Guild.Id.Equals(Constants.DA_BOIS_ID))
-			{
-				return true;
-			}
-			switch (command.Name.ToLower())
-			{
-				case "help":
-					hasRights = true;
-					break;
-				case "map":
-					hasRights = true;
-					break;
-				case "gebruiker":
-					hasRights = true;
-					break;
-				case "gebruikerslijst":
-					hasRights = true;
-					break;
-				case "clan":
-					hasRights = true;
-					break;
-				case "clanmembers":
-					hasRights = true;
-					break;
-				case "spelerinfo":
-					hasRights = true;
-					break;
-				case "toernooi":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "toernooien":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "teams":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "tagteams":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "hof":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "hofplayer":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "resethof":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "weekly":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "removeplayerhof":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "renameplayerhof":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "poll":
-					if (member.Id.Equals(414421187888676875))
-					{
-						hasRights = true;
-					}
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "updategebruikers":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				case "deputypoll":
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.DEPUTY_NLBE_ROLE) || role.Id.Equals(Constants.DEPUTY_NLBE2_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-				default:
-					foreach (DiscordRole role in member.Roles)
-					{
-						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
-						{
-							hasRights = true;
-							break;
-						}
-					}
-					break;
-			}
-			return hasRights;
+			return true;
 		}
-		else
+
+		if (!member.Guild.Id.Equals(Constants.NLBE_SERVER_ID))
 		{
 			return false;
 		}
+
+		return command.Name.ToLower() switch
+		{
+			"help" or "map" or "gebruiker" or "gebruikerslijst" or "clan" or "clanmembers" or "spelerinfo" => true,
+			"toernooi" or "toernooien" => HasAnyRole(member, Constants.TOERNOOI_DIRECTIE),
+			"teams" => HasAnyRole(member, Constants.NLBE_ROLE, Constants.NLBE2_ROLE, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
+			"tagteams" => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
+			"hof" or "hofplayer" => HasAnyRole(member, Constants.NLBE_ROLE, Constants.NLBE2_ROLE),
+			"resethof" or "weekly" or "updategebruikers" => HasAnyRole(member, Constants.BEHEERDER_ROLE, Constants.DISCORD_ADMIN_ROLE),
+			"removeplayerhof" or "renameplayerhof" => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE),
+			"poll" => member.Id.Equals(414421187888676875) || HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
+			"deputypoll" => HasAnyRole(member, Constants.DEPUTY_ROLE, Constants.DEPUTY_NLBE_ROLE, Constants.DEPUTY_NLBE2_ROLE, Constants.DISCORD_ADMIN_ROLE),
+			_ => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
+		};
+	}
+
+	private static bool HasAnyRole(DiscordMember member, params ulong[] roleIds)
+	{
+		return member.Roles.Any(role => roleIds.Contains(role.Id));
 	}
 
 	public static async Task ShowMemberInfo(DiscordChannel channel, object gebruiker)
@@ -4182,7 +4017,7 @@ internal class Bot
 						return ListInMemberEmbed(columns + 1, backupMemberList, searchTerm);
 					}
 					string[] splitted = item.ToString().Split(Environment.NewLine);
-					string firstChar = RemoveSyntaxe(splitted[0]).Substring(0, 1);
+					string firstChar = RemoveSyntax(splitted[0]).Substring(0, 1);
 					string lastChar = string.Empty;
 					string defName = string.Empty;
 					if (searchTerm.Contains('o') || searchTerm.Contains('c'))
@@ -4312,13 +4147,13 @@ internal class Bot
 			if (item.Length > 0)
 			{
 				string[] splitted = item.ToString().Split(Environment.NewLine);
-				string firstChar = RemoveSyntaxe(splitted[0]).Substring(0, 1);
+				string firstChar = RemoveSyntax(splitted[0]).Substring(0, 1);
 				string lastChar = string.Empty;
 				for (int i = splitted.Length - 1; i > 0; i--)
 				{
 					if (splitted[i] != string.Empty)
 					{
-						lastChar = RemoveSyntaxe(splitted[i]).ToUpper().First().ToString();
+						lastChar = RemoveSyntax(splitted[i]).ToUpper().First().ToString();
 						break;
 					}
 				}
