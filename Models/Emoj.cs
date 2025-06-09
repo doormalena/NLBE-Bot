@@ -1,4 +1,4 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Models;
 
 public static class Emoj
 {

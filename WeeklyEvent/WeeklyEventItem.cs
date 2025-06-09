@@ -1,4 +1,5 @@
-﻿using DSharpPlus.Entities;
+using DSharpPlus.Entities;
+using NLBE_Bot.Models;
 using System;
 
 namespace NLBE_Bot

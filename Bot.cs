@@ -10,6 +10,7 @@ using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Net.Models;
 using FMWOTB;
 using FMWOTB.Account;
+using FMWOTB.Account.Statistics;
 using FMWOTB.Clans;
 using FMWOTB.Exceptions;
 using FMWOTB.Tools;
@@ -19,14 +20,18 @@ using FMWOTB.Vehicles;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLBE_Bot.Helpers;
+using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection.Metadata;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 internal class Bot
@@ -149,73 +154,55 @@ internal class Bot
 		return false;
 	}
 
-	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor)
-	{
-		return await CreateEmbed(channel, thumbnail, content, title, description, string.Empty, discEmbFieldList, emojiList, imageURL, embedAuthor, Constants.BOT_COLOR, false);
-	}
-	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor, bool isForReplay)
-	{
-		return await CreateEmbed(channel, thumbnail, content, title, description, string.Empty, discEmbFieldList, emojiList, imageURL, embedAuthor, Constants.BOT_COLOR, isForReplay);
-	}
-	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, string footer, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor, DiscordColor color, bool isForReplay)
-	{
-		return await CreateEmbed(channel, thumbnail, content, title, description, footer, discEmbFieldList, emojiList, imageURL, embedAuthor, color, isForReplay, string.Empty);
-	}
-	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, string footer, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor, DiscordColor color, bool isForReplay, string nextMessage)
+	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, EmbedOptions options)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
-			Color = color,
-			Title = title,
-			Description = description
+			Color = options.Color,
+			Title = options.Title,
+			Description = options.Description
 		};
 
-		if (thumbnail != string.Empty)
+		if (!string.IsNullOrEmpty(options.Thumbnail))
 		{
 			try
 			{
-				if (imageURL != string.Empty)
-				{
-					newDiscEmbedBuilder.WithThumbnail(thumbnail);
-				}
+				newDiscEmbedBuilder.WithThumbnail(options.Thumbnail);
 			}
 			catch (Exception ex)
 			{
 				await HandleError("Could not set imageurl for embed: ", ex.Message, ex.StackTrace);
 			}
 		}
-		if (embedAuthor != null)
+		if (options.Author != null)
 		{
-			newDiscEmbedBuilder.Author = embedAuthor;
+			newDiscEmbedBuilder.Author = options.Author;
 		}
 
-		try
+		if (!string.IsNullOrEmpty(options.ImageUrl))
 		{
-			if (imageURL != string.Empty)
-			{
-				newDiscEmbedBuilder.ImageUrl = imageURL;
-			}
-		}
-		catch (Exception ex)
-		{
-			_logger.LogDebug(ex, ex.Message);
-
 			try
 			{
-				if (imageURL != string.Empty)
-				{
-					newDiscEmbedBuilder.WithImageUrl(new Uri(imageURL.Replace("\\", string.Empty)));
-				}
+				newDiscEmbedBuilder.ImageUrl = options.ImageUrl;
 			}
-			catch (Exception innerEx)
+			catch (Exception ex)
 			{
-				await HandleError("Could not set imageurl for embed: ", innerEx.Message, innerEx.StackTrace);
+				_logger.LogDebug(ex, ex.Message);
+
+				try
+				{
+					newDiscEmbedBuilder.WithImageUrl(new Uri(options.ImageUrl.Replace("\\", string.Empty)));
+				}
+				catch (Exception innerEx)
+				{
+					await HandleError("Could not set imageurl for embed: ", innerEx.Message, innerEx.StackTrace);
+				}
 			}
 		}
 
-		if (discEmbFieldList != null && discEmbFieldList.Count > 0)
+		if (options.Fields != null && options.Fields.Count > 0)
 		{
-			foreach (DEF field in discEmbFieldList)
+			foreach (DEF field in options.Fields)
 			{
 				if (field.Value.Length > 0)
 				{
@@ -230,26 +217,26 @@ internal class Bot
 				}
 			}
 		}
-		if (footer != null && footer.Length > 0)
+		if (options.Footer != null && options.Footer.Length > 0)
 		{
 			DiscordEmbedBuilder.EmbedFooter embedFooter = new()
 			{
-				Text = footer
+				Text = options.Footer
 			};
 			newDiscEmbedBuilder.Footer = embedFooter;
 		}
 		DiscordEmbed embed = newDiscEmbedBuilder.Build();
 		try
 		{
-			DiscordMessage theMessage = isForReplay
-				? discordMessage.RespondAsync(content, embed).Result
-				: discordClient.SendMessageAsync(channel, content, embed).Result;
+			DiscordMessage theMessage = options.IsForReplay
+				? discordMessage.RespondAsync(options.Content, embed).Result
+				: discordClient.SendMessageAsync(channel, options.Content, embed).Result;
 
 			try
 			{
-				if (emojiList != null)
+				if (options.Emojis != null)
 				{
-					foreach (DiscordEmoji anEmoji in emojiList)
+					foreach (DiscordEmoji anEmoji in options.Emojis)
 					{
 						await theMessage.CreateReactionAsync(anEmoji);
 					}
@@ -259,9 +246,9 @@ internal class Bot
 			{
 				await HandleError("Error while adding emoji's:", ex.Message, ex.StackTrace);
 			}
-			if (nextMessage != null && nextMessage.Length > 0)
+			if (!string.IsNullOrEmpty(options.NextMessage))
 			{
-				await channel.SendMessageAsync(nextMessage);
+				await channel.SendMessageAsync(options.NextMessage);
 			}
 			return theMessage;
 		}
@@ -894,7 +881,13 @@ internal class Bot
 							};
 							defList.Add(newDef);
 						}
-						await CreateEmbed(oudLedenChannel, string.Empty, string.Empty, e.Member.Username + " heeft de server verlaten", string.Empty, defList, null, string.Empty, null);
+
+						EmbedOptions options = new()
+						{
+							Title = e.Member.Username + " heeft de server verlaten",
+							Fields = defList,
+						};
+						await CreateEmbed(oudLedenChannel, options);
 					}
 				}
 			}
@@ -1134,7 +1127,14 @@ internal class Bot
 								break;
 							}
 						}
-						await CreateEmbed(e.Channel, thumbnail, string.Empty, "Resultaat", await GetDescriptionForReplay(replayInfo, -1, eventDescription), null, null, string.Empty, null, true);
+						EmbedOptions options = new()
+						{
+							Thumbnail = thumbnail,
+							Title = "Resultaat",
+							Description = await GetDescriptionForReplay(replayInfo, -1, eventDescription),
+							IsForReplay = true,
+						};
+						await CreateEmbed(e.Channel, options);
 						await ConfirmCommandExecuted(e.Message);
 					}
 					else if (wasReplay)
@@ -1956,7 +1956,13 @@ internal class Bot
 										deflist.Add(def);
 									}
 
-									await CreateEmbed(channel, string.Empty, string.Empty, "Teams", (teams.Count > 0 ? string.Empty : "Geen teams"), deflist, null, string.Empty, null);
+									EmbedOptions options = new()
+									{
+										Title = "Teams",
+										Description = (teams.Count > 0 ? string.Empty : "Geen teams"),
+										Fields = deflist,
+									};
+									await CreateEmbed(channel, options);
 									return [];
 								}
 							}
@@ -2862,7 +2868,13 @@ internal class Bot
 				}
 			}
 
-			await CreateEmbed(channel, string.Empty, string.Empty, "Info over " + discordMember.DisplayName.adaptToDiscordChat() + (discordMember.IsBot ? " [BOT]" : ""), string.Empty, deflist, null, string.Empty, newAuthor);
+			EmbedOptions options = new()
+			{
+				Title = "Info over " + discordMember.DisplayName.adaptToDiscordChat() + (discordMember.IsBot ? " [BOT]" : ""),
+				Fields = deflist,
+				Author = newAuthor,
+			};
+			await CreateEmbed(channel, options);
 		}
 		else if (gebruiker is WGAccount account)
 		{
@@ -2976,7 +2988,16 @@ internal class Bot
 						deflist.Add(newDef7);
 					}
 				}
-				await CreateEmbed(channel, string.Empty, string.Empty, "Info over " + member.nickname.adaptToDiscordChat(), string.Empty, string.Empty, deflist, null, string.Empty, null, Constants.BOT_COLOR, false, member.blitzstars);
+
+				EmbedOptions options = new()
+				{
+					Title = "Info over " + member.nickname.adaptToDiscordChat(),
+					Fields = deflist,
+					Color = Constants.BOT_COLOR,
+					NextMessage = member.blitzstars
+				};
+
+				await CreateEmbed(channel, options);
 			}
 		}
 		else if (gebruiker is DiscordUser discordUser)
@@ -3187,7 +3208,13 @@ internal class Bot
 				}
 			}
 
-			await CreateEmbed(channel, string.Empty, string.Empty, "Info over " + discordUser.Username.adaptToDiscordChat() + "#" + discordUser.Discriminator + (discordUser.IsBot ? " [BOT]" : ""), string.Empty, deflist, null, string.Empty, newAuthor);
+			EmbedOptions options = new()
+			{
+				Title = "Info over " + discordUser.Username.adaptToDiscordChat() + "#" + discordUser.Discriminator + (discordUser.IsBot ? " [BOT]" : ""),
+				Fields = deflist,
+				Author = newAuthor,
+			};
+			await CreateEmbed(channel, options);
 		}
 	}
 
@@ -3253,7 +3280,12 @@ internal class Bot
 		};
 		deflist.Add(newDef7);
 
-		await CreateEmbed(channel, string.Empty, string.Empty, "Info over " + clan.name.adaptToDiscordChat(), string.Empty, deflist, null, string.Empty, null);
+		EmbedOptions options = new()
+		{
+			Title = "Info over " + clan.name.adaptToDiscordChat(),
+			Fields = deflist,
+		};
+		await CreateEmbed(channel, options);
 	}
 
 	public static async Task ShowTournamentInfo(DiscordChannel channel, WGTournament tournament, string titel)
@@ -3642,7 +3674,13 @@ internal class Bot
 			deflist.Add(newDef3);
 		}
 
-		await CreateEmbed(channel, string.Empty, string.Empty, titel, string.Empty, deflist, null, (tournament.logo != null ? (tournament.logo.original ?? string.Empty) : string.Empty), null);
+		EmbedOptions options = new()
+		{
+			Title = titel,
+			Fields = deflist,
+			ImageUrl = (tournament.logo != null ? (tournament.logo.original ?? string.Empty) : string.Empty),
+		};
+		await CreateEmbed(channel, options);
 	}
 
 	public static async Task<DiscordMessage> SayCannotBePlayedAt(DiscordChannel channel, DiscordMember member, string guildName, string roomType)
@@ -3692,7 +3730,12 @@ internal class Bot
 	}
 	public static async Task SayBeMoreSpecific(DiscordChannel channel)
 	{
-		await CreateEmbed(channel, string.Empty, string.Empty, "Wees specifieker", "Er waren te veel resultaten, probeer iets specifieker te zijn!", null, null, string.Empty, null);
+		EmbedOptions options = new()
+		{
+			Title = "Wees specifieker",
+			Description = "Er waren te veel resultaten, probeer iets specifieker te zijn!",
+		};
+		await CreateEmbed(channel, options);
 	}
 	public static DiscordMessage SayMultipleResults(DiscordChannel channel, string description)
 	{
@@ -4635,7 +4678,14 @@ internal class Bot
 				break;
 			}
 		}
-		await CreateEmbed(channel, thumbnail, string.Empty, "Resultaat", await GetDescriptionForReplay(replayInfo, -1), null, null, string.Empty, null);
+
+		EmbedOptions options = new()
+		{
+			Thumbnail = thumbnail,
+			Title = "Resultaat",
+			Description = await GetDescriptionForReplay(replayInfo, -1),
+		};
+		await CreateEmbed(channel, options);
 		return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
 	}
 	public static async Task<WGBattle> GetReplayInfo(string titel, object attachment, string ign, string url)
@@ -4814,7 +4864,14 @@ internal class Bot
 								break;
 							}
 						}
-						DiscordMessage tempMessage = await CreateEmbed(channel, thumbnail, string.Empty, "Helaas... Deze replay staat er al in.", await GetDescriptionForReplay(battle, 0), null, null, string.Empty, null);
+
+						EmbedOptions options = new()
+						{
+							Thumbnail = thumbnail,
+							Title = "Helaas... Deze replay staat er al in.",
+							Description = await GetDescriptionForReplay(battle, 0),
+						};
+						DiscordMessage tempMessage = await CreateEmbed(channel, options);
 						return new Tuple<string, DiscordMessage>(string.Empty, tempMessage);//string empty omdat dan hofafterupload het niet verkeerd opvat
 					}
 				}

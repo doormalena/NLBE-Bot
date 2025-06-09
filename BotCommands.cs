@@ -12,6 +12,7 @@ using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Blitzstars;
 using NLBE_Bot.Helpers;
+using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -86,7 +87,14 @@ public class BotCommands : BaseCommandModule
 									emojiList.Add(Bot.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
 								}
 
-								await Bot.CreateEmbed(toernooiAanmeldenChannel, string.Empty, "@everyone", "Toernooi", string.Empty, deflist, emojiList, string.Empty, null);
+								EmbedOptions options = new()
+								{
+									Content = "@everyone",
+									Title = "Toernooi",
+									Fields = deflist,
+									Emojis = emojiList
+								};
+								await Bot.CreateEmbed(toernooiAanmeldenChannel, options);
 							}
 							else
 							{
@@ -283,7 +291,13 @@ public class BotCommands : BaseCommandModule
 						deflist.Add(newDef);
 					}
 
-					await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Teams", (tiers.Count > 0 ? "Organisator: " + tiers[0].Organisator : "Geen teams"), deflist, null, string.Empty, null);
+					EmbedOptions options = new()
+					{
+						Title = "Teams",
+						Description = (tiers.Count > 0 ? "Organisator: " + tiers[0].Organisator : "Geen teams"),
+						Fields = deflist,
+					};
+					await Bot.CreateEmbed(ctx.Channel, options);
 				}
 				else if (tiers == null)
 				{
@@ -356,7 +370,14 @@ public class BotCommands : BaseCommandModule
 						deflist.Add(def);
 					}
 
-					await Bot.CreateEmbed(pollChannel, string.Empty, string.Empty, "Poll", uitleg.adaptToDiscordChat(), deflist, emojiList, string.Empty, null);
+					EmbedOptions options = new()
+					{
+						Title = "Poll",
+						Description = uitleg.adaptToDiscordChat(),
+						Fields = deflist,
+						Emojis = emojiList,
+					};
+					await Bot.CreateEmbed(pollChannel, options);
 				}
 				else
 				{
@@ -587,7 +608,15 @@ public class BotCommands : BaseCommandModule
 													Name = ctx.Member.DisplayName,
 													IconUrl = ctx.Member.AvatarUrl
 												};
-												await Bot.CreateEmbed(deputiesPollsChannel, string.Empty, Tag, "Poll", Onderwerp, null, emojies, string.Empty, author);
+												EmbedOptions options = new()
+												{
+													Content = Tag,
+													Title = "Poll",
+													Description = Onderwerp,
+													Emojis = emojies,
+													Author = author,
+												};
+												await Bot.CreateEmbed(deputiesPollsChannel, options);
 											}
 										}
 									}
@@ -654,7 +683,12 @@ public class BotCommands : BaseCommandModule
 						{
 							sb.AppendLine(item.Item1);
 						}
-						await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Mappen", sb.ToString(), null, null, string.Empty, null);
+						EmbedOptions options = new()
+						{
+							Title = "Mappen",
+							Description = sb.ToString(),
+						};
+						await Bot.CreateEmbed(ctx.Channel, options);
 					}
 					else
 					{
@@ -664,13 +698,23 @@ public class BotCommands : BaseCommandModule
 							if (item.Item1.ToLower().Contains(sbMap.ToString().ToLower()))
 							{
 								mapFound = true;
-								await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, item.Item1, string.Empty, null, null, item.Item2, null);
+
+								EmbedOptions options = new()
+								{
+									Title = item.Item1,
+									ImageUrl = item.Item2
+								};
+								await Bot.CreateEmbed(ctx.Channel, options);
 								break;
 							}
 						}
 						if (!mapFound)
 						{
-							await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "De map `" + sbMap.ToString() + "` kon niet gevonden worden.", string.Empty, null, null, string.Empty, null);
+							EmbedOptions options = new()
+							{
+								Title = "De map `" + sbMap.ToString() + "` kon niet gevonden worden."
+							};
+							await Bot.CreateEmbed(ctx.Channel, options);
 						}
 					}
 				}
@@ -943,7 +987,13 @@ public class BotCommands : BaseCommandModule
 						Value = sb.ToString()
 					};
 					deflist.Add(newDef1);
-					await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Help", "Versie: `" + Constants.version + "`", deflist, null, string.Empty, null);
+					EmbedOptions options = new()
+					{
+						Title = "Help",
+						Description = "Versie: `" + Constants.version + "`",
+						Fields = deflist
+					};
+					await Bot.CreateEmbed(ctx.Channel, options);
 				}
 				else if (optioneel_commando.Length == 1)
 				{
@@ -1058,7 +1108,12 @@ public class BotCommands : BaseCommandModule
 								}
 								deflist.Add(newDef3);
 							}
-							await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Help voor `" + command.Key + "`", string.Empty, deflist, null, string.Empty, null);
+							EmbedOptions options = new()
+							{
+								Title = "Help voor `" + command.Key + "`",
+								Fields = deflist,
+							};
+							await Bot.CreateEmbed(ctx.Channel, options);
 							break;
 						}
 					}
@@ -1494,7 +1549,13 @@ public class BotCommands : BaseCommandModule
 				{
 					sortedBy = "Clanjoindatum";
 				}
-				await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Gebruikerslijst [" + ctx.Guild.Name.adaptToDiscordChat() + ": " + members.Count + "] (Gevonden: " + amountOfMembers + ") " + "(Gesorteerd: " + sortedBy + ")", (usersFound ? string.Empty : "Geen gebruikers gevonden die voldoen aan de zoekterm!"), (usersFound ? deflist : null), null, string.Empty, null);
+				EmbedOptions options = new()
+				{
+					Title = "Gebruikerslijst [" + ctx.Guild.Name.adaptToDiscordChat() + ": " + members.Count + "] (Gevonden: " + amountOfMembers + ") " + "(Gesorteerd: " + sortedBy + ")",
+					Description = (usersFound ? string.Empty : "Geen gebruikers gevonden die voldoen aan de zoekterm!"),
+					Fields = (usersFound ? deflist : null)
+				};
+				await Bot.CreateEmbed(ctx.Channel, options);
 				await Bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
@@ -1568,7 +1629,12 @@ public class BotCommands : BaseCommandModule
 					{
 						sorting = "laatst actief";
 					}
-					await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Clanmembers van [" + clan.tag.adaptToDiscordChat() + "] (Gevonden: " + clan.members.Count + ") (Gesorteerd: " + sorting + ")", string.Empty, defList, null, string.Empty, null);
+					EmbedOptions options = new()
+					{
+						Title = "Clanmembers van [" + clan.tag.adaptToDiscordChat() + "] (Gevonden: " + clan.members.Count + ") (Gesorteerd: " + sorting + ")",
+						Fields = defList
+					};
+					await Bot.CreateEmbed(ctx.Channel, options);
 				}
 				else
 				{
@@ -1890,7 +1956,12 @@ public class BotCommands : BaseCommandModule
 					sb.Append(player.Item2.Count.ToString());
 				}
 				sb.Append("```");
-				await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Hall Of Fame plekken per speler", sb.ToString(), null, null, string.Empty, null);
+				EmbedOptions options = new()
+				{
+					Title = "Hall Of Fame plekken per speler",
+					Description = sb.ToString()
+				};
+				await Bot.CreateEmbed(ctx.Channel, options);
 				await Bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
@@ -1991,7 +2062,13 @@ public class BotCommands : BaseCommandModule
 						break;
 					}
 				}
-				await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Hall Of Fame plekken van " + name.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_'), (found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald."), defList, null, string.Empty, null);
+				EmbedOptions options = new()
+				{
+					Title = "Hall Of Fame plekken van " + name.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_'),
+					Description = (found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald."),
+					Fields = defList,
+				};
+				await Bot.CreateEmbed(ctx.Channel, options);
 				await Bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
