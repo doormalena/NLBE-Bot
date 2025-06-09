@@ -19,8 +19,10 @@ using FMWOTB.Vehicles;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.Helpers;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -61,7 +63,6 @@ internal class Bot
 	public const ulong DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID = 808324144197271573;
 	public const long NLBE_CLAN_ID = 865;
 	public const long NLBE2_CLAN_ID = 48814;
-	public const char LOG_SPLIT_CHAR = '|';
 	public const char UNDERSCORE_REPLACEMENT_CHAR = 'ˍ';
 	public const char REPLACEABLE_UNDERSCORE_CHAR = '＿';
 
@@ -128,7 +129,7 @@ internal class Bot
 		await discordClient.ConnectAsync(act, UserStatus.Online);
 
 		//Events
-		discordClient.Heartbeated += DiscordClient_Heartbeated;
+		discordClient.Heartbeated += Discord_Heartbeated;
 		discordClient.Ready += Discord_Ready;
 		discordClient.GuildMemberAdded += Discord_GuildMemberAdded;
 		discordClient.MessageReactionAdded += Discord_MessageReactionAdded;
@@ -149,7 +150,6 @@ internal class Bot
 
 	public static async Task<DiscordMessage> SendMessage(DiscordChannel channel, DiscordMember member, string guildName, string Message)
 	{
-		bool Worked;
 		try
 		{
 			return await channel.SendMessageAsync(Message);
@@ -157,7 +157,7 @@ internal class Bot
 		catch (Exception ex)
 		{
 			await HandleError("[" + guildName + "] (" + channel.Name + ") Could not send message: ", ex.Message, ex.StackTrace);
-			Worked = false;
+
 			if (ex.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
 			{
 				await SayBotNotAuthorized(channel);
@@ -166,11 +166,13 @@ internal class Bot
 			{
 				await SayTooManyCharacters(channel);
 			}
+
+			if (member != null)
+			{
+				await SendPrivateMessage(member, guildName, Message);
+			}
 		}
-		if (!Worked && member != null)
-		{
-			await SendPrivateMessage(member, guildName, Message);
-		}
+
 		return null;
 	}
 
@@ -313,7 +315,7 @@ internal class Bot
 
 	#region Events
 
-	private Task DiscordClient_Heartbeated(DiscordClient sender, HeartbeatEventArgs e)
+	private Task Discord_Heartbeated(DiscordClient sender, HeartbeatEventArgs e)
 	{
 		_ = Task.Run(async () =>
 		{
@@ -522,7 +524,7 @@ internal class Bot
 				guild.Value.LeaveAsync();
 			}
 		}
-		discordClient.Logger.Log(LogLevel.Information, "Client( v" + version + " ) is ready to process events.");
+		discordClient.Logger.Log(LogLevel.Information, "Client (v{Version}) is ready to process events.", version);
 
 		return Task.CompletedTask;
 	}
@@ -533,20 +535,17 @@ internal class Bot
 		{
 			if (!ignoreEvents && !e.User.IsBot && e.Guild.Id is NLBE_SERVER_ID or DA_BOIS_ID)
 			{
-				bool alreadyDone = false;
 				DiscordChannel toernooiAanmeldenChannel = await GetToernooiAanmeldenChannel(e.Guild.Id);
 				if (toernooiAanmeldenChannel != null && e.Channel.Equals(toernooiAanmeldenChannel))
 				{
 					DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-					alreadyDone = true;
 					await GenerateLogMessage(message, toernooiAanmeldenChannel, e.User.Id, GetDiscordEmoji(e.Emoji.Name));
 				}
-				if (!alreadyDone)
+				else
 				{
 					DiscordChannel regelsChannel = await GetRegelsChannel();
 					if (regelsChannel != null && e.Channel.Equals(regelsChannel))
 					{
-						alreadyDone = true;
 						string rulesReadEmoji = ":ok:";
 						if (e.Emoji.GetDiscordName().Equals(rulesReadEmoji))
 						{
@@ -659,19 +658,19 @@ internal class Bot
 							DiscordChannel logchannel = await GetLogChannel(e.Guild.Id);
 							if (logchannel != null)
 							{
-								Dictionary<DateTime, List<DiscordMessage>> sortedMessages = SortMessages(await logchannel.GetMessagesAsync(100));
+								Dictionary<DateTime, List<DiscordMessage>> sortedMessages = (await logchannel.GetMessagesAsync(100)).SortMessages();
 								foreach (KeyValuePair<DateTime, List<DiscordMessage>> messageList in sortedMessages)
 								{
 									try
 									{
-										if (CompareDateTime(e.Message.CreationTimestamp.LocalDateTime, messageList.Key))
+										if (e.Message.CreationTimestamp.LocalDateTime.CompareDateTime(messageList.Key))
 										{
 											foreach (DiscordMessage aMessage in messageList.Value)
 											{
 												DiscordMember member = await GetDiscordMember(e.Guild, e.User.Id);
 												if (member != null)
 												{
-													string[] splitted = aMessage.Content.Split(LOG_SPLIT_CHAR);
+													string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
 													string theEmoji = GetEmojiAsString(e.Emoji.Name);
 													if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && GetEmojiAsString(splitted[3]).Equals(theEmoji))
 													{
@@ -715,19 +714,8 @@ internal class Bot
 						foreach (DiscordMessage message in messages)
 						{
 							string[] splitted = message.Content.Split('|');
-							DateTime tempDateTime = new();
-							bool isDateTime = true;
 
-							try
-							{
-								tempDateTime = Convert.ToDateTime(splitted[0]);
-							}
-							catch
-							{
-								isDateTime = false;
-							}
-
-							if (isDateTime && CompareDateTime(tempDateTime, timeStamp))
+							if (DateTime.TryParse(splitted[0], new CultureInfo("nl-NL"), out DateTime tempDateTime) && tempDateTime.CompareDateTime(timeStamp))
 							{
 								await message.DeleteAsync();
 								await Task.Delay(875);
@@ -781,29 +769,23 @@ internal class Bot
 										}
 										string ign = AskQuestion(await GetWelkomChannel(), user, guild, question).Result;
 										searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, WarGamingAppId, false, true, false);
-										if (searchResults != null)
+										if (searchResults != null && searchResults.Count > 0)
 										{
-											if (searchResults != null)
+											resultFound = true;
+											foreach (WGAccount tempAccount in searchResults)
 											{
-												if (searchResults.Count > 0)
+												string tempClanName = string.Empty;
+												if (tempAccount.clan != null)
 												{
-													resultFound = true;
-													foreach (WGAccount tempAccount in searchResults)
-													{
-														string tempClanName = string.Empty;
-														if (tempAccount.clan != null)
-														{
-															tempClanName = tempAccount.clan.tag;
-														}
-														try
-														{
-															sbDescription.AppendLine(++counter + ". " + tempAccount.nickname + " " + (tempClanName.Length > 0 ? '`' + tempClanName + '`' : string.Empty));
-														}
-														catch (Exception ex)
-														{
-															discordClient.Logger.LogWarning(ex, "Error while looking for basicInfo for {Ign}:\n {StackTrace}", ign, ex.StackTrace);
-														}
-													}
+													tempClanName = tempAccount.clan.tag;
+												}
+												try
+												{
+													sbDescription.AppendLine(++counter + ". " + tempAccount.nickname + " " + (tempClanName.Length > 0 ? '`' + tempClanName + '`' : string.Empty));
+												}
+												catch (Exception ex)
+												{
+													discordClient.Logger.LogWarning(ex, "Error while looking for basicInfo for {Ign}:\n {StackTrace}", ign, ex.StackTrace);
 												}
 											}
 										}
@@ -815,7 +797,7 @@ internal class Bot
 										selectedAccount = -1;
 										while (selectedAccount == -1)
 										{
-											await WaitForReply(welkomChannel, user, sbDescription.ToString(), counter);
+											selectedAccount = await WaitForReply(welkomChannel, user, sbDescription.ToString(), counter);
 										}
 									}
 
@@ -894,72 +876,66 @@ internal class Bot
 									serverRoles = guild.Value.Roles;
 								}
 							}
-							if (serverRoles != null)
+							if (serverRoles != null && serverRoles.Count > 0)
 							{
-								if (serverRoles.Count > 0)
+								IEnumerable<DiscordRole> memberRoles = e.Member.Roles;
+								StringBuilder sbRoles = new();
+								bool firstRole = true;
+								foreach (DiscordRole role in memberRoles)
 								{
-									IEnumerable<DiscordRole> memberRoles = e.Member.Roles;
-									StringBuilder sbRoles = new();
-									bool firstRole = true;
-									foreach (DiscordRole role in memberRoles)
+									foreach (KeyValuePair<ulong, DiscordRole> serverRole in serverRoles)
 									{
-										if (serverRoles != null)
+										if (serverRole.Key.Equals(role.Id))
 										{
-											foreach (KeyValuePair<ulong, DiscordRole> serverRole in serverRoles)
+											if (role.Id.Equals(NOOB_ROLE))
 											{
-												if (serverRole.Key.Equals(role.Id))
-												{
-													if (role.Id.Equals(NOOB_ROLE))
-													{
-														await CleanWelkomChannel();
-													}
-													if (firstRole)
-													{
-														firstRole = false;
-													}
-													else
-													{
-														sbRoles.Append(", ");
-													}
-													sbRoles.Append(role.Name);
-												}
+												await CleanWelkomChannel();
 											}
+											if (firstRole)
+											{
+												firstRole = false;
+											}
+											else
+											{
+												sbRoles.Append(", ");
+											}
+											sbRoles.Append(role.Name);
 										}
 									}
-									List<DEF> defList = [];
-									DEF newDef1 = new()
-									{
-										Inline = true,
-										Name = "Bijnaam:",
-										Value = e.Member.DisplayName
-									};
-									defList.Add(newDef1);
-									DEF newDef2 = new()
-									{
-										Inline = true,
-										Name = "Gebruiker:",
-										Value = e.Member.Username + "#" + e.Member.Discriminator
-									};
-									defList.Add(newDef2);
-									DEF newDef3 = new()
-									{
-										Inline = true,
-										Name = "GebruikersID:",
-										Value = e.Member.Id.ToString()
-									};
-									defList.Add(newDef3);
-									if (sbRoles.Length > 0)
-									{
-										DEF newDef = new()
-										{
-											Inline = true,
-											Name = "Rollen:",
-											Value = sbRoles.ToString()
-										};
-										defList.Add(newDef);
-									}
-									await CreateEmbed(oudLedenChannel, string.Empty, string.Empty, e.Member.Username + " heeft de server verlaten", string.Empty, defList, null, string.Empty, null);
 								}
+								List<DEF> defList = [];
+								DEF newDef1 = new()
+								{
+									Inline = true,
+									Name = "Bijnaam:",
+									Value = e.Member.DisplayName
+								};
+								defList.Add(newDef1);
+								DEF newDef2 = new()
+								{
+									Inline = true,
+									Name = "Gebruiker:",
+									Value = e.Member.Username + "#" + e.Member.Discriminator
+								};
+								defList.Add(newDef2);
+								DEF newDef3 = new()
+								{
+									Inline = true,
+									Name = "GebruikersID:",
+									Value = e.Member.Id.ToString()
+								};
+								defList.Add(newDef3);
+								if (sbRoles.Length > 0)
+								{
+									DEF newDef = new()
+									{
+										Inline = true,
+										Name = "Rollen:",
+										Value = sbRoles.ToString()
+									};
+									defList.Add(newDef);
+								}
+								await CreateEmbed(oudLedenChannel, string.Empty, string.Empty, e.Member.Username + " heeft de server verlaten", string.Empty, defList, null, string.Empty, null);
 							}
 						}
 					}
@@ -997,16 +973,13 @@ internal class Bot
 							{
 								if (e.RolesAfter != null)
 								{
-									if (member != null)
+									string editedName = UpdateName(member, member.DisplayName);
+									if (!editedName.Equals(member.DisplayName) && !string.IsNullOrEmpty(editedName))
 									{
-										string editedName = UpdateName(member, member.DisplayName);
-										if (!editedName.Equals(member.DisplayName) && !string.IsNullOrEmpty(editedName))
-										{
-											await ChangeMemberNickname(member, editedName);
-										}
+										await ChangeMemberNickname(member, editedName);
 									}
 								}
-								if (e.NicknameAfter != null && e.NicknameAfter != string.Empty && member != null)
+								if (e.NicknameAfter != null && e.NicknameAfter != string.Empty)
 								{
 									string editedName = UpdateName(member, member.DisplayName);
 									if (!editedName.Equals(member.DisplayName, StringComparison.Ordinal) && !string.IsNullOrEmpty(editedName))
@@ -1636,7 +1609,7 @@ internal class Bot
 						{
 							string organisator = await GetOrganisator(await toernooiAanmeldenChannel.GetMessageAsync(message.Id));
 							string logMessage = "Teams|" + member.DisplayName.adaptToDiscordChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
-							await WriteInLog(toernooiAanmeldenChannel.Guild.Id, ConvertToDate(message.Timestamp.LocalDateTime), logMessage);
+							await WriteInLog(toernooiAanmeldenChannel.Guild.Id, message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
 						}
 					}
 					else
@@ -1686,7 +1659,7 @@ internal class Bot
 							}
 							catch
 							{
-								discordClient.Logger.LogWarning(member.DisplayName + "(" + member.Username + "#" + member.Discriminator + ") could not be kicked from the server!");
+								discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
 							}
 							if (isBanned)
 							{
@@ -1702,7 +1675,7 @@ internal class Bot
 									}
 									catch
 									{
-										discordClient.Logger.LogWarning(member.DisplayName + "(" + member.Username + "#" + member.Discriminator + ") could not be unbanned from the server!");
+										discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
 										DiscordMember thibeastmo = await guild.GetMemberAsync(THIBEASTMO_ID);
 										if (thibeastmo != null)
 										{
@@ -1724,7 +1697,7 @@ internal class Bot
 		}
 		else
 		{
-			discordClient.Logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: " + user.Username + "#" + user.Discriminator);
+			discordClient.Logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
 			DiscordRole noobRole = guild.GetRole(NOOB_ROLE);
 			bool roleWasGiven = false;
 			if (noobRole != null)
@@ -1738,7 +1711,7 @@ internal class Bot
 			}
 			if (!roleWasGiven)
 			{
-				discordClient.Logger.LogWarning("The noob role could not be given to user: " + user.Username + "#" + user.Discriminator);
+				discordClient.Logger.LogWarning("The noob role could not be given to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
 			}
 		}
 		return null;
@@ -1763,8 +1736,9 @@ internal class Bot
 		{
 			return DiscordEmoji.FromName(discordClient, name);
 		}
-		catch
+		catch (Exception ex)
 		{
+			_logger.LogDebug(ex, ex.Message);
 		}
 
 		DiscordEmoji theEmoji = DiscordEmoji.FromUnicode(name);
@@ -1802,50 +1776,6 @@ internal class Bot
 		{
 			return emoji;
 		}
-	}
-
-	public static Dictionary<DiscordEmoji, List<DiscordUser>> SortReactions(DiscordMessage message)
-	{
-		Dictionary<DiscordEmoji, List<DiscordUser>> sortedReactions = [];
-		foreach (DiscordReaction reaction in message.Reactions)
-		{
-			DiscordEmoji emoji = reaction.Emoji;
-			IReadOnlyList<DiscordUser> users = message.GetReactionsAsync(reaction.Emoji).Result;
-			List<DiscordUser> userList = [.. users];
-			sortedReactions.Add(emoji, userList);
-		}
-		return sortedReactions;
-	}
-
-	public static Dictionary<DateTime, List<DiscordMessage>> SortMessages(IReadOnlyList<DiscordMessage> messages)
-	{
-		Dictionary<DateTime, List<DiscordMessage>> sortedMessages = [];
-		foreach (DiscordMessage message in messages)
-		{
-			string[] splitted = message.Content.Split(LOG_SPLIT_CHAR);
-			string[] dateTimeSplitted = splitted[0].Split(' ');
-			string[] dateSplitted = dateTimeSplitted[0].Split('-');
-			string[] timeSplitted = dateTimeSplitted[1].Split(':');
-			DateTime date = new(Convert.ToInt32(dateSplitted[2]), Convert.ToInt32(dateSplitted[1]), Convert.ToInt32(dateSplitted[0]), Convert.ToInt32(timeSplitted[0]), Convert.ToInt32(timeSplitted[1]), Convert.ToInt32(timeSplitted[2]));
-
-			bool containsItem = false;
-			foreach (KeyValuePair<DateTime, List<DiscordMessage>> item in sortedMessages)
-			{
-				string xdate = ConvertToDate(item.Key);
-				string ydate = ConvertToDate(date);
-				if (xdate.Equals(ydate))
-				{
-					containsItem = true;
-					item.Value.Add(message);
-				}
-			}
-			if (!containsItem)
-			{
-				List<DiscordMessage> tempMessageList = [message];
-				sortedMessages.Add(date, tempMessageList);
-			}
-		}
-		return sortedMessages;
 	}
 
 	public static string GetProperFileName(string file)
@@ -1957,20 +1887,20 @@ internal class Bot
 									if (logChannel != null)
 									{
 										IReadOnlyList<DiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-										Dictionary<DateTime, List<DiscordMessage>> sortedMessages = SortMessages(logMessages);
+										Dictionary<DateTime, List<DiscordMessage>> sortedMessages = logMessages.SortMessages();
 										List<Tier> tiers = [];
 
 										foreach (KeyValuePair<DateTime, List<DiscordMessage>> sMessage in sortedMessages)
 										{
-											string xdate = ConvertToDate(theMessage.Timestamp);
-											string ydate = ConvertToDate(sMessage.Key);
+											string xdate = theMessage.Timestamp.ConvertToDate();
+											string ydate = sMessage.Key.ConvertToDate();
 
 											if (xdate.Equals(ydate))
 											{
 												sMessage.Value.Sort((x, y) => x.Timestamp.CompareTo(y.Timestamp));
 												foreach (DiscordMessage discMessage in sMessage.Value)
 												{
-													string[] splitted = discMessage.Content.Split(LOG_SPLIT_CHAR);
+													string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
 													if (splitted[1].ToLower().Equals("teams"))
 													{
 														Tier newTeam = new();
@@ -2024,7 +1954,7 @@ internal class Bot
 								}
 								else
 								{
-									Dictionary<DiscordEmoji, List<DiscordUser>> reactions = SortReactions(theMessage);
+									Dictionary<DiscordEmoji, List<DiscordUser>> reactions = theMessage.SortReactions();
 
 									List<Tier> teams = [];
 									foreach (KeyValuePair<DiscordEmoji, List<DiscordUser>> reaction in reactions)
@@ -2201,19 +2131,14 @@ internal class Bot
 						try
 						{
 							DiscordMember tempMember = await guild.GetMemberAsync(participant.Item1);
-							if (tempMember != null)
+							if (tempMember != null && tempMember.DisplayName != null && tempMember.DisplayName.Length > 0)
 							{
-								if (tempMember.DisplayName != null)
-								{
-									if (tempMember.DisplayName.Length > 0)
-									{
-										temp = tempMember.DisplayName;
-									}
-								}
+								temp = tempMember.DisplayName;
 							}
 						}
-						catch
+						catch (Exception ex)
 						{
+							_logger.LogDebug(ex, ex.Message);
 						}
 
 						temp = string.IsNullOrEmpty(temp) ? participant.Item2 : RemoveSyntaxe(participant.Item2);
@@ -2915,7 +2840,7 @@ internal class Bot
 				Name = discordMember.Username.Replace('_', '▁'),
 				IconUrl = discordMember.AvatarUrl
 			};
-			//newAuthor.IconUrl = discordClient.CurrentApplication.Icon;
+
 			List<DEF> deflist = [];
 			DEF newDef1 = new()
 			{
@@ -2967,7 +2892,7 @@ internal class Bot
 			{
 				Name = "Gejoined op"
 			};
-			string[] splitted = ConvertToDate(discordMember.JoinedAt).Split(' ');
+			string[] splitted = discordMember.JoinedAt.ConvertToDate().Split(' ');
 			newDef5.Value = splitted[0] + " " + splitted[1];
 			newDef5.Inline = true;
 			deflist.Add(newDef5);
@@ -3044,7 +2969,7 @@ internal class Bot
 						{
 							Name = "Clan gejoined op"
 						};
-						string[] splitted = ConvertToDate(member.clan.joined_at.Value).Split(' ');
+						string[] splitted = member.clan.joined_at.Value.ConvertToDate().Split(' ');
 						newDef5.Value = splitted[0] + " " + splitted[1];
 						newDef5.Inline = true;
 						deflist.Add(newDef5);
@@ -3069,7 +2994,7 @@ internal class Bot
 					DEF newDef6 = new()
 					{
 						Name = "Gestart op",
-						Value = ConvertToDate(member.created_at.Value),
+						Value = member.created_at.Value.ConvertToDate(),
 						Inline = true
 					};
 					deflist.Add(newDef6);
@@ -3079,7 +3004,7 @@ internal class Bot
 					DEF newDef6 = new()
 					{
 						Name = "Laatst actief",
-						Value = ConvertToDate(member.last_battle_time.Value),
+						Value = member.last_battle_time.Value.ConvertToDate(),
 						Inline = true
 					};
 					deflist.Add(newDef6);
@@ -3151,7 +3076,7 @@ internal class Bot
 			{
 				Name = "Gecreëerd op"
 			};
-			string[] splitted = ConvertToDate(discordUser.CreationTimestamp).Split(' ');
+			string[] splitted = discordUser.CreationTimestamp.ConvertToDate().Split(' ');
 			newDef4.Value = splitted[0] + " " + splitted[1];
 			newDef4.Inline = true;
 			deflist.Add(newDef4);
@@ -3378,7 +3303,7 @@ internal class Bot
 			{
 				Name = "Gemaakt op"
 			};
-			string[] splitted = ConvertToDate(clan.created_at.Value).Split(' ');
+			string[] splitted = clan.created_at.Value.ConvertToDate().Split(' ');
 			newDef5.Value = splitted[0] + " " + splitted[1];
 			newDef5.Inline = true;
 			deflist.Add(newDef5);
@@ -3437,7 +3362,7 @@ internal class Bot
 			{
 				Name = "Start op"
 			};
-			string[] splittedx = ConvertToDate(tournament.start_at.Value).Split(' ');
+			string[] splittedx = tournament.start_at.Value.ConvertToDate().Split(' ');
 			newDef5.Value = splittedx[0] + " " + splittedx[1];
 			newDef5.Inline = true;
 			deflist.Add(newDef5);
@@ -3448,11 +3373,11 @@ internal class Bot
 			{
 				Name = "Registreren"
 			};
-			string[] splittedx = ConvertToDate(tournament.registration_start_at.Value).Split(' ');
+			string[] splittedx = tournament.registration_start_at.Value.ConvertToDate().Split(' ');
 			StringBuilder sb = new("Vanaf\n" + splittedx[0] + " " + splittedx[1]);
 			if (tournament.registration_end_at.HasValue)
 			{
-				string[] splittedb = ConvertToDate(tournament.registration_end_at.Value).Split(' ');
+				string[] splittedb = tournament.registration_end_at.Value.ConvertToDate().Split(' ');
 				sb.Append("\ntot\n" + splittedb[0] + " " + splittedb[1]);
 			}
 			newDef5.Value = sb.ToString();
@@ -3465,7 +3390,7 @@ internal class Bot
 			{
 				Name = "Matchen beginnen op"
 			};
-			string[] splittedb = ConvertToDate(tournament.matches_start_at.Value).Split(' ');
+			string[] splittedb = tournament.matches_start_at.Value.ConvertToDate().Split(' ');
 			newDef7.Value = splittedb[0] + " " + splittedb[1];
 			newDef7.Inline = true;
 			deflist.Add(newDef7);
@@ -3476,7 +3401,7 @@ internal class Bot
 			{
 				Name = "Matchen eindigen op"
 			};
-			string[] splittedb = ConvertToDate(tournament.end_at.Value).Split(' ');
+			string[] splittedb = tournament.end_at.Value.ConvertToDate().Split(' ');
 			newDef7.Value = splittedb[0] + " " + splittedb[1];
 			newDef7.Inline = true;
 			deflist.Add(newDef7);
@@ -3788,54 +3713,6 @@ internal class Bot
 		}
 
 		await CreateEmbed(channel, string.Empty, string.Empty, titel, string.Empty, deflist, null, (tournament.logo != null ? (tournament.logo.original ?? string.Empty) : string.Empty), null);
-	}
-
-	public static string ConvertToDate(DateTimeOffset date)
-	{
-		string theDate = date.Day.ToString() + "-" + (date.Month < 10 ? "0" : "") + date.Month.ToString() + "-" + date.Year.ToString() + " " + date.Hour.ToString() + ":" + (date.Minute < 10 ? "0" : "") + date.Minute.ToString() + ":" + (date.Second < 10 ? "0" : "") + date.Second.ToString();
-		return ConvertToDate(theDate);
-	}
-
-	public static string ConvertToDate(DateTime dateTime)
-	{
-		string theDate = dateTime.Day.ToString() + "-" + (dateTime.Month < 10 ? "0" : "") + dateTime.Month.ToString() + "-" + dateTime.Year.ToString() + " " + dateTime.Hour.ToString() + ":" + (dateTime.Minute < 10 ? "0" : "") + dateTime.Minute.ToString() + ":" + (dateTime.Second < 10 ? "0" : "") + dateTime.Second.ToString();
-		return ConvertToDate(theDate);
-	}
-
-	public static DateTime ConvertToDateTime(DateTime dateTime)
-	{
-		return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, dateTime.Second);
-	}
-
-	private static string ConvertToDate(string date)
-	{
-		string[] splitted = date.Replace('/', '-').Split(' ');
-		StringBuilder sb = new();
-		for (int i = 0; i < splitted.Length; i++)
-		{
-			if (i < 2)
-			{
-				if (i > 0)
-				{
-					sb.Append(' ');
-				}
-				sb.Append(splitted[i]);
-			}
-		}
-		return sb.ToString();
-	}
-
-	public static bool CompareDateTime(DateTime x, DateTime y)
-	{
-		TimeSpan tempTimeSpan = x.Subtract(y);
-		if (tempTimeSpan.Hours.Equals(0) && tempTimeSpan.Minutes.Equals(0) && tempTimeSpan.Seconds.Equals(0) && x.Year.Equals(y.Year) && x.Month.Equals(y.Month) && x.Day.Equals(y.Day))
-		{
-			return true;
-		}
-		else
-		{
-			return false;
-		}
 	}
 
 	public static async Task<DiscordMessage> SayCannotBePlayedAt(DiscordChannel channel, DiscordMember member, string guildName, string roomType)
@@ -4210,9 +4087,9 @@ internal class Bot
 				await SendMessage(channel, member, guildName, "**Clan(" + clan_naam + ") is niet gevonden! (In een lijst van " + aantalClans + " clans)**");
 			}
 		}
-		catch (TooManyResultsException e)
+		catch (TooManyResultsException ex)
 		{
-			discordClient.Logger.LogWarning("(" + command.Name + ") " + e.Message);
+			discordClient.Logger.LogWarning("({Command}) {Message}", command.Name, ex.Message);
 			await SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
 		}
 		return null;
@@ -4281,7 +4158,6 @@ internal class Bot
 				if (index > 0 && index <= count)
 				{
 					return (index - 1);
-					//return itemList[(index - 1)];
 				}
 				else
 				{
@@ -4386,10 +4262,7 @@ internal class Bot
 					{
 						defName = firstChar.ToUpper() + (splitted.Length > 2 ? " - " + lastChar.ToUpper() : "");
 					}
-					if (splitted.Length > 2)
-					{
-						lastChar = RemoveSyntaxe(splitted[splitted.Length - 2]).Substring(0, 1);
-					}
+
 					DEF newDef = new()
 					{
 						Inline = true,
@@ -4665,9 +4538,9 @@ internal class Bot
 				await SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam.adaptToDiscordChat() + "`**) kon niet gevonden worden!**");
 			}
 		}
-		catch (TooManyResultsException e)
+		catch (TooManyResultsException ex)
 		{
-			discordClient.Logger.LogWarning("While searching for player by name: " + e.Message);
+			discordClient.Logger.LogWarning("While searching for player by name: {Message}", ex.Message);
 			await SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
 		}
 		return null;
@@ -4678,26 +4551,24 @@ internal class Bot
 		string tournamentJson = await Tournaments.tournamentsToString(WarGamingAppId);
 		Json json = new(tournamentJson, "Tournaments");
 		List<WGTournament> tournamentsList = [];
-		if (json != null)
+
+		if (json.subJsons != null)
 		{
-			if (json.subJsons != null)
+			foreach (Json subjson in json.subJsons)
 			{
-				foreach (Json subjson in json.subJsons)
+				if (subjson.head.ToLower().Equals("data"))
 				{
-					if (subjson.head.ToLower().Equals("data"))
+					foreach (Json subsubjson in subjson.subJsons)
 					{
-						foreach (Json subsubjson in subjson.subJsons)
+						Tournaments tournaments = new(subsubjson);
+						if (tournaments.start_at.HasValue)
 						{
-							Tournaments tournaments = new(subsubjson);
-							if (tournaments.start_at.HasValue)
+							if (tournaments.start_at.Value > DateTime.Now || all)
 							{
-								if (tournaments.start_at.Value > DateTime.Now || all)
-								{
-									string wgTournamentJsonString = await WGTournament.tournamentsToString(WarGamingAppId, tournaments.tournament_id);
-									Json wgTournamentJson = new(wgTournamentJsonString, "WGTournament");
-									WGTournament eenToernooi = new(wgTournamentJson, WarGamingAppId);
-									tournamentsList.Add(eenToernooi);
-								}
+								string wgTournamentJsonString = await WGTournament.tournamentsToString(WarGamingAppId, tournaments.tournament_id);
+								Json wgTournamentJson = new(wgTournamentJsonString, "WGTournament");
+								WGTournament eenToernooi = new(wgTournamentJson, WarGamingAppId);
+								tournamentsList.Add(eenToernooi);
 							}
 						}
 					}
@@ -4774,30 +4645,23 @@ internal class Bot
 		{
 			if (replayInfo.room_type is 1 or 4 or 5 or 7) // 1 = normal, 4 = tournament, 5 = tournament, 7 = rating 
 			{
-				if (replayInfo != null)
+				try
 				{
-					try
-					{
-						return replayInfo.details != null
-							? await ReplayHOF(replayInfo, guildID, channel, member, guildName)
-							: new Tuple<string, DiscordMessage>("Replay bevatte geen details.", null);
-					}
-					catch (JsonNotFoundException e)
-					{
-						_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
-						await HandleError("While reading json from a replay:\n", e.Message, e.StackTrace);
-					}
-					catch (Exception e)
-					{
-						_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis bij het controleren van de HOF!**");
-						await HandleError("While checking HOF with a replay:\n", e.Message, e.StackTrace);
-					}
-					tempMessage = await SendMessage(channel, member, guildName, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
+					return replayInfo.details != null
+						? await ReplayHOF(replayInfo, guildID, channel, member, guildName)
+						: new Tuple<string, DiscordMessage>("Replay bevatte geen details.", null);
 				}
-				else
+				catch (JsonNotFoundException e)
 				{
-					tempMessage = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
+					_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
+					await HandleError("While reading json from a replay:\n", e.Message, e.StackTrace);
 				}
+				catch (Exception e)
+				{
+					_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis bij het controleren van de HOF!**");
+					await HandleError("While checking HOF with a replay:\n", e.Message, e.StackTrace);
+				}
+				tempMessage = await SendMessage(channel, member, guildName, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
 				return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
 			}
 			else
@@ -5522,7 +5386,7 @@ internal class Bot
 		if (bottestChannel != null)
 		{
 			StringBuilder sb = new();
-			if (exceptionMessage != null && stackTrace != null && exceptionMessage.Length > 0 && stackTrace.Length > 0)
+			if (!string.IsNullOrEmpty(exceptionMessage) && !string.IsNullOrEmpty(stackTrace))
 			{
 				for (int i = 0; i < message.Length / 2; i++)
 				{
@@ -5530,7 +5394,7 @@ internal class Bot
 				}
 			}
 			StringBuilder firstMessage = new((sb.Length > 0 ? "**" + sb.ToString() + "**\n" : string.Empty) + message);
-			if (exceptionMessage.Length > 0)
+			if (!string.IsNullOrEmpty(exceptionMessage))
 			{
 				firstMessage.Append("\n" + "`" + exceptionMessage + "`");
 			}

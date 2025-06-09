@@ -11,6 +11,7 @@ using FMWOTB.Clans;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Blitzstars;
+using NLBE_Bot.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -829,18 +830,18 @@ public class BotCommands : BaseCommandModule
 												if (logChannel != null)
 												{
 													IReadOnlyList<DiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-													Dictionary<DateTime, List<DiscordMessage>> sortedMessages = Bot.SortMessages(logMessages);
+													Dictionary<DateTime, List<DiscordMessage>> sortedMessages = logMessages.SortMessages();
 													foreach (KeyValuePair<DateTime, List<DiscordMessage>> sMessage in sortedMessages)
 													{
-														string xdate = Bot.ConvertToDate(theMessage.Timestamp);
-														string ydate = Bot.ConvertToDate(sMessage.Key);
+														string xdate = theMessage.Timestamp.ConvertToDate();
+														string ydate = sMessage.Key.ConvertToDate();
 														if (xdate.Equals(ydate))
 														{
 															List<DiscordMessage> messagesToDelete = [];
 															sMessage.Value.Sort((x, y) => x.Timestamp.CompareTo(y.Timestamp));
 															foreach (DiscordMessage discMessage in sMessage.Value)
 															{
-																string[] splitted = discMessage.Content.Split(Bot.LOG_SPLIT_CHAR);
+																string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
 																if (splitted[1].ToLower().Equals("teams"))
 																{
 																	//splitted[2] = naam speler
@@ -1429,7 +1430,7 @@ public class BotCommands : BaseCommandModule
 											{
 												if (account.created_at != null && account.created_at.HasValue)
 												{
-													dateMemberList.Add(Bot.ConvertToDateTime(account.created_at.Value), member);
+													dateMemberList.Add(account.created_at.Value.ConvertToDateTime(), member);
 													used = true;
 												}
 											}
@@ -1437,7 +1438,7 @@ public class BotCommands : BaseCommandModule
 											{
 												if (account.clan != null && account.clan.joined_at.HasValue)
 												{
-													dateMemberList.Add(Bot.ConvertToDateTime(account.clan.joined_at.Value), member);
+													dateMemberList.Add(account.clan.joined_at.Value.ConvertToDateTime(), member);
 													used = true;
 												}
 											}
