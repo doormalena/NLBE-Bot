@@ -10,7 +10,6 @@ using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.Net.Models;
 using FMWOTB;
 using FMWOTB.Account;
-using FMWOTB.Account.Statistics;
 using FMWOTB.Clans;
 using FMWOTB.Exceptions;
 using FMWOTB.Tools;
@@ -20,7 +19,6 @@ using FMWOTB.Vehicles;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Models;
 using System;
@@ -29,9 +27,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Reflection.Metadata;
 using System.Text;
-using System.Threading.Channels;
 using System.Threading.Tasks;
 
 internal class Bot
@@ -3739,15 +3735,9 @@ internal class Bot
 	}
 	public static DiscordMessage SayMultipleResults(DiscordChannel channel, string description)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Meerdere resultaten gevonden",
-			Description = description.adaptToDiscordChat()
-		};
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
 		try
 		{
+			DiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.adaptToDiscordChat(), DiscordColor.Red);
 			return channel.SendMessageAsync(null, embed).Result;
 		}
 		catch (Exception ex)
@@ -3758,15 +3748,9 @@ internal class Bot
 	}
 	public static async Task SayNoResults(DiscordChannel channel, string description)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Geen resultaten gevonden",
-			Description = description.Replace('_', '▁')
-		};
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
 		try
 		{
+			DiscordEmbed embed = CreateStandardEmbed("Geen resultaten gevonden", description.Replace('_', '▁'), DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
@@ -3776,15 +3760,9 @@ internal class Bot
 	}
 	public static async Task SayTheUserIsNotAllowed(DiscordChannel channel)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Geen toegang",
-			Description = ":raised_back_of_hand: Je hebt niet voldoende rechten om deze commando uit te voeren!"
-		};
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
 		try
 		{
+			DiscordEmbed embed = CreateStandardEmbed("Geen toegang", ":raised_back_of_hand: Je hebt niet voldoende rechten om deze commando uit te voeren!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
@@ -3794,15 +3772,9 @@ internal class Bot
 	}
 	public static async Task SayBotNotAuthorized(DiscordChannel channel)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Onvoldoende rechten",
-			Description = ":raised_back_of_hand: De bot heeft voldoende rechten om dit uit te voeren!"
-		};
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
 		try
 		{
+			DiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: De bot heeft voldoende rechten om dit uit te voeren!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
@@ -3812,15 +3784,9 @@ internal class Bot
 	}
 	public static async Task SayTooManyCharacters(DiscordChannel channel)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Onvoldoende rechten",
-			Description = ":raised_back_of_hand: Er zaten te veel characters in het bericht dat de bot wilde verzenden!"
-		};
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
 		try
 		{
+			DiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: Er zaten te veel characters in het bericht dat de bot wilde verzenden!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
@@ -5253,15 +5219,7 @@ internal class Bot
 	}
 	private static DiscordEmbed CreateHOFResetEmbed(int tier)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = Constants.HOF_COLOR,
-			Description = "Nog geen replays aan deze tier toegevoegd.",
-
-			Title = "Tier " + GetDiscordEmoji(Emoj.GetName(tier))
-		};
-
-		return newDiscEmbedBuilder.Build();
+		return CreateStandardEmbed("Tier " + GetDiscordEmoji(Emoj.GetName(tier)), "Nog geen replays aan deze tier toegevoegd.", Constants.HOF_COLOR);
 	}
 	public static TankHof InitializeTankHof(WGBattle battle)
 	{
@@ -5333,20 +5291,16 @@ internal class Bot
 			}
 			try
 			{
-				DiscordEmbedBuilder newDiscEmbedBuilder = new()
+				DiscordEmbed embed = new DiscordEmbedBuilder()
 				{
-					Color = Constants.BOT_COLOR
-				};
-				WeeklyEventHandler weeklyEventHandler = new();
-				newDiscEmbedBuilder.Description = sb.ToString();
-				newDiscEmbedBuilder.Thumbnail = new()
-				{
-					Url = thumbnail
-				};
-
-				newDiscEmbedBuilder.Title = "Resultaat";
-
-				DiscordEmbed embed = newDiscEmbedBuilder.Build();
+					Title = "Resultaat",
+					Description = sb.ToString(),
+					Color = Constants.BOT_COLOR,
+					Thumbnail = new()
+					{
+						Url = thumbnail
+					}
+				}.Build();
 				await returnedTuple.Item2.ModifyAsync(embed);
 			}
 			catch (Exception e)
@@ -5387,5 +5341,14 @@ internal class Bot
 			}
 			await bottestChannel.SendMessageAsync(firstMessage.ToString());
 		}
+	}
+	private static DiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color)
+	{
+		return new DiscordEmbedBuilder
+		{
+			Title = title,
+			Description = description,
+			Color = color
+		}.Build();
 	}
 }
