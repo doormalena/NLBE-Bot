@@ -4957,7 +4957,6 @@ internal class Bot
 						{
 							if (tank.Item1.ToLower().Equals(battle.vehicle.ToLower()))
 							{
-								tank.Item2.OrderBy(x => x.Damage);
 								if (tank.Item2.Count == HOF_AMOUNT_PER_TANK)
 								{
 									if (tank.Item2[HOF_AMOUNT_PER_TANK - 1].Damage < battle.details.damage_made)
