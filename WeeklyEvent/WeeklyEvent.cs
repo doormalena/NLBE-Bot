@@ -38,7 +38,7 @@ namespace NLBE_Bot
             try
             {
                 DiscordEmbedBuilder newDiscEmbedBuilder = new DiscordEmbedBuilder();
-                newDiscEmbedBuilder.Color = Bot.WEEKLY_EVENT_COLOR;
+                newDiscEmbedBuilder.Color = Constants.WEEKLY_EVENT_COLOR;
                 string description = StartDate.ToString(DATETIME_FORMAT) + DATE_RANGE_SPLITTER + GetEndDate().ToString(DATETIME_FORMAT).TrimStart('0');
                 newDiscEmbedBuilder.Description = description;
 

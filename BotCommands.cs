@@ -26,8 +26,8 @@ public class BotCommands : BaseCommandModule
 	[Command("Toernooi")]
 	[Aliases("to", "toer", "t")]
 	[Description("Creëert het aanmelden van een nieuw toernooi." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "toernooi \"Quick Tournament\" \"Morgen 20u\" 6 8 10`\n" +
-		"`" + Bot.Prefix + "toernooi \"\" \"Morgen 20u\" 6 8 10` --> \"\" = Quick Tournament (is default waarde)")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "toernooi \"Quick Tournament\" \"Morgen 20u\" 6 8 10`\n" +
+		"`" + Constants.Prefix + "toernooi \"\" \"Morgen 20u\" 6 8 10` --> \"\" = Quick Tournament (is default waarde)")]
 	public async Task Toernooi(CommandContext ctx, string type, string wanneer, params string[] tiers_gesplitst_met_spatie)
 	{
 		if (!Bot.ignoreCommands)
@@ -204,7 +204,7 @@ public class BotCommands : BaseCommandModule
 	[Command("Teams")]
 	[Aliases("te", "tea", "team")]
 	[Description("Geeft de teams voor het gegeven toernooi." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "teams` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Bot.Prefix + "teams 1` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Bot.Prefix + "teams 2` --> geeft de teams van het 2de meest recente bericht in Toernooi-aanmelden")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "teams` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Constants.Prefix + "teams 1` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Constants.Prefix + "teams 2` --> geeft de teams van het 2de meest recente bericht in Toernooi-aanmelden")]
 	public async Task Teams(CommandContext ctx, params string[] optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt)
 	{
 		if (!Bot.ignoreCommands)
@@ -300,7 +300,7 @@ public class BotCommands : BaseCommandModule
 	[Command("Poll")]
 	[Aliases("p", "po", "pol")]
 	[Description("Creëert een nieuwe poll." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "poll \"Een titel tussen aanhalingstekens indien er spaties zijn\" Vlaanderen :one: Wallonië :two:`\n`" + Bot.Prefix + "poll test de hemel :thumbsup: de hemel, de hel :thinking: de hel :thumbsdown:`")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "poll \"Een titel tussen aanhalingstekens indien er spaties zijn\" Vlaanderen :one: Wallonië :two:`\n`" + Constants.Prefix + "poll test de hemel :thumbsup: de hemel, de hel :thinking: de hel :thumbsdown:`")]
 	public async Task Poll(CommandContext ctx, string uitleg, params string[] opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties)
 	{
 		if (!Bot.ignoreCommands)
@@ -421,8 +421,8 @@ public class BotCommands : BaseCommandModule
 					DiscordChannel deputiesPollsChannel = await Bot.GetPollsChannel(true, ctx.Guild.Id);
 					//https://www.blitzstars.com/player/eu/
 					bool goodOption = true;
-					DiscordRole deputiesNLBERole = ctx.Guild.GetRole(Bot.DEPUTY_NLBE_ROLE);
-					DiscordRole deputiesNLBE2Role = ctx.Guild.GetRole(Bot.DEPUTY_NLBE2_ROLE);
+					DiscordRole deputiesNLBERole = ctx.Guild.GetRole(Constants.DEPUTY_NLBE_ROLE);
+					DiscordRole deputiesNLBE2Role = ctx.Guild.GetRole(Constants.DEPUTY_NLBE2_ROLE);
 					switch (Tag.ToLower())
 					{
 						case "nlbe":
@@ -432,7 +432,7 @@ public class BotCommands : BaseCommandModule
 							Tag = deputiesNLBE2Role != null ? deputiesNLBE2Role.Mention : "@Deputy-NLBE2";
 							break;
 						case "all":
-							DiscordRole deputiesRole = ctx.Guild.GetRole(Bot.DEPUTY_ROLE);
+							DiscordRole deputiesRole = ctx.Guild.GetRole(Constants.DEPUTY_ROLE);
 							Tag = "@Deputy";
 
 							if (deputiesRole != null)
@@ -627,7 +627,7 @@ public class BotCommands : BaseCommandModule
 	[Command("Map")]
 	[Aliases("m", "ma", "maps")]
 	[Description("Laadt de map in de chat." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "map` --> geeft de lijst van mappen\n`" + Bot.Prefix + "map list` --> geeft de lijst van mappen\n`" + Bot.Prefix + "map mines` --> geeft de map \"Mines\"")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "map` --> geeft de lijst van mappen\n`" + Constants.Prefix + "map list` --> geeft de lijst van mappen\n`" + Constants.Prefix + "map mines` --> geeft de map \"Mines\"")]
 	public async Task MapLoader(CommandContext ctx, params string[] map)
 	{
 		if (!Bot.ignoreCommands)
@@ -689,7 +689,7 @@ public class BotCommands : BaseCommandModule
 	[Command("Reageer")]
 	[Aliases("r", "re", "rea", "reag", "reage", "reagee")]
 	[Description("Geeft een reactie op het gegeven bericht in het gegeven kanaal met de gegeven emoji." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "reageer toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: zet\n`" + Bot.Prefix + "reageer polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: zet")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "reageer toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: zet\n`" + Constants.Prefix + "reageer polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: zet")]
 	public async Task Respond(CommandContext ctx, string naam_van_kanaal, int hoeveelste_bericht, string emoji)
 	{
 		if (!Bot.ignoreCommands)
@@ -750,7 +750,7 @@ public class BotCommands : BaseCommandModule
 	[Command("Verwijderreactie")]
 	[Aliases("vr", "v", "ve", "ver", "verw", "verwi", "verwij", "verwijd", "verwijde", "verwijder", "verwijderr", "verwijderre", "verwijderrea", "verwijderreac", "verwijderreact", "verwijderreacti", "verwijdereactie")]
 	[Description("Verwijdert een reactie van het gegeven bericht in het gegeven kanaal met de gegeven emoji." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "verwijderreactie toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: verwijdert\n`" + Bot.Prefix + "verwijderreactie polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: verwijdert")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "verwijderreactie toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: verwijdert\n`" + Constants.Prefix + "verwijderreactie polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: verwijdert")]
 	public async Task RemoveResponse(CommandContext ctx, string naam_van_kanaal, string hoeveelste_bericht, string emoji)
 	{
 		if (!Bot.ignoreCommands)
@@ -804,7 +804,7 @@ public class BotCommands : BaseCommandModule
 									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") niet verwijderen!**");
 									Bot.discordClient.Logger.LogWarning("Could not remove reaction(" + emoji + ") from message(" + (hoeveelste + 1) + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
 								}
-								if (channel.Id.Equals(Bot.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID) || channel.Id.Equals(Bot.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID))
+								if (channel.Id.Equals(Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID) || channel.Id.Equals(Constants.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID))
 								{
 									List<DiscordMessage> messages = [];
 									try
@@ -824,7 +824,7 @@ public class BotCommands : BaseCommandModule
 										DiscordMessage theMessage = messages[hoeveelste];
 										if (theMessage != null)
 										{
-											if (theMessage.Author.Id.Equals(Bot.NLBE_BOT) || theMessage.Author.Id.Equals(Bot.TESTBEASTV2_BOT))
+											if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 											{
 												DiscordChannel logChannel = await Bot.GetLogChannel(ctx.Guild.Id);
 												if (logChannel != null)
@@ -914,7 +914,7 @@ public class BotCommands : BaseCommandModule
 	[Command("Help")]
 	[Aliases("h", "he", "hel")]
 	[Description("Geeft alle commando's of geeft uitleg voor het gegeven commando." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "help`\n`" + Bot.Prefix + "help teams`")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "help`\n`" + Constants.Prefix + "help teams`")]
 	public async Task Help(CommandContext ctx, params string[] optioneel_commando)
 	{
 		if (!Bot.ignoreCommands)
@@ -943,7 +943,7 @@ public class BotCommands : BaseCommandModule
 						Value = sb.ToString()
 					};
 					deflist.Add(newDef1);
-					await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Help", "Versie: `" + Bot.version + "`", deflist, null, string.Empty, null);
+					await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Help", "Versie: `" + Constants.version + "`", deflist, null, string.Empty, null);
 				}
 				else if (optioneel_commando.Length == 1)
 				{
@@ -1093,18 +1093,18 @@ public class BotCommands : BaseCommandModule
 				if (!optioneel_events[0].ToLower().Contains("events") && !optioneel_events[0].ToLower().Contains("event"))
 				{
 					Bot.discordClient.Logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Bot.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
+					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
 				}
 				else
 				{
 					Bot.discordClient.Logger.LogWarning(">>> NLBE-Bot negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "! <<<");
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Bot.version + "`) negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "!**");
+					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "!**");
 				}
 			}
 			else
 			{
 				Bot.discordClient.Logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
-				await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Bot.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
+				await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
 			}
 			await Bot.ConfirmCommandExecuted(ctx.Message);
 		}
@@ -1116,7 +1116,7 @@ public class BotCommands : BaseCommandModule
 	[Command("Gebruiker")]
 	[Aliases("speler", "spele", "spel", "spe", "sp", "s", "g", "ge", "geb", "gebr", "gebru", "gebrui", "gebruik", "gebruike", "gbruiker", "gbruikr", "gbrkr")]
 	[Description("Geeft info over een speler.\n-i --> op ID zoeken (zoekt ook buiten de discord server)\nAnders zoekt de bot op basis van de originele gebruikersnamen van de personen in deze server." +
-		"Bijvoorbeeld:`" + Bot.Prefix + "gebruiker 1`\n`" + Bot.Prefix + "gebruiker sjt`")]
+		"Bijvoorbeeld:`" + Constants.Prefix + "gebruiker 1`\n`" + Constants.Prefix + "gebruiker sjt`")]
 	public async Task Speler(CommandContext ctx, params string[] optioneel_zoeken_op_id__zoekterm)
 	{
 		if (!Bot.ignoreCommands)
@@ -1302,13 +1302,13 @@ public class BotCommands : BaseCommandModule
 	[Command("Gebruikerslijst")]
 	[Aliases("gl")]
 	[Description("Geeft alle members van de server als format: username#discriminator.\n-u --> username\n-d --> discriminator\n-n --> nickname\n-! --> not\n-b --> geeft bijnamen ipv standaard format (enkel voor de weergave, niet voor de filtering)\n-o --> sorteert op datum van creatie van WarGaming account (de niet gevonden accounts sorteert ie alfabetisch)\n-c --> sorteert op clanjoindatum (de niet gevonden accounts sorteert ie alfabetisch)"
-	+ "Bijvoorbeeld:\n`" + Bot.Prefix + "gl -n [NLBE]` --> geeft alle leden waarbij \"[NLBE]\" in de bijnaam voorkomt (die dus de NLBE rol hebben)\n" +
-		"`" + Bot.Prefix + "gl -n!u [NLBE]` --> geeft de gebruikers waarbij \"[NLBE]\" niet in de gebruikersnaam voorkomt maar wel in de bijnaam\n" +
-		"`" + Bot.Prefix + "gl -!n [NLBE` --> geeft alle leden waarbij \"[NLBE\" niet in de bijnaam voorkomt (dus de personen die niet in een NLBE clan zitten)\n" +
-		"`" + Bot.Prefix + "gl -d 98` --> geeft alle leden waarbij de discriminator \"98\" bevat\n" +
-		"`" + Bot.Prefix + "gl -nu [NLBE]` --> geeft alle leden waarvan zowel de gebruikersnaam als de bijnaam \"[NLBE]\" bevat\n" +
-		"`" + Bot.Prefix + "gl -!nu [NLBE]` --> geeft de leden waarbij \"[NLBE]\" noch in de gebruikersnaam noch in de bijnaam voorkomt" +
-		"`" + Bot.Prefix + "gl -on [NLBE]` --> geeft de leden waarbij \"[NLBE]\" in de bijnaam voorkomt en sorteert dit op de creatie van het WG account")]
+	+ "Bijvoorbeeld:\n`" + Constants.Prefix + "gl -n [NLBE]` --> geeft alle leden waarbij \"[NLBE]\" in de bijnaam voorkomt (die dus de NLBE rol hebben)\n" +
+		"`" + Constants.Prefix + "gl -n!u [NLBE]` --> geeft de gebruikers waarbij \"[NLBE]\" niet in de gebruikersnaam voorkomt maar wel in de bijnaam\n" +
+		"`" + Constants.Prefix + "gl -!n [NLBE` --> geeft alle leden waarbij \"[NLBE\" niet in de bijnaam voorkomt (dus de personen die niet in een NLBE clan zitten)\n" +
+		"`" + Constants.Prefix + "gl -d 98` --> geeft alle leden waarbij de discriminator \"98\" bevat\n" +
+		"`" + Constants.Prefix + "gl -nu [NLBE]` --> geeft alle leden waarvan zowel de gebruikersnaam als de bijnaam \"[NLBE]\" bevat\n" +
+		"`" + Constants.Prefix + "gl -!nu [NLBE]` --> geeft de leden waarbij \"[NLBE]\" noch in de gebruikersnaam noch in de bijnaam voorkomt" +
+		"`" + Constants.Prefix + "gl -on [NLBE]` --> geeft de leden waarbij \"[NLBE]\" in de bijnaam voorkomt en sorteert dit op de creatie van het WG account")]
 	public async Task PlayerList(CommandContext ctx, params string[] optioneel_optie_met_als_default_ud__waarde)
 	{
 		if (!Bot.ignoreCommands)
@@ -1728,8 +1728,8 @@ public class BotCommands : BaseCommandModule
 			{
 				await Bot.ConfirmCommandExecuting(ctx.Message);
 				bool foundAtLeastOnce = false;
-				naam = naam.Replace(Bot.UNDERSCORE_REPLACEMENT_CHAR, '_');
-				naam = naam.Replace('_', Bot.UNDERSCORE_REPLACEMENT_CHAR);
+				naam = naam.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
+				naam = naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 				DiscordChannel channel = await Bot.GetHallOfFameChannel(ctx.Guild.Id);
 				if (channel != null)
 				{
@@ -1802,9 +1802,9 @@ public class BotCommands : BaseCommandModule
 			{
 				await Bot.ConfirmCommandExecuting(ctx.Message);
 				bool foundAtLeastOnce = false;
-				oldName = oldName.Replace(Bot.UNDERSCORE_REPLACEMENT_CHAR, '_');
-				oldName = oldName.Replace('_', Bot.UNDERSCORE_REPLACEMENT_CHAR);
-				niewe_naam = niewe_naam.Replace('_', Bot.UNDERSCORE_REPLACEMENT_CHAR);
+				oldName = oldName.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
+				oldName = oldName.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
+				niewe_naam = niewe_naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 				DiscordChannel channel = await Bot.GetHallOfFameChannel(ctx.Guild.Id);
 				if (channel != null)
 				{
@@ -1882,7 +1882,7 @@ public class BotCommands : BaseCommandModule
 					{
 						sb.Append("\n");
 					}
-					sb.Append(player.Item1.Replace(Bot.UNDERSCORE_REPLACEMENT_CHAR, '_'));
+					sb.Append(player.Item1.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_'));
 					for (int i = player.Item1.Length; i < MAX_NAME_LENGTH_IN_WOTB + 7; i++) //25 = max name length in wotb (minimum 2)
 					{
 						sb.Append(" ");
@@ -1908,7 +1908,7 @@ public class BotCommands : BaseCommandModule
 		{
 			if (Bot.HasRight(ctx.Member, ctx.Command))
 			{
-				name = name.Replace('_', Bot.UNDERSCORE_REPLACEMENT_CHAR);
+				name = name.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 				await Bot.ConfirmCommandExecuting(ctx.Message);
 				List<Tuple<string, List<TankHof>>> playerList = await Bot.GetTankHofsPerPlayer(ctx.Guild.Id);
 				List<DEF> defList = [];
@@ -1991,7 +1991,7 @@ public class BotCommands : BaseCommandModule
 						break;
 					}
 				}
-				await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Hall Of Fame plekken van " + name.Replace(Bot.UNDERSCORE_REPLACEMENT_CHAR, '_'), (found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald."), defList, null, string.Empty, null);
+				await Bot.CreateEmbed(ctx.Channel, string.Empty, string.Empty, "Hall Of Fame plekken van " + name.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_'), (found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald."), defList, null, string.Empty, null);
 				await Bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else

@@ -31,55 +31,14 @@ using System.Threading.Tasks;
 
 internal class Bot
 {
-	public static readonly string version = "2.12";
-	public const string Prefix = "nlbe ";
-	public const string logInputPath = "./loginputlines.txt";
-	public const string ERROR_REACTION = ":x:";
-	public const string IN_PROGRESS_REACTION = ":hourglass_flowing_sand:";
-	public const string ACTION_COMPLETED_REACTION = ":white_check_mark:";
-	public const string MAINTENANCE_REACTION = ":tool_logo:";
-	public const int HOF_AMOUNT_PER_TANK = 3;
-	public const ulong NLBE_SERVER_ID = 507575681593638913;
-	public const ulong DA_BOIS_ID = 693519504235561080;
-	public const ulong MOET_REGELS_NOG_LEZEN_ROLE = 793830434551103500;
-	public const ulong NOOB_ROLE = 782272112505258054;
-	public const ulong LEDEN_ROLE = 681965919614009371;
-	public const ulong NLBE_ROLE = 668534098729631745;
-	public const ulong NLBE2_ROLE = 781625012695728140;
-	public const ulong TOERNOOI_DIRECTIE = 782751703559700530;
-	public const ulong DISCORD_ADMIN_ROLE = 781634960930242614;
-	public const ulong DEPUTY_ROLE = 557951586975088662;
-	public const ulong DEPUTY_NLBE_ROLE = 805783688783724604;
-	public const ulong DEPUTY_NLBE2_ROLE = 805783828312227840;
-	public const ulong BEHEERDER_ROLE = 681865080803033109;
-	public const ulong NLBE_BOT = 781618903314202644;
-	public const ulong TESTBEASTV2_BOT = 794166024135639050;
-	public const ulong THIBEASTMO_ID = 239109910321823744;//781618903314202644; //239109910321823744
-	public const ulong THIBEASTMO_ALT_ID = 756193463913021512;
-	public const ulong MASTERY_REPLAYS_ID = 734359875253174323;
-	public const ulong BOTTEST_ID = 781617141069774898;
-	public const ulong PRIVE_ID = 702607178892312587;
-	public const ulong NLBE_TOERNOOI_AANMELDEN_KANAAL_ID = 714860361894854780;
-	public const ulong DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID = 808324144197271573;
-	public const long NLBE_CLAN_ID = 865;
-	public const long NLBE2_CLAN_ID = 48814;
-	public const char UNDERSCORE_REPLACEMENT_CHAR = 'ˍ';
-	public const char REPLACEABLE_UNDERSCORE_CHAR = '＿';
-
-	public static DiscordColor WEEKLY_EVENT_COLOR { get; } = DiscordColor.Gold;
-	public static DiscordColor HOF_COLOR { get; } = DiscordColor.Blurple;
-	public static DiscordColor BOT_COLOR { get; } = DiscordColor.Red;
 	public static DiscordClient discordClient;
-
 	public static IReadOnlyDictionary<ulong, DiscordGuild> discGuildslist;
 	public static bool ignoreCommands = false;
 	public static bool ignoreEvents = false;
 	public static Tuple<ulong, DateTime> weeklyEventWinner = new(0, DateTime.Now);
-
 	private static DiscordMessage discordMessage;//temp message
 	private DateTime? lasTimeNamesWereUpdated;
 	private short heartBeatCounter = 0;
-
 	private readonly IConfiguration _configuration;
 
 	public static string WarGamingAppId
@@ -113,7 +72,7 @@ internal class Bot
 	{
 		CommandsNextConfiguration commandsConfig = new()
 		{
-			StringPrefixes = [Prefix],
+			StringPrefixes = [Constants.Prefix],
 			EnableDms = false,
 			EnableMentionPrefix = true,
 			DmHelp = false,
@@ -125,7 +84,7 @@ internal class Bot
 		commands.CommandErrored += Commands_CommandErrored;
 		commands.CommandExecuted += Commands_CommandExecuted;
 
-		DiscordActivity act = new(Prefix, ActivityType.ListeningTo);
+		DiscordActivity act = new(Constants.Prefix, ActivityType.ListeningTo);
 		await discordClient.ConnectAsync(act, UserStatus.Online);
 
 		//Events
@@ -192,11 +151,11 @@ internal class Bot
 
 	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor)
 	{
-		return await CreateEmbed(channel, thumbnail, content, title, description, string.Empty, discEmbFieldList, emojiList, imageURL, embedAuthor, BOT_COLOR, false);
+		return await CreateEmbed(channel, thumbnail, content, title, description, string.Empty, discEmbFieldList, emojiList, imageURL, embedAuthor, Constants.BOT_COLOR, false);
 	}
 	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor, bool isForReplay)
 	{
-		return await CreateEmbed(channel, thumbnail, content, title, description, string.Empty, discEmbFieldList, emojiList, imageURL, embedAuthor, BOT_COLOR, isForReplay);
+		return await CreateEmbed(channel, thumbnail, content, title, description, string.Empty, discEmbFieldList, emojiList, imageURL, embedAuthor, Constants.BOT_COLOR, isForReplay);
 	}
 	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, string footer, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor, DiscordColor color, bool isForReplay)
 	{
@@ -384,7 +343,7 @@ internal class Bot
 					{
 						foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
 						{
-							if (guild.Key is NLBE_SERVER_ID or DA_BOIS_ID)
+							if (guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
 							{
 								await WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, weeklyEventHandler.WeeklyEvent.Tank);
 								break;
@@ -411,7 +370,7 @@ internal class Bot
 		{
 			string weeklyEventItemMostDMGPlayer = weeklyEventItemMostDMG.Player
 				.Replace("\\", string.Empty)
-				.Replace(UNDERSCORE_REPLACEMENT_CHAR, '_')
+				.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 				.ToLower();
 			foreach (DiscordMember member in members)
 			{
@@ -420,11 +379,11 @@ internal class Bot
 					Tuple<string, string> gebruiker = GetIGNFromMember(member.DisplayName);
 					string x = gebruiker.Item2
 						.Replace("\\", string.Empty)
-						.Replace(UNDERSCORE_REPLACEMENT_CHAR, '_')
+						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();
 					if (x == weeklyEventItemMostDMGPlayer
-						|| (member.Id == THIBEASTMO_ID
-							&& guild.Id == DA_BOIS_ID))
+						|| (member.Id == Constants.THIBEASTMO_ID
+							&& guild.Id == Constants.DA_BOIS_ID))
 					{
 						userNotFound = false;
 						weeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
@@ -445,7 +404,7 @@ internal class Bot
 							DiscordChannel algemeenChannel = await GetAlgemeenChannel();
 							if (algemeenChannel != null)
 							{
-								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(UNDERSCORE_REPLACEMENT_CHAR, '_').adaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
+								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').adaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
 																	   "\n" +
 																	   "`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
 																	   "\n\n" +
@@ -498,7 +457,7 @@ internal class Bot
 
 	private Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
 	{
-		if (e.Context.Guild.Id.Equals(NLBE_SERVER_ID) || e.Context.Guild.Id.Equals(DA_BOIS_ID))
+		if (e.Context.Guild.Id.Equals(Constants.NLBE_SERVER_ID) || e.Context.Guild.Id.Equals(Constants.DA_BOIS_ID))
 		{
 			if (e.Exception.Message.ToLower().Contains("unauthorized"))
 			{
@@ -506,8 +465,8 @@ internal class Bot
 			}
 			else if (e.Command != null)
 			{
-				e.Context.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(IN_PROGRESS_REACTION));
-				e.Context.Message.CreateReactionAsync(GetDiscordEmoji(ERROR_REACTION));
+				e.Context.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+				e.Context.Message.CreateReactionAsync(GetDiscordEmoji(Constants.ERROR_REACTION));
 				HandleError("Error with command (" + e.Command.Name + "):\n", e.Exception.Message.Replace("`", "'"), e.Exception.StackTrace).Wait();
 			}
 		}
@@ -519,12 +478,12 @@ internal class Bot
 		discGuildslist = sender.Guilds;
 		foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
 		{
-			if (!guild.Key.Equals(NLBE_SERVER_ID) && !guild.Key.Equals(DA_BOIS_ID))
+			if (!guild.Key.Equals(Constants.NLBE_SERVER_ID) && !guild.Key.Equals(Constants.DA_BOIS_ID))
 			{
 				guild.Value.LeaveAsync();
 			}
 		}
-		discordClient.Logger.Log(LogLevel.Information, "Client (v{Version}) is ready to process events.", version);
+		discordClient.Logger.Log(LogLevel.Information, "Client (v{Version}) is ready to process events.", Constants.version);
 
 		return Task.CompletedTask;
 	}
@@ -536,7 +495,7 @@ internal class Bot
 			return;
 		}
 
-		if (!e.User.IsBot && e.Guild.Id is NLBE_SERVER_ID or DA_BOIS_ID)
+		if (!e.User.IsBot && e.Guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
 		{
 			DiscordChannel toernooiAanmeldenChannel = await GetToernooiAanmeldenChannel(e.Guild.Id);
 			if (toernooiAanmeldenChannel != null && e.Channel.Equals(toernooiAanmeldenChannel))
@@ -553,7 +512,6 @@ internal class Bot
 					if (e.Emoji.GetDiscordName().Equals(rulesReadEmoji))
 					{
 						IReadOnlyList<DiscordUser> users = await e.Message.GetReactionsAsync(e.Emoji);
-						List<DiscordUser> reactionUsers;
 
 						foreach (DiscordUser aUser in users)
 						{
@@ -568,7 +526,7 @@ internal class Bot
 									{
 										foreach (DiscordRole memberRole in member.Roles)
 										{
-											if (memberRole.Id.Equals(MOET_REGELS_NOG_LEZEN_ROLE))
+											if (memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE))
 											{
 												hadRulesNotReadrole = true;
 												await member.RevokeRoleAsync(memberRole);//een oorzaak
@@ -600,7 +558,7 @@ internal class Bot
 										{
 											await ChangeMemberNickname(member, "[] " + member.Username);//een oorzaak
 										}
-										DiscordRole ledenRole = e.Guild.GetRole(LEDEN_ROLE);
+										DiscordRole ledenRole = e.Guild.GetRole(Constants.LEDEN_ROLE);
 										if (ledenRole != null)
 										{
 											await member.GrantRoleAsync(ledenRole);//een oorzaak
@@ -637,7 +595,7 @@ internal class Bot
 			return;
 		}
 
-		if (e.Guild.Id is NLBE_SERVER_ID or DA_BOIS_ID)
+		if (e.Guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
 		{
 			DiscordChannel toernooiAanmeldenChannel = await GetToernooiAanmeldenChannel(e.Guild.Id);
 			if (toernooiAanmeldenChannel != null)
@@ -646,7 +604,7 @@ internal class Bot
 				{
 					bool removeInLog = true;
 					DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-					if (message.Author != null && !message.Author.Id.Equals(NLBE_BOT) && !message.Author.Id.Equals(TESTBEASTV2_BOT))
+					if (message.Author != null && !message.Author.Id.Equals(Constants.NLBE_BOT) && !message.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 					{
 						removeInLog = false;
 					}
@@ -737,9 +695,9 @@ internal class Bot
 			return;
 		}
 
-		if (e.Guild.Id == NLBE_SERVER_ID)
+		if (e.Guild.Id == Constants.NLBE_SERVER_ID)
 		{
-			DiscordRole noobRole = e.Guild.GetRole(NOOB_ROLE);
+			DiscordRole noobRole = e.Guild.GetRole(Constants.NOOB_ROLE);
 			if (noobRole != null)
 			{
 				e.Member.GrantRoleAsync(noobRole).Wait();
@@ -809,7 +767,7 @@ internal class Bot
 							string clanName = string.Empty;
 							if (account.clan != null && account.clan.tag != null)
 							{
-								if (account.clan.clan_id.Equals(NLBE_CLAN_ID) || account.clan.clan_id.Equals(NLBE2_CLAN_ID))
+								if (account.clan.clan_id.Equals(Constants.NLBE_CLAN_ID) || account.clan.clan_id.Equals(Constants.NLBE2_CLAN_ID))
 								{
 									await e.Member.SendMessageAsync("Indien je echt van **" + account.clan.tag + "** bent dan moet je even vragen of iemand jouw de **" + account.clan.tag + "** rol wilt geven.");
 								}
@@ -820,7 +778,7 @@ internal class Bot
 							}
 							ChangeMemberNickname(e.Member, "[" + clanName + "] " + account.nickname).Wait();
 							await e.Member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
-							DiscordRole rulesNotReadRole = e.Guild.GetRole(MOET_REGELS_NOG_LEZEN_ROLE);
+							DiscordRole rulesNotReadRole = e.Guild.GetRole(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
 							if (rulesNotReadRole != null)
 							{
 								e.Member.RevokeRoleAsync(noobRole).Wait();
@@ -862,9 +820,9 @@ internal class Bot
 			return;
 		}
 
-		if (!e.Member.Id.Equals(THIBEASTMO_ALT_ID))
+		if (!e.Member.Id.Equals(Constants.THIBEASTMO_ALT_ID))
 		{
-			if (e.Guild.Id.Equals(NLBE_SERVER_ID))
+			if (e.Guild.Id.Equals(Constants.NLBE_SERVER_ID))
 			{
 				DiscordChannel oudLedenChannel = await GetOudLedenChannel();
 				if (oudLedenChannel != null)
@@ -872,7 +830,7 @@ internal class Bot
 					IReadOnlyDictionary<ulong, DiscordRole> serverRoles = null;
 					foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
 					{
-						if (guild.Value.Id.Equals(NLBE_SERVER_ID))
+						if (guild.Value.Id.Equals(Constants.NLBE_SERVER_ID))
 						{
 							serverRoles = guild.Value.Roles;
 						}
@@ -888,7 +846,7 @@ internal class Bot
 							{
 								if (serverRole.Key.Equals(role.Id))
 								{
-									if (role.Id.Equals(NOOB_ROLE))
+									if (role.Id.Equals(Constants.NOOB_ROLE))
 									{
 										await CleanWelkomChannel();
 									}
@@ -950,7 +908,7 @@ internal class Bot
 			return;
 		}
 
-		foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist.Where(g => g.Key != NLBE_SERVER_ID))
+		foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist.Where(g => g.Key != Constants.NLBE_SERVER_ID))
 		{
 			DiscordMember member = await GetDiscordMember(guild.Value, e.Member.Id);
 
@@ -960,7 +918,7 @@ internal class Bot
 			}
 
 			IEnumerable<DiscordRole> userRoles = member.Roles;
-			bool isNoob = userRoles.Any(role => role.Id.Equals(NOOB_ROLE));
+			bool isNoob = userRoles.Any(role => role.Id.Equals(Constants.NOOB_ROLE));
 			bool hasRoles = userRoles.Any();
 
 			if (!isNoob && hasRoles && (e.RolesAfter != null || !string.IsNullOrEmpty(e.NicknameAfter)))
@@ -981,11 +939,11 @@ internal class Bot
 			return;
 		}
 
-		if (false && e.Message.Content.StartsWith(Prefix))
+		if (false && e.Message.Content.StartsWith(Constants.Prefix))
 		// VOOR IN HET GEVAL DAT OOIT JE COMMANDS MOET MAKEN OP BASIS VAN DE MESSAGE CREATED EVENT
 		{
 			// Remove the prefix and split the message into command and arguments
-			string content = e.Message.Content[Prefix.Length..];
+			string content = e.Message.Content[Constants.Prefix.Length..];
 			string[] parts = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
 			if (parts.Length == 0)
@@ -995,7 +953,7 @@ internal class Bot
 
 			// Extract the command name and arguments
 			string commandName = parts[0];
-			string args = content.Substring(Prefix.Length, content.Length - Prefix.Length);
+			string args = content.Substring(Constants.Prefix.Length, content.Length - Constants.Prefix.Length);
 
 			CommandsNextExtension commandsNext = sender.GetCommandsNext();
 			if (commandsNext == null)
@@ -1011,7 +969,7 @@ internal class Bot
 				return;
 			}
 
-			CommandContext ctx = commandsNext.CreateContext(e.Message, Prefix, command, args);
+			CommandContext ctx = commandsNext.CreateContext(e.Message, Constants.Prefix, command, args);
 
 			try
 			{
@@ -1036,7 +994,7 @@ internal class Bot
 			DiscordChannel masteryChannel = await GetMasteryReplaysChannel(e.Guild.Id);
 			if (masteryChannel != null)
 			{
-				if (masteryChannel.Equals(e.Channel) || e.Channel.Id.Equals(BOTTEST_ID))
+				if (masteryChannel.Equals(e.Channel) || e.Channel.Id.Equals(Constants.BOTTEST_ID))
 				{
 					validChannel = true;
 				}
@@ -1086,7 +1044,7 @@ internal class Bot
 			{
 				discordMessage = e.Message;
 				DiscordMember member = await e.Guild.GetMemberAsync(e.Author.Id);
-				if (e.Channel.Id.Equals(PRIVE_ID) || (member.Roles.Contains(e.Guild.GetRole(NLBE_ROLE)) && (e.Channel.Id.Equals(MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(BOTTEST_ID))) || (member.Roles.Contains(e.Guild.GetRole(NLBE2_ROLE)) && (e.Channel.Id.Equals(MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(BOTTEST_ID))))
+				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))))
 				{
 					//MasteryChannel (komt wel in HOF)
 					if (e.Message.Attachments.Count > 0)
@@ -1181,8 +1139,8 @@ internal class Bot
 					}
 					else if (wasReplay)
 					{
-						await e.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(IN_PROGRESS_REACTION));
-						await e.Message.CreateReactionAsync(GetDiscordEmoji(ERROR_REACTION));
+						await e.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+						await e.Message.CreateReactionAsync(GetDiscordEmoji(Constants.ERROR_REACTION));
 					}
 				}
 			}
@@ -1254,91 +1212,91 @@ internal class Bot
 
 	public static async Task<DiscordChannel> GetHallOfFameChannel(ulong GuildID)
 	{
-		long ChatID = GuildID.Equals(NLBE_SERVER_ID) ? 793268894454251570 : 793429499403304960;
+		long ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? 793268894454251570 : 793429499403304960;
 		return await GetChannel(GuildID, (ulong) ChatID);
 	}
 	public static async Task<DiscordChannel> GetMasteryReplaysChannel(ulong GuildID)
 	{
-		ulong ChatID = GuildID.Equals(NLBE_SERVER_ID) ? MASTERY_REPLAYS_ID : PRIVE_ID;
+		ulong ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? Constants.MASTERY_REPLAYS_ID : Constants.PRIVE_ID;
 		return await GetChannel(GuildID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetReplayResultsChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 583958593129414677;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetWeeklyEventChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 897749692895596565;
-		if (version.ToLower().Contains("local"))
+		if (Constants.version.ToLower().Contains("local"))
 		{
-			ServerID = DA_BOIS_ID;
+			ServerID = Constants.DA_BOIS_ID;
 			ChatID = 901480697011777538;
 		}
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetAlgemeenChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 507575682046492692;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetOudLedenChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 744462244951228507;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetDeputiesChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 668211371522916389;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetWelkomChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 681960256296976405;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetRegelsChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 679531304882012165;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetLogChannel(ulong GuildID)
 	{
-		return GuildID == NLBE_SERVER_ID ? await GetChannel(GuildID, 782308602882031660) : await GetChannel(GuildID, 808319637447376899);
+		return GuildID == Constants.NLBE_SERVER_ID ? await GetChannel(GuildID, 782308602882031660) : await GetChannel(GuildID, 808319637447376899);
 	}
 	public static async Task<DiscordChannel> GetToernooiAanmeldenChannel(ulong GuildID)
 	{
-		return GuildID == NLBE_SERVER_ID
-			? await GetChannel(GuildID, NLBE_TOERNOOI_AANMELDEN_KANAAL_ID)
-			: await GetChannel(GuildID, DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID);
+		return GuildID == Constants.NLBE_SERVER_ID
+			? await GetChannel(GuildID, Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID)
+			: await GetChannel(GuildID, Constants.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID);
 	}
 	public static async Task<DiscordChannel> GetMappenChannel(ulong GuildID)
 	{
-		long ChatID = GuildID.Equals(NLBE_SERVER_ID) ? 782240999190953984 : 804856157918855209;
+		long ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? 782240999190953984 : 804856157918855209;
 		return await GetChannel(GuildID, (ulong) ChatID);
 	}
 	public static async Task<DiscordChannel> GetBottestChannel()
 	{
-		ulong ServerID = NLBE_SERVER_ID;
+		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 781617141069774898;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetTestChannel()
 	{
-		ulong ServerID = DA_BOIS_ID;
+		ulong ServerID = Constants.DA_BOIS_ID;
 		ulong ChatID = 804477788676685874;
 		return await GetChannel(ServerID, ChatID);
 	}
 	public static async Task<DiscordChannel> GetPollsChannel(bool isDeputyPoll, ulong GuildID)
 	{
-		if (GuildID == NLBE_SERVER_ID)
+		if (GuildID == Constants.NLBE_SERVER_ID)
 		{
 			long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;
 			return await GetChannel(GuildID, (ulong) ChatID);
@@ -1419,7 +1377,7 @@ internal class Bot
 
 			if (!sjtubbersUserNameIsOk)
 			{
-				await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van sjtubbers was al incorrect dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.**");
+				await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van sjtubbers was al incorrect dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.**");
 				return;
 			}
 			const int maxMemberChangesAmount = 7;
@@ -1437,7 +1395,7 @@ internal class Bot
 						break;
 					}
 
-					if (!member.IsBot && member.Roles != null && member.Roles.Contains(bottestChannel.Guild.GetRole(LEDEN_ROLE)))
+					if (!member.IsBot && member.Roles != null && member.Roles.Contains(bottestChannel.Guild.GetRole(Constants.LEDEN_ROLE)))
 					{
 						bool accountFound = false;
 						bool goodClanTag = false;
@@ -1512,12 +1470,12 @@ internal class Bot
 			{
 				foreach (KeyValuePair<DiscordMember, string> memberChange in memberChanges)
 				{
-					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(THIBEASTMO_ID), bottestChannel.Guild.Name, "**Gaat bijnaam van **`" + memberChange.Key.DisplayName + "`** aanpassen naar **`" + memberChange.Value + "`");
+					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**Gaat bijnaam van **`" + memberChange.Key.DisplayName + "`** aanpassen naar **`" + memberChange.Value + "`");
 					await ChangeMemberNickname(memberChange.Key, memberChange.Value);
 				}
 				foreach (DiscordMember memberNotFound in membersNotFound)
 				{
-					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(THIBEASTMO_ID), bottestChannel.Guild.Name, "**Bijnaam van **`" + memberNotFound.DisplayName + "` (Discord ID: `" + memberNotFound.Id + "`)** komt niet overeen met WoTB account.**");
+					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**Bijnaam van **`" + memberNotFound.DisplayName + "` (Discord ID: `" + memberNotFound.Id + "`)** komt niet overeen met WoTB account.**");
 					await SendPrivateMessage(memberNotFound, bottestChannel.Guild.Name, "Hallo,\n\nEr werd voor iedere gebruiker in de NLBE discord server gecontroleerd of je bijnaam overeenkomt met je wargaming account.\nHelaas is dit voor jou niet het geval.\nZou je dit zelf even willen aanpassen aub?\nPas je bijnaam aan naargelang de vereisten het #regels kanaal.\n\nAlvast bedankt!\n- [NLBE] sjtubbers#4241");
 				}
 			}
@@ -1544,7 +1502,7 @@ internal class Bot
 					}
 					sb.Append("```");
 				}
-				await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnamen van 7 of meer spelers waren incorrect of niet gevonden dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.\nHier is een lijstje van aanpassingen die zouden gemaakt zijn:**\n" + sb);
+				await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnamen van 7 of meer spelers waren incorrect of niet gevonden dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.\nHier is een lijstje van aanpassingen die zouden gemaakt zijn:**\n" + sb);
 			}
 		}
 	}
@@ -1554,7 +1512,7 @@ internal class Bot
 		bool addInLog = true;
 		if (message.Author != null)
 		{
-			if (!message.Author.Id.Equals(NLBE_BOT) && !message.Author.Id.Equals(TESTBEASTV2_BOT))
+			if (!message.Author.Id.Equals(Constants.NLBE_BOT) && !message.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 			{
 				addInLog = false;
 			}
@@ -1569,7 +1527,7 @@ internal class Bot
 					IReadOnlyList<DiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(GetDiscordEmoji(emojiAsEmoji));
 					foreach (DiscordUser user in userListOfThisEmoji)
 					{
-						if (user.Id.Equals(NLBE_BOT) || user.Id.Equals(TESTBEASTV2_BOT))
+						if (user.Id.Equals(Constants.NLBE_BOT) || user.Id.Equals(Constants.TESTBEASTV2_BOT))
 						{
 							botReactedWithThisEmoji = true;
 						}
@@ -1648,7 +1606,7 @@ internal class Bot
 									catch
 									{
 										discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
-										DiscordMember thibeastmo = await guild.GetMemberAsync(THIBEASTMO_ID);
+										DiscordMember thibeastmo = await guild.GetMemberAsync(Constants.THIBEASTMO_ID);
 										if (thibeastmo != null)
 										{
 											await thibeastmo.SendMessageAsync("**Gebruiker [" + member.DisplayName + "(" + member.Username + "#" + member.Discriminator + ")] kon niet geünbanned worden!**");
@@ -1670,7 +1628,7 @@ internal class Bot
 		else
 		{
 			discordClient.Logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			DiscordRole noobRole = guild.GetRole(NOOB_ROLE);
+			DiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
 			bool roleWasGiven = false;
 			if (noobRole != null)
 			{
@@ -1692,14 +1650,14 @@ internal class Bot
 	public static async Task ConfirmCommandExecuting(DiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.CreateReactionAsync(GetDiscordEmoji(IN_PROGRESS_REACTION));
+		await message.CreateReactionAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
 	}
 	public static async Task ConfirmCommandExecuted(DiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.DeleteReactionsEmojiAsync(GetDiscordEmoji(IN_PROGRESS_REACTION));
+		await message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
 		await Task.Delay(875);
-		await message.CreateReactionAsync(GetDiscordEmoji(ACTION_COMPLETED_REACTION));
+		await message.CreateReactionAsync(GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION));
 	}
 
 	public static DiscordEmoji GetDiscordEmoji(string name)
@@ -1853,7 +1811,7 @@ internal class Bot
 							DiscordMessage theMessage = messages[hoeveelste];
 							if (theMessage != null)
 							{
-								if (theMessage.Author.Id.Equals(NLBE_BOT) || theMessage.Author.Id.Equals(TESTBEASTV2_BOT))
+								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 								{
 									DiscordChannel logChannel = await GetLogChannel(channel.Guild.Id);
 									if (logChannel != null)
@@ -1948,7 +1906,7 @@ internal class Bot
 										{
 											foreach (KeyValuePair<ulong, DiscordGuild> aGuild in discGuildslist)
 											{
-												if (aGuild.Key.Equals(NLBE_SERVER_ID))
+												if (aGuild.Key.Equals(Constants.NLBE_SERVER_ID))
 												{
 													DiscordMember theMemberAuthor = await GetDiscordMember(aGuild.Value, theMessage.Author.Id);
 													if (theMemberAuthor != null)
@@ -2321,7 +2279,7 @@ internal class Bot
 
 				foreach (DiscordRole role in memberRoles)
 				{
-					if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+					if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 					{
 						if (!oldName.StartsWith("[" + role.Name + "]"))
 						{
@@ -2339,7 +2297,7 @@ internal class Bot
 			{
 				foreach (DiscordRole role in memberRoles)
 				{
-					if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+					if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 					{
 						if (oldName.StartsWith(role.Name + "] "))
 						{
@@ -2376,7 +2334,7 @@ internal class Bot
 		{
 			foreach (DiscordRole role in memberRoles)
 			{
-				if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 				{
 					if (!oldName.StartsWith("[" + role.Name))
 					{
@@ -2427,7 +2385,7 @@ internal class Bot
 		{
 			foreach (DiscordRole role in memberRoles)
 			{
-				if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 				{
 					if (!oldName.StartsWith(role.Name + "]"))
 					{
@@ -2478,7 +2436,7 @@ internal class Bot
 		{
 			foreach (DiscordRole role in memberRoles)
 			{
-				if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 				{
 					string[] splitted = oldName.Split(' ');
 					if (splitted.Length > 1)
@@ -2508,7 +2466,7 @@ internal class Bot
 		bool isFromNLBE = false;
 		foreach (DiscordRole role in member.Roles)
 		{
-			if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+			if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 			{
 				isFromNLBE = true;
 			}
@@ -2579,7 +2537,7 @@ internal class Bot
 			bool deleteMessage = false;
 			if (!message.Pinned)
 			{
-				if (message.Author.Id.Equals(NLBE_BOT))
+				if (message.Author.Id.Equals(Constants.NLBE_BOT))
 				{
 					if (message.Content.Contains("<@" + userID + ">"))
 					{
@@ -2620,10 +2578,10 @@ internal class Bot
 
 	public static bool HasRight(DiscordMember member, Command command)
 	{
-		if (member.Guild.Id.Equals(DA_BOIS_ID) || member.Guild.Id.Equals(NLBE_SERVER_ID))
+		if (member.Guild.Id.Equals(Constants.DA_BOIS_ID) || member.Guild.Id.Equals(Constants.NLBE_SERVER_ID))
 		{
 			bool hasRights = false;
-			if (member.Guild.Id.Equals(DA_BOIS_ID))
+			if (member.Guild.Id.Equals(Constants.DA_BOIS_ID))
 			{
 				return true;
 			}
@@ -2653,7 +2611,7 @@ internal class Bot
 				case "toernooi":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(TOERNOOI_DIRECTIE))
+						if (role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
 						{
 							hasRights = true;
 							break;
@@ -2663,7 +2621,7 @@ internal class Bot
 				case "toernooien":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(TOERNOOI_DIRECTIE))
+						if (role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
 						{
 							hasRights = true;
 							break;
@@ -2673,7 +2631,7 @@ internal class Bot
 				case "teams":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE) || role.Id.Equals(DISCORD_ADMIN_ROLE) || role.Id.Equals(DEPUTY_ROLE) || role.Id.Equals(BEHEERDER_ROLE) || role.Id.Equals(TOERNOOI_DIRECTIE))
+						if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
 						{
 							hasRights = true;
 							break;
@@ -2683,7 +2641,7 @@ internal class Bot
 				case "tagteams":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(DISCORD_ADMIN_ROLE) || role.Id.Equals(BEHEERDER_ROLE) || role.Id.Equals(TOERNOOI_DIRECTIE))
+						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
 						{
 							hasRights = true;
 							break;
@@ -2693,7 +2651,7 @@ internal class Bot
 				case "hof":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+						if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2703,7 +2661,7 @@ internal class Bot
 				case "hofplayer":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(NLBE_ROLE) || role.Id.Equals(NLBE2_ROLE))
+						if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2713,7 +2671,7 @@ internal class Bot
 				case "resethof":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(BEHEERDER_ROLE) || role.Id.Equals(DISCORD_ADMIN_ROLE))
+						if (role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2723,7 +2681,7 @@ internal class Bot
 				case "weekly":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(BEHEERDER_ROLE) || role.Id.Equals(DISCORD_ADMIN_ROLE))
+						if (role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2733,7 +2691,7 @@ internal class Bot
 				case "removeplayerhof":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(DISCORD_ADMIN_ROLE) || role.Id.Equals(DEPUTY_ROLE))
+						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2743,7 +2701,7 @@ internal class Bot
 				case "renameplayerhof":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(DISCORD_ADMIN_ROLE) || role.Id.Equals(DEPUTY_ROLE))
+						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2757,7 +2715,7 @@ internal class Bot
 					}
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(DISCORD_ADMIN_ROLE) || role.Id.Equals(DEPUTY_ROLE) || role.Id.Equals(BEHEERDER_ROLE) || role.Id.Equals(TOERNOOI_DIRECTIE))
+						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
 						{
 							hasRights = true;
 							break;
@@ -2767,7 +2725,7 @@ internal class Bot
 				case "updategebruikers":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(BEHEERDER_ROLE) || role.Id.Equals(DISCORD_ADMIN_ROLE))
+						if (role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2777,7 +2735,7 @@ internal class Bot
 				case "deputypoll":
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(DEPUTY_ROLE) || role.Id.Equals(DEPUTY_NLBE_ROLE) || role.Id.Equals(DEPUTY_NLBE2_ROLE) || role.Id.Equals(DISCORD_ADMIN_ROLE))
+						if (role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.DEPUTY_NLBE_ROLE) || role.Id.Equals(Constants.DEPUTY_NLBE2_ROLE) || role.Id.Equals(Constants.DISCORD_ADMIN_ROLE))
 						{
 							hasRights = true;
 							break;
@@ -2787,7 +2745,7 @@ internal class Bot
 				default:
 					foreach (DiscordRole role in member.Roles)
 					{
-						if (role.Id.Equals(DISCORD_ADMIN_ROLE) || role.Id.Equals(DEPUTY_ROLE) || role.Id.Equals(BEHEERDER_ROLE) || role.Id.Equals(TOERNOOI_DIRECTIE))
+						if (role.Id.Equals(Constants.DISCORD_ADMIN_ROLE) || role.Id.Equals(Constants.DEPUTY_ROLE) || role.Id.Equals(Constants.BEHEERDER_ROLE) || role.Id.Equals(Constants.TOERNOOI_DIRECTIE))
 						{
 							hasRights = true;
 							break;
@@ -3018,7 +2976,7 @@ internal class Bot
 						deflist.Add(newDef7);
 					}
 				}
-				await CreateEmbed(channel, string.Empty, string.Empty, "Info over " + member.nickname.adaptToDiscordChat(), string.Empty, string.Empty, deflist, null, string.Empty, null, BOT_COLOR, false, member.blitzstars);
+				await CreateEmbed(channel, string.Empty, string.Empty, "Info over " + member.nickname.adaptToDiscordChat(), string.Empty, string.Empty, deflist, null, string.Empty, null, Constants.BOT_COLOR, false, member.blitzstars);
 			}
 		}
 		else if (gebruiker is DiscordUser discordUser)
@@ -3434,7 +3392,7 @@ internal class Bot
 				DEF newDef7 = new()
 				{
 					Name = "Extra media link",
-					Value = "[" + tournament.media_Links.url.Replace('_', UNDERSCORE_REPLACEMENT_CHAR) + "](" + tournament.media_Links.url + ")",
+					Value = "[" + tournament.media_Links.url.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + tournament.media_Links.url + ")",
 					Inline = true
 				};
 				deflist.Add(newDef7);
@@ -3939,14 +3897,14 @@ internal class Bot
 		{
 			await HandleError("Tijdens het nakijken van het wekelijkse event: ", ex.Message, ex.StackTrace);
 		}
-		sb.Append(GetSomeReplayInfoAsText(battle, position).Replace(REPLACEABLE_UNDERSCORE_CHAR, '_'));
+		sb.Append(GetSomeReplayInfoAsText(battle, position).Replace(Constants.REPLACEABLE_UNDERSCORE_CHAR, '_'));
 		return sb.ToString();
 	}
 
 	private static string GetSomeReplayInfoAsText(WGBattle battle, int position)
 	{
 		StringBuilder sb = new();
-		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.adaptToDiscordChat().Replace('_', UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.adaptToDiscordChat() + ")", false));
+		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.adaptToDiscordChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.adaptToDiscordChat() + ")", false));
 		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.adaptToDiscordChat()));
 		sb.AppendLine(GetInfoInFormat("Clan", battle.details.clan_tag));
 		sb.AppendLine(GetInfoInFormat("Tank", battle.vehicle));
@@ -4574,7 +4532,7 @@ internal class Bot
 			if (replayInfo != null)
 			{
 				bool validChannel = false;
-				if (guildID.Equals(DA_BOIS_ID))
+				if (guildID.Equals(Constants.DA_BOIS_ID))
 				{
 					validChannel = true;
 				}
@@ -4767,7 +4725,7 @@ internal class Bot
 	}
 	public static async Task<Tuple<string, DiscordMessage>> ReplayHOF(WGBattle battle, ulong guildID, DiscordChannel channel, DiscordMember member, string guildName)
 	{
-		if (battle.details.clanid.Equals(NLBE_CLAN_ID) || battle.details.clanid.Equals(NLBE2_CLAN_ID))
+		if (battle.details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.details.clanid.Equals(Constants.NLBE2_CLAN_ID))
 		{
 			DiscordMessage message = await GetHOFMessage(guildID, battle.vehicle_tier, battle.vehicle);
 			if (message != null)
@@ -4793,9 +4751,9 @@ internal class Bot
 						{
 							if (tank.Item1.ToLower().Equals(battle.vehicle.ToLower()))
 							{
-								if (tank.Item2.Count == HOF_AMOUNT_PER_TANK)
+								if (tank.Item2.Count == Constants.HOF_AMOUNT_PER_TANK)
 								{
-									if (tank.Item2[HOF_AMOUNT_PER_TANK - 1].Damage < battle.details.damage_made)
+									if (tank.Item2[Constants.HOF_AMOUNT_PER_TANK - 1].Damage < battle.details.damage_made)
 									{
 										tank.Item2.Add(InitializeTankHof(battle));
 										List<TankHof> sortedTankHofList = tank.Item2.OrderBy(x => x.Damage).Reverse().ToList();
@@ -5068,7 +5026,7 @@ internal class Bot
 		{
 			DiscordEmbedBuilder newDiscEmbedBuilder = new()
 			{
-				Color = HOF_COLOR,
+				Color = Constants.HOF_COLOR,
 				Description = string.Empty
 			};
 
@@ -5090,7 +5048,7 @@ internal class Bot
 						// ̲
 						// _ --> underscore
 						// ▁
-						sb.AppendLine((i + 1) + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
+						sb.AppendLine((i + 1) + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
 					}
 					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().adaptToDiscordChat());
 				}
@@ -5104,7 +5062,7 @@ internal class Bot
 		catch (Exception e)
 		{
 			await HandleError("While editing HOF message: ", e.Message, e.StackTrace);
-			await discordMessage.CreateReactionAsync(DiscordEmoji.FromName(discordClient, MAINTENANCE_REACTION));
+			await discordMessage.CreateReactionAsync(DiscordEmoji.FromName(discordClient, Constants.MAINTENANCE_REACTION));
 		}
 	}
 	public static async Task<DiscordMessage> AddReplayToMessage(WGBattle battle, DiscordMessage message, DiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
@@ -5240,7 +5198,7 @@ internal class Bot
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
-			Color = HOF_COLOR,
+			Color = Constants.HOF_COLOR,
 			Description = "Nog geen replays aan deze tier toegevoegd.",
 
 			Title = "Tier " + GetDiscordEmoji(Emoj.GetName(tier))
@@ -5320,7 +5278,7 @@ internal class Bot
 			{
 				DiscordEmbedBuilder newDiscEmbedBuilder = new()
 				{
-					Color = BOT_COLOR
+					Color = Constants.BOT_COLOR
 				};
 				WeeklyEventHandler weeklyEventHandler = new();
 				newDiscEmbedBuilder.Description = sb.ToString();
