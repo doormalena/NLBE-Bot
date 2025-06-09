@@ -1,35 +1,39 @@
-﻿using System;
+namespace NLBE_Bot;
+
+using System;
 using System.Collections.Generic;
 
-namespace NLBE_Bot
+public class Tier
 {
-    public class Tier
-    {
-        public string Organisator { get; set; } = string.Empty;
-        public List<Tuple<ulong, string>> Deelnemers = new List<Tuple<ulong, string>>();
-        public string TierNummer { get; set; } = string.Empty;
-        public string Datum { get; set; } = string.Empty;
-        public int tier { get; set; } = 0;
-        public List<string> uniekelingen { get; set; } = new List<string>();
-        private bool editedWithRedundance = false;
+	public string Organisator { get; set; } = string.Empty;
+	private readonly List<Tuple<ulong, string>> _deelnemers = [];
+	public string TierNummer { get; set; } = string.Empty;
+	public string Datum { get; set; } = string.Empty;
+	public int Index { get; set; } = 0;
+	public List<string> Uniekelingen { get; set; } = [];
+	private readonly bool editedWithRedundance = false;
+	public List<Tuple<ulong, string>> Deelnemers => _deelnemers;
 
-        public void addDeelnemer(string naam, ulong id)
-        {
-            this.Deelnemers.Add(new Tuple<ulong, string>(id, naam));
-        }
+	public void AddDeelnemer(string naam, ulong id)
+	{
+		_deelnemers.Add(new Tuple<ulong, string>(id, naam));
+	}
 
-        public bool removeDeelnemer(ulong id)
-        {
-            for (int i = 0; i < this.Deelnemers.Count; i++)
-            {
-                if (this.Deelnemers[i].Item1.Equals(id))
-                {
-                    this.Deelnemers.RemoveAt(i);
-                    return true;
-                }
-            }
-            return false;
-        }
-        public bool isEditedWithRedundance() { return this.editedWithRedundance; }
-    }
+	public bool RemoveDeelnemer(ulong id)
+	{
+		for (int i = 0; i < _deelnemers.Count; i++)
+		{
+			if (_deelnemers[i].Item1.Equals(id))
+			{
+				_deelnemers.RemoveAt(i);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public bool IsEditedWithRedundance()
+	{
+		return editedWithRedundance;
+	}
 }

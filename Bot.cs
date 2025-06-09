@@ -63,7 +63,6 @@ internal class Bot
 	public const long NLBE2_CLAN_ID = 48814;
 	public const char LOG_SPLIT_CHAR = '|';
 	public const char UNDERSCORE_REPLACEMENT_CHAR = 'ˍ';
-
 	public const char REPLACEABLE_UNDERSCORE_CHAR = '＿';
 
 	public static DiscordColor WEEKLY_EVENT_COLOR { get; } = DiscordColor.Gold;
@@ -98,7 +97,7 @@ internal class Bot
 			Token = _configuration["NLBEBOT:DiscordToken"],
 			TokenType = TokenType.Bot,
 			AutoReconnect = true,
-			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents
+			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
 		});
 
 		discordClient.UseInteractivity(new InteractivityConfiguration
@@ -174,6 +173,7 @@ internal class Bot
 		}
 		return null;
 	}
+
 	public static async Task<bool> SendPrivateMessage(DiscordMember member, string guildName, string Message)
 	{
 		try
@@ -187,7 +187,6 @@ internal class Bot
 		}
 		return false;
 	}
-
 
 	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, string thumbnail, string content, string title, string description, List<DEF> discEmbFieldList, List<DiscordEmoji> emojiList, string imageURL, DiscordEmbedBuilder.EmbedAuthor embedAuthor)
 	{
@@ -1617,7 +1616,7 @@ internal class Bot
 		}
 		if (addInLog)
 		{
-			if (Emoj.getIndex(GetEmojiAsString(emojiAsEmoji)) > 0)
+			if (Emoj.GetIndex(GetEmojiAsString(emojiAsEmoji)) > 0)
 			{
 				try
 				{
@@ -1990,15 +1989,15 @@ internal class Bot
 														{
 															_ = ulong.TryParse(splitted[4], out id);
 														}
-														newTeam.addDeelnemer(splitted[2], id);
+														newTeam.AddDeelnemer(splitted[2], id);
 														if (!found)
 														{
 															if (newTeam.TierNummer.Equals(string.Empty))
 															{
 																newTeam.TierNummer = GetEmojiAsString(splitted[3]);
 																string emojiAsString = GetEmojiAsString(splitted[3]);
-																int index = Emoj.getIndex(emojiAsString);
-																newTeam.tier = index;
+																int index = Emoj.GetIndex(emojiAsString);
+																newTeam.Index = index;
 															}
 															if (newTeam.Organisator.Equals(string.Empty))
 															{
@@ -2013,7 +2012,7 @@ internal class Bot
 										}
 
 										tiers = EditWhenRedundance(tiers);
-										tiers.Sort((x, y) => x.tier.CompareTo(y.tier));
+										tiers.Sort((x, y) => x.Index.CompareTo(y.Index));
 
 										return tiers;
 
@@ -2040,7 +2039,7 @@ internal class Bot
 											{
 												displayName = memberx.DisplayName;
 											}
-											aTeam.addDeelnemer(displayName, user.Id);
+											aTeam.AddDeelnemer(displayName, user.Id);
 											counter++;
 										}
 										if (aTeam.Organisator.Equals(string.Empty))
@@ -2065,16 +2064,16 @@ internal class Bot
 										{
 											aTeam.TierNummer = reaction.Key;
 											string emojiAsString = GetEmojiAsString(reaction.Key);
-											int index = Emoj.getIndex(emojiAsString);
+											int index = Emoj.GetIndex(emojiAsString);
 											if (index != 0)
 											{
-												aTeam.tier = index;
+												aTeam.Index = index;
 												teams.Add(aTeam);
 											}
 										}
 									}
 									teams = EditWhenRedundance(teams);
-									teams.Sort((x, y) => x.tier.CompareTo(y.tier));
+									teams.Sort((x, y) => x.Index.CompareTo(y.Index));
 									List<DEF> deflist = [];
 									foreach (Tier aTeam in teams)
 									{
@@ -2160,22 +2159,22 @@ internal class Bot
 					}
 					if (neverFound)
 					{
-						newTeam.addDeelnemer("**" + aDeelnemer.Item2 + "**", aDeelnemer.Item1);
-						newTeam.uniekelingen.Add(aDeelnemer.Item2);
+						newTeam.AddDeelnemer("**" + aDeelnemer.Item2 + "**", aDeelnemer.Item1);
+						newTeam.Uniekelingen.Add(aDeelnemer.Item2);
 					}
 					else if (amountFound == 1)
 					{
-						newTeam.addDeelnemer("`" + aDeelnemer.Item2.Replace("\\", string.Empty) + "`", aDeelnemer.Item1);
+						newTeam.AddDeelnemer("`" + aDeelnemer.Item2.Replace("\\", string.Empty) + "`", aDeelnemer.Item1);
 					}
 					else
 					{
-						newTeam.addDeelnemer(aDeelnemer.Item2, aDeelnemer.Item1);
+						newTeam.AddDeelnemer(aDeelnemer.Item2, aDeelnemer.Item1);
 					}
 				}
 				newTeam.Datum = aTeam.Datum;
 				newTeam.Organisator = aTeam.Organisator;
 				newTeam.TierNummer = aTeam.TierNummer;
-				newTeam.tier = aTeam.tier;
+				newTeam.Index = aTeam.Index;
 				newTeams.Add(newTeam);
 				aCounter++;
 			}
@@ -3604,7 +3603,7 @@ internal class Bot
 			}
 			if (hoogsteTier > 0)
 			{
-				string tiers = Emoj.getName(laagsteTier) + (laagsteTier != hoogsteTier ? " tot " + Emoj.getName(hoogsteTier) : string.Empty);
+				string tiers = Emoj.GetName(laagsteTier) + (laagsteTier != hoogsteTier ? " tot " + Emoj.GetName(hoogsteTier) : string.Empty);
 				DEF newDef3 = new()
 				{
 					Name = "Tiers",
@@ -4102,7 +4101,7 @@ internal class Bot
 		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.adaptToDiscordChat()));
 		sb.AppendLine(GetInfoInFormat("Clan", battle.details.clan_tag));
 		sb.AppendLine(GetInfoInFormat("Tank", battle.vehicle));
-		sb.AppendLine(GetInfoInFormat("Tier", Emoj.getName(battle.vehicle_tier), false));
+		sb.AppendLine(GetInfoInFormat("Tier", Emoj.GetName(battle.vehicle_tier), false));
 		sb.AppendLine(GetInfoInFormat("Damage", battle.details.damage_made.ToString()));
 		sb.AppendLine(GetInfoInFormat("Damage bounced", battle.details.damage_blocked.ToString()));
 		sb.AppendLine(GetInfoInFormat("Assist damage", (battle.details.damage_assisted + battle.details.damage_assisted_track).ToString()));
@@ -4262,7 +4261,7 @@ internal class Bot
 			List<DiscordEmoji> reacted = [];
 			for (int i = 1; i <= 10; i++)
 			{
-				DiscordEmoji emoji = GetDiscordEmoji(Emoj.getName(i));
+				DiscordEmoji emoji = GetDiscordEmoji(Emoj.GetName(i));
 				if (emoji != null)
 				{
 					IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;
@@ -4278,7 +4277,7 @@ internal class Bot
 
 			if (reacted.Count == 1)
 			{
-				int index = Emoj.getIndex(GetEmojiAsString(reacted[0].Name));
+				int index = Emoj.GetIndex(GetEmojiAsString(reacted[0].Name));
 				if (index > 0 && index <= count)
 				{
 					return (index - 1);
@@ -4945,7 +4944,7 @@ internal class Bot
 					{
 						foreach (TankHof hof in tank.Item2)
 						{
-							if (Path.GetFileName(hof.link).Equals(battle.hexKey))
+							if (Path.GetFileName(hof.Link).Equals(battle.hexKey))
 							{
 								alreadyAdded = true;
 								break;
@@ -4958,13 +4957,13 @@ internal class Bot
 						{
 							if (tank.Item1.ToLower().Equals(battle.vehicle.ToLower()))
 							{
-								tank.Item2.OrderBy(x => x.damage);
+								tank.Item2.OrderBy(x => x.Damage);
 								if (tank.Item2.Count == HOF_AMOUNT_PER_TANK)
 								{
-									if (tank.Item2[HOF_AMOUNT_PER_TANK - 1].damage < battle.details.damage_made)
+									if (tank.Item2[HOF_AMOUNT_PER_TANK - 1].Damage < battle.details.damage_made)
 									{
 										tank.Item2.Add(InitializeTankHof(battle));
-										List<TankHof> sortedTankHofList = tank.Item2.OrderBy(x => x.damage).Reverse().ToList();
+										List<TankHof> sortedTankHofList = tank.Item2.OrderBy(x => x.Damage).Reverse().ToList();
 										sortedTankHofList.RemoveAt(sortedTankHofList.Count - 1);
 										tank.Item2.Clear();
 										int counter = 1;
@@ -4972,7 +4971,7 @@ internal class Bot
 										foreach (TankHof item in sortedTankHofList)
 										{
 											tank.Item2.Add(item);
-											if (item.link.Equals(battle.view_url))
+											if (item.Link.Equals(battle.view_url))
 											{
 												position = counter;
 											}
@@ -4980,7 +4979,7 @@ internal class Bot
 											{
 												counter++;
 											}
-											item.place = (short) position;
+											item.Place = (short) position;
 										}
 										await EditHOFMessage(message, tierHOF);
 										DiscordMessage tempMessage = await SayReplayIsWorthy(channel, battle, position);
@@ -5101,7 +5100,7 @@ internal class Bot
 						if (tierMessage.Embeds.Count > 0)
 						{
 							string emojiAsString = tierMessage.Embeds[0].Title.Replace("Tier ", string.Empty);
-							int index = Emoj.getIndex(GetEmojiAsString(emojiAsString));
+							int index = Emoj.GetIndex(GetEmojiAsString(emojiAsString));
 							if (index < tier)
 							{
 								LTmessages.Add(tierMessage);
@@ -5154,7 +5153,7 @@ internal class Bot
 			{
 				if (message.Embeds.Count > 0)
 				{
-					if (message.Embeds[0].Title.Contains(GetDiscordEmoji(Emoj.getName(tier))))
+					if (message.Embeds[0].Title.Contains(GetDiscordEmoji(Emoj.GetName(tier))))
 					{
 						tierMessages.Add(message);
 					}
@@ -5216,7 +5215,7 @@ internal class Bot
 									}
 									string fieldName = field.Name.Replace("\\_", "_");
 									hofList.Add(new TankHof(link, speler.Replace("\\", string.Empty), fieldName, Convert.ToInt32(damage), TIER));
-									hofList[counter].place = (short) (counter + 1);
+									hofList[counter].Place = (short) (counter + 1);
 								}
 								generatedTupleListFromMessage.Add(new Tuple<string, List<TankHof>>(field.Name, hofList));
 							}
@@ -5243,26 +5242,26 @@ internal class Bot
 			{
 				if (item.Item2.Count > 0)
 				{
-					List<TankHof> sortedTankHofList = item.Item2.OrderBy(x => x.damage).Reverse().ToList();
+					List<TankHof> sortedTankHofList = item.Item2.OrderBy(x => x.Damage).Reverse().ToList();
 					StringBuilder sb = new();
 					for (int i = 0; i < sortedTankHofList.Count; i++)
 					{
 						if (tier == 0)
 						{
-							tier = sortedTankHofList[i].tier;
+							tier = sortedTankHofList[i].Tier;
 						}
 						// ˍ
 						// ＿
 						// ̲
 						// _ --> underscore
 						// ▁
-						sb.AppendLine((i + 1) + ". [" + sortedTankHofList[i].speler.Replace("\\", string.Empty).Replace('_', UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].link + ") `" + sortedTankHofList[i].damage + " dmg`");
+						sb.AppendLine((i + 1) + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
 					}
 					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().adaptToDiscordChat());
 				}
 			}
 
-			newDiscEmbedBuilder.Title = "Tier " + GetDiscordEmoji(Emoj.getName(tier));
+			newDiscEmbedBuilder.Title = "Tier " + GetDiscordEmoji(Emoj.GetName(tier));
 
 			DiscordEmbed embed = newDiscEmbedBuilder.Build();
 			await message.ModifyAsync(embed);
@@ -5297,11 +5296,11 @@ internal class Bot
 			{
 				if (item.Item1.Equals(battle.vehicle))
 				{
-					List<TankHof> sortedTankHofList = item.Item2.OrderBy(x => x.damage).Reverse().ToList();
+					List<TankHof> sortedTankHofList = item.Item2.OrderBy(x => x.Damage).Reverse().ToList();
 					for (int i = 0; i < sortedTankHofList.Count; i++)
 					{
-						sortedTankHofList[i].place = (short) (i + 1);
-						if (sortedTankHofList[i].link.Equals(battle.view_url))
+						sortedTankHofList[i].Place = (short) (i + 1);
+						if (sortedTankHofList[i].Link.Equals(battle.view_url))
 						{
 							position = i + 1;
 							break;
@@ -5346,7 +5345,7 @@ internal class Bot
 								bool found = false;
 								for (int i = 0; i < players.Count; i++)
 								{
-									if (players[i].Item1.Equals(th.speler))
+									if (players[i].Item1.Equals(th.Speler))
 									{
 										found = true;
 										players[i].Item2.Add(th);
@@ -5354,7 +5353,7 @@ internal class Bot
 								}
 								if (!found)
 								{
-									players.Add(new Tuple<string, List<TankHof>>(th.speler, []));
+									players.Add(new Tuple<string, List<TankHof>>(th.Speler, []));
 								}
 							}
 						}
@@ -5409,7 +5408,7 @@ internal class Bot
 			Color = HOF_COLOR,
 			Description = "Nog geen replays aan deze tier toegevoegd.",
 
-			Title = "Tier " + GetDiscordEmoji(Emoj.getName(tier))
+			Title = "Tier " + GetDiscordEmoji(Emoj.GetName(tier))
 		};
 
 		return newDiscEmbedBuilder.Build();

@@ -1,42 +1,40 @@
-﻿namespace NLBE_Bot
+namespace NLBE_Bot;
+
+public static class Emoj
 {
-    public class Emoj
-    {
+	public static string GetName(int index)
+	{
+		return index switch
+		{
+			1 => ":one:",
+			2 => ":two:",
+			3 => ":three:",
+			4 => ":four:",
+			5 => ":five:",
+			6 => ":six:",
+			7 => ":seven:",
+			8 => ":eight:",
+			9 => ":nine:",
+			10 => ":keycap_ten:",
+			_ => string.Empty,
+		};
+	}
 
-        public static string getName(int index)
-        {
-            switch(index)
-            {
-                case 1: return ":one:";
-                case 2: return ":two:";
-                case 3: return ":three:";
-                case 4: return ":four:";
-                case 5: return ":five:";
-                case 6: return ":six:";
-                case 7: return ":seven:";
-                case 8: return ":eight:";
-                case 9: return ":nine:";
-                case 10: return ":keycap_ten:";
-                default: return string.Empty;
-            }
-        }
-
-        public static int getIndex(string name)
-        {
-            switch(name)
-            {
-                case ":one:": return 1;
-                case ":two:": return 2;
-                case ":three:": return 3;
-                case ":four:": return 4;
-                case ":five:": return 5;
-                case ":six:": return 6;
-                case ":seven:": return 7;
-                case ":eight:": return 8;
-                case ":nine:": return 9;
-                case ":keycap_ten:": return 10;
-                default: return 0;
-            }
-        }
-    }
+	public static int GetIndex(string name)
+	{
+		return name switch
+		{
+			":one:" => 1,
+			":two:" => 2,
+			":three:" => 3,
+			":four:" => 4,
+			":five:" => 5,
+			":six:" => 6,
+			":seven:" => 7,
+			":eight:" => 8,
+			":nine:" => 9,
+			":keycap_ten:" => 10,
+			_ => 0,
+		};
+	}
 }

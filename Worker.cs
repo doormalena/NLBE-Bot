@@ -24,7 +24,7 @@ public class Worker(ILogger<Worker> logger, IConfiguration configuration) : Back
 		{
 			while (!stoppingToken.IsCancellationRequested)
 			{
-				await new Bot(_logger, _configuration).RunAsync(); // Note: the bot does not yet support gracefull cancellation.                 
+				await new Bot(_logger, _configuration).RunAsync(); // Note: the bot does not yet support gracefull cancellation.
 			}
 		}
 		catch (OperationCanceledException ex)
