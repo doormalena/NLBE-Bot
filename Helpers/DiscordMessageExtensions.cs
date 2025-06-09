@@ -3,20 +3,16 @@ namespace NLBE_Bot.Helpers;
 using DSharpPlus.Entities;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 public static class DiscordMessageExtensions
 {
 	public static Dictionary<DiscordEmoji, List<DiscordUser>> SortReactions(this DiscordMessage message)
 	{
-		Dictionary<DiscordEmoji, List<DiscordUser>> sortedReactions = [];
-		foreach (DiscordReaction reaction in message.Reactions)
-		{
-			DiscordEmoji emoji = reaction.Emoji;
-			IReadOnlyList<DiscordUser> users = message.GetReactionsAsync(reaction.Emoji).Result;
-			List<DiscordUser> userList = [.. users];
-			sortedReactions.Add(emoji, userList);
-		}
-		return sortedReactions;
+		return message.Reactions.ToDictionary(
+				reaction => reaction.Emoji,
+				reaction => message.GetReactionsAsync(reaction.Emoji).Result.ToList()
+			);
 	}
 
 	public static Dictionary<DateTime, List<DiscordMessage>> SortMessages(this IReadOnlyList<DiscordMessage> messages)
