@@ -1,9 +1,13 @@
 namespace NLBE_Bot;
 
+using DSharpPlus;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
 
@@ -39,9 +43,36 @@ public static class Program
 					logging.AddEventLog();
 				}
 			})
-			.ConfigureServices((_, services) =>
+			.ConfigureServices((hostContext, services) =>
 			{
+				services.AddSingleton(provider =>
+				{
+					return CreateDiscordClient(hostContext.Configuration, provider.GetRequiredService<ILoggerFactory>());
+				});
+
 				services.AddHostedService<Worker>();
+				services.AddSingleton<Bot>();
+				services.AddSingleton<BotCommands>();
 			});
+	}
+
+	private static DiscordClient CreateDiscordClient(IConfiguration configuration, ILoggerFactory loggerFactory)
+	{
+		DiscordConfiguration config = new()
+		{
+			Token = configuration["NLBEBOT:DiscordToken"],
+			TokenType = TokenType.Bot,
+			AutoReconnect = true,
+			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
+			LoggerFactory = loggerFactory
+		};
+
+		DiscordClient client = new(config);
+		client.UseInteractivity(new InteractivityConfiguration
+		{
+			Timeout = TimeSpan.FromSeconds(int.TryParse(configuration["NLBEBOT:DiscordTimeOutInSeconds"], out int timeout) ? timeout : 0)
+		});
+
+		return client;
 	}
 }

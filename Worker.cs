@@ -1,6 +1,8 @@
 namespace NLBE_Bot;
 
+using DSharpPlus;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Helpers;
@@ -8,10 +10,10 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-public class Worker(ILogger<Worker> logger, IConfiguration configuration) : BackgroundService
+public class Worker(IServiceProvider serviceProvider, ILogger<Worker> logger) : BackgroundService
 {
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-	private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+	private readonly ILogger<Worker> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 	{
@@ -24,7 +26,8 @@ public class Worker(ILogger<Worker> logger, IConfiguration configuration) : Back
 		{
 			while (!stoppingToken.IsCancellationRequested)
 			{
-				await new Bot(_logger, _configuration).RunAsync(); // Note: the bot does not yet support gracefull cancellation.
+				Bot bot = _serviceProvider.GetRequiredService<Bot>();
+				await bot.RunAsync(); // Note: the bot does not yet support gracefull cancellation.
 			}
 		}
 		catch (OperationCanceledException ex)

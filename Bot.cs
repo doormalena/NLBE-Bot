@@ -32,7 +32,10 @@ using System.Threading.Tasks;
 
 internal class Bot
 {
-	public static DiscordClient discordClient;
+	private static DiscordClient _discordClient;
+	private static ILogger<Bot> _logger;
+	private readonly IConfiguration _configuration;
+
 	public static IReadOnlyDictionary<ulong, DiscordGuild> discGuildslist;
 	public static bool ignoreCommands = false;
 	public static bool ignoreEvents = false;
@@ -40,71 +43,60 @@ internal class Bot
 	private static DiscordMessage discordMessage;//temp message
 	private DateTime? lasTimeNamesWereUpdated;
 	private short heartBeatCounter = 0;
-	private readonly IConfiguration _configuration;
 
 	public static string WarGamingAppId
 	{
 		get; private set;
 	}
-	private static ILogger _logger;
 
-	public Bot(ILogger logger, IConfiguration configuration)
+	public Bot(DiscordClient discordClient, IServiceProvider serviceProvider, ILogger<Bot> logger, IConfiguration configuration)
 	{
-		_logger = logger ?? throw new ArgumentNullException(nameof(logger)); // Note: temporary workarround to access the logger due to excessive usage of static methods.
+		// Note: temporary workarround to access the discored client and logger due to excessive usage of static methods. Needs more DI refactoring.
+		_discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
 		_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-
-		discordClient = new DiscordClient(new DiscordConfiguration
-		{
-			Token = _configuration["NLBEBOT:DiscordToken"],
-			TokenType = TokenType.Bot,
-			AutoReconnect = true,
-			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
-		});
-
-		discordClient.UseInteractivity(new InteractivityConfiguration
-		{
-			Timeout = TimeSpan.FromSeconds(int.TryParse(_configuration["NLBEBOT:DiscordTimeOutInSeconds"], out int timeout) ? timeout : 0)
-		});
-
 		WarGamingAppId = _configuration["NLBEBOT:WarGamingAppId"];
-	}
 
-	public async Task RunAsync()
-	{
+		// Register Bot commands.
 		CommandsNextConfiguration commandsConfig = new()
 		{
 			StringPrefixes = [Constants.Prefix],
 			EnableDms = false,
 			EnableMentionPrefix = true,
 			DmHelp = false,
-			EnableDefaultHelp = false
+			EnableDefaultHelp = false,
+			Services = serviceProvider
 		};
 
-		CommandsNextExtension commands = discordClient.UseCommandsNext(commandsConfig);
+		CommandsNextExtension commands = _discordClient.UseCommandsNext(commandsConfig);
 		commands.RegisterCommands<BotCommands>();
+
+		// Subscribe to events.
 		commands.CommandErrored += Commands_CommandErrored;
 		commands.CommandExecuted += Commands_CommandExecuted;
+		_discordClient.Heartbeated += Discord_Heartbeated;
+		_discordClient.Ready += Discord_Ready;
+		_discordClient.GuildMemberAdded += Discord_GuildMemberAdded;
+		_discordClient.MessageReactionAdded += Discord_MessageReactionAdded;
+		_discordClient.GuildMemberRemoved += Discord_GuildMemberRemoved;
+		_discordClient.MessageReactionRemoved += Discord_MessageReactionRemoved;
+		_discordClient.MessageDeleted += Discord_MessageDeleted;
+		_discordClient.GuildMemberUpdated += Discord_GuildMemberUpdated;
+		_discordClient.MessageCreated += Discord_MessageCreated;
+	}
 
+	public async Task RunAsync()
+	{
 		DiscordActivity act = new(Constants.Prefix, ActivityType.ListeningTo);
-		await discordClient.ConnectAsync(act, UserStatus.Online);
-
-		//Events
-		discordClient.Heartbeated += Discord_Heartbeated;
-		discordClient.Ready += Discord_Ready;
-		discordClient.GuildMemberAdded += Discord_GuildMemberAdded;
-		discordClient.MessageReactionAdded += Discord_MessageReactionAdded;
-		discordClient.GuildMemberRemoved += Discord_GuildMemberRemoved;
-		discordClient.MessageReactionRemoved += Discord_MessageReactionRemoved;
-		discordClient.MessageDeleted += Discord_MessageDeleted;
-		discordClient.GuildMemberUpdated += Discord_GuildMemberUpdated;
-		discordClient.MessageCreated += Discord_MessageCreated;
+		await _discordClient.ConnectAsync(act, UserStatus.Online);
 
 		await Task.Delay(-1);
 	}
 
 	private Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs args)
 	{
-		discordClient.Logger.Log(LogLevel.Information, "Command executed: {CommandName}", args.Command.Name);
+		_discordClient.Logger.Log(LogLevel.Information, "Command executed: {CommandName}", args.Command.Name);
 		return Task.CompletedTask;
 	}
 
@@ -226,7 +218,7 @@ internal class Bot
 		{
 			DiscordMessage theMessage = options.IsForReplay
 				? discordMessage.RespondAsync(options.Content, embed).Result
-				: discordClient.SendMessageAsync(channel, options.Content, embed).Result;
+				: _discordClient.SendMessageAsync(channel, options.Content, embed).Result;
 
 			try
 			{
@@ -315,7 +307,7 @@ internal class Bot
 			DiscordChannel bottestChannel = await GetBottestChannel();
 			try
 			{
-				discordClient.Logger.LogInformation(winnerMessage);
+				_discordClient.Logger.LogInformation(winnerMessage);
 				WeeklyEventHandler weeklyEventHandler = new();
 				await weeklyEventHandler.ReadWeeklyEvent();
 				if (weeklyEventHandler.WeeklyEvent.StartDate.DayOfYear == DateTime.Now.DayOfYear - 7)//-7 omdat het dan zeker een nieuwe week is maar niet van twee weken gelden
@@ -466,7 +458,7 @@ internal class Bot
 				guild.Value.LeaveAsync();
 			}
 		}
-		discordClient.Logger.Log(LogLevel.Information, "Client (v{Version}) is ready to process events.", Constants.version);
+		_discordClient.Logger.Log(LogLevel.Information, "Client (v{Version}) is ready to process events.", Constants.version);
 
 		return Task.CompletedTask;
 	}
@@ -692,7 +684,7 @@ internal class Bot
 					DiscordGuild guild = GetGuild(e.Guild.Id).Result;
 					if (guild != null)
 					{
-						DiscordUser user = discordClient.GetUserAsync(e.Member.Id).Result;
+						DiscordUser user = _discordClient.GetUserAsync(e.Member.Id).Result;
 						if (user != null)
 						{
 							IReadOnlyList<WGAccount> searchResults = [];
@@ -729,7 +721,7 @@ internal class Bot
 										}
 										catch (Exception ex)
 										{
-											discordClient.Logger.LogWarning(ex, "Error while looking for basicInfo for {Ign}:\n {StackTrace}", ign, ex.StackTrace);
+											_discordClient.Logger.LogWarning(ex, "Error while looking for basicInfo for {Ign}:\n {StackTrace}", ign, ex.StackTrace);
 										}
 									}
 								}
@@ -947,14 +939,14 @@ internal class Bot
 			CommandsNextExtension commandsNext = sender.GetCommandsNext();
 			if (commandsNext == null)
 			{
-				discordClient.Logger.Log(LogLevel.Information, "CommandsNext is not enabled.");
+				_discordClient.Logger.Log(LogLevel.Information, "CommandsNext is not enabled.");
 				return;
 			}
 
 			Command command = commandsNext.FindCommand(commandName, out string rawArguments);
 			if (command == null)
 			{
-				discordClient.Logger.Log(LogLevel.Information, "Unknown command.");
+				_discordClient.Logger.Log(LogLevel.Information, "Unknown command.");
 				return;
 			}
 
@@ -969,7 +961,7 @@ internal class Bot
 			{
 				// Log or handle any errors that occur during command execution
 				Console.WriteLine();
-				discordClient.Logger.Log(LogLevel.Error, ex, "Error executing command: {0}", ex.Message);
+				_discordClient.Logger.Log(LogLevel.Error, ex, "Error executing command: {0}", ex.Message);
 			}
 
 			await commandsNext.ExecuteCommandAsync(ctx);
@@ -1306,7 +1298,7 @@ internal class Bot
 	{
 		try
 		{
-			DiscordGuild guild = await discordClient.GetGuildAsync(serverID);
+			DiscordGuild guild = await _discordClient.GetGuildAsync(serverID);
 			if (guild != null)
 			{
 				return guild.GetChannel(chatID);
@@ -1321,7 +1313,7 @@ internal class Bot
 	}
 	private static async Task<DiscordGuild> GetGuild(ulong serverID)
 	{
-		return await discordClient.GetGuildAsync(serverID);
+		return await _discordClient.GetGuildAsync(serverID);
 	}
 	public static async Task<DiscordChannel> GetChannelBasedOnString(string guildNameOrTag, ulong guildID)
 	{
@@ -1460,7 +1452,7 @@ internal class Bot
 			{
 				string bericht = "Bijnamen van gebruikers nagekeken maar geen namen moesten aangepast worden.";
 				await bottestChannel.SendMessageAsync("**" + bericht + "**");
-				discordClient.Logger.LogInformation(bericht);
+				_discordClient.Logger.LogInformation(bericht);
 			}
 			else if (memberChanges.Count + membersNotFound.Count < maxMemberChangesAmount)
 			{
@@ -1585,7 +1577,7 @@ internal class Bot
 							}
 							catch
 							{
-								discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
+								_discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
 							}
 							if (isBanned)
 							{
@@ -1601,7 +1593,7 @@ internal class Bot
 									}
 									catch
 									{
-										discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
+										_discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
 										DiscordMember thibeastmo = await guild.GetMemberAsync(Constants.THIBEASTMO_ID);
 										if (thibeastmo != null)
 										{
@@ -1623,7 +1615,7 @@ internal class Bot
 		}
 		else
 		{
-			discordClient.Logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
+			_discordClient.Logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
 			DiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
 			bool roleWasGiven = false;
 			if (noobRole != null)
@@ -1637,7 +1629,7 @@ internal class Bot
 			}
 			if (!roleWasGiven)
 			{
-				discordClient.Logger.LogWarning("The noob role could not be given to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
+				_discordClient.Logger.LogWarning("The noob role could not be given to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
 			}
 		}
 		return null;
@@ -1660,7 +1652,7 @@ internal class Bot
 	{
 		try
 		{
-			return DiscordEmoji.FromName(discordClient, name);
+			return DiscordEmoji.FromName(_discordClient, name);
 		}
 		catch (Exception ex)
 		{
@@ -1676,7 +1668,7 @@ internal class Bot
 		{
 			try
 			{
-				theEmoji = DiscordEmoji.FromName(discordClient, name);
+				theEmoji = DiscordEmoji.FromName(_discordClient, name);
 			}
 			catch (Exception ex)
 			{
@@ -1696,7 +1688,7 @@ internal class Bot
 
 		try
 		{
-			return DiscordEmoji.FromUnicode(discordClient, emoji).Name;
+			return DiscordEmoji.FromUnicode(_discordClient, emoji).Name;
 		}
 		catch
 		{
@@ -3863,7 +3855,7 @@ internal class Bot
 		}
 		catch (TooManyResultsException ex)
 		{
-			discordClient.Logger.LogWarning("({Command}) {Message}", command.Name, ex.Message);
+			_discordClient.Logger.LogWarning("({Command}) {Message}", command.Name, ex.Message);
 			await SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
 		}
 		return null;
@@ -3872,7 +3864,7 @@ internal class Bot
 	public static async Task<int> WaitForReply(DiscordChannel channel, DiscordUser user, string description, int count)
 	{
 		DiscordMessage discMessage = SayMultipleResults(channel, description);
-		InteractivityExtension interactivity = discordClient.GetInteractivity();
+		InteractivityExtension interactivity = _discordClient.GetInteractivity();
 		InteractivityResult<DiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == channel && x.Author == user);
 		if (!message.TimedOut)
 		{
@@ -4314,7 +4306,7 @@ internal class Bot
 		}
 		catch (TooManyResultsException ex)
 		{
-			discordClient.Logger.LogWarning("While searching for player by name: {Message}", ex.Message);
+			_discordClient.Logger.LogWarning("While searching for player by name: {Message}", ex.Message);
 			await SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
 		}
 		return null;
@@ -4920,7 +4912,7 @@ internal class Bot
 		catch (Exception e)
 		{
 			await HandleError("While editing HOF message: ", e.Message, e.StackTrace);
-			await discordMessage.CreateReactionAsync(DiscordEmoji.FromName(discordClient, Constants.MAINTENANCE_REACTION));
+			await discordMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, Constants.MAINTENANCE_REACTION));
 		}
 	}
 	public static async Task<DiscordMessage> AddReplayToMessage(WGBattle battle, DiscordMessage message, DiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
@@ -5099,11 +5091,11 @@ internal class Bot
 			}
 			if (good)
 			{
-				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(discordClient, ":thumbsup:"));
+				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, ":thumbsup:"));
 			}
 			else
 			{
-				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(discordClient, ":thumbsdown:"));
+				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, ":thumbsdown:"));
 			}
 			//Pas bericht aan
 			string[] splitted = description.Split('\n');
@@ -5151,7 +5143,7 @@ internal class Bot
 	{
 		string formattedMessage = message + exceptionMessage + Environment.NewLine + stackTrace;
 		_logger.LogError(formattedMessage);
-		discordClient.Logger.LogError(formattedMessage);
+		_discordClient.Logger.LogError(formattedMessage);
 		await SendThibeastmo(message, exceptionMessage, stackTrace);
 	}
 
