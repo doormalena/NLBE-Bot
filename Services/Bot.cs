@@ -1155,19 +1155,9 @@ internal class Bot
 
 		string vehiclesInString = await WGVehicle.vehiclesToString(WarGamingAppId, ["name"]);
 		Json json = new(vehiclesInString, string.Empty);
-		List<Json> jsons = json.subJsons[1].subJsons;
-		string chosenTank = null;
-		List<string> tanks = new(jsons.Count);
+		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
 
-		foreach (Json item in jsons)
-		{
-			if (item.tupleList.Count > 0)
-			{
-				tanks.Add(item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty));
-			}
-		}
-
-		chosenTank = tanks.Find(tank => tank == lastMessage.Content);
+		string chosenTank = tanks.Find(tank => tank == lastMessage.Content);
 
 		if (string.IsNullOrEmpty(chosenTank))
 		{
