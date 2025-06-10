@@ -358,8 +358,8 @@ internal class Bot
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();
 					if (x == weeklyEventItemMostDMGPlayer
-						|| member.Id == Constants.THIBEASTMO_ID
-							&& guild.Id == Constants.DA_BOIS_ID)
+						|| (member.Id == Constants.THIBEASTMO_ID
+							&& guild.Id == Constants.DA_BOIS_ID))
 					{
 						userNotFound = false;
 						weeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
@@ -1026,7 +1026,7 @@ internal class Bot
 			{
 				discordMessage = e.Message;
 				DiscordMember member = await e.Guild.GetMemberAsync(e.Author.Id);
-				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID)) || member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID)))
+				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))))
 				{
 					//MasteryChannel (komt wel in HOF)
 					if (e.Message.Attachments.Count > 0)
@@ -1150,17 +1150,24 @@ internal class Bot
 				string vehiclesInString = await WGVehicle.vehiclesToString(WarGamingAppId, ["name"]);
 				Json json = new(vehiclesInString, string.Empty);
 				List<Json> jsons = json.subJsons[1].subJsons;
+				string chosenTank = null;
 				List<string> tanks = [];
-				foreach (Json item in jsons)
+
+				if (jsons.Count > 0)
 				{
-					tanks.Add(item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty));
+					foreach (Json item in jsons)
+					{
+						if (item.tupleList.Count > 0)
+						{
+							tanks.Add(item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty));
+						}
+					}
+					chosenTank = tanks.Find(tank => tank == lastMessage.Content);
 				}
 
-				string chosenTank = tanks.Find(tank => tank == lastMessage.Content);
-				if (chosenTank == null || chosenTank.Length == 0)
+				if (string.IsNullOrEmpty(chosenTank))
 				{
 					//specifieker vragen
-					tanks.Sort();
 					IEnumerable<string> containsStringList = tanks.Where(tank => tank.ToLower().Contains(lastMessage.Content.ToLower()));
 					if (containsStringList.Count() > 20)
 					{
@@ -2070,7 +2077,7 @@ internal class Bot
 						bool alreadyInList = false;
 						foreach (Tuple<ulong, string> participantX in participants)
 						{
-							if (participantX.Item1.Equals(participant.Item1) && participant.Item1 > 0 || participantX.Item2.Equals(RemoveSyntax(participant.Item2)))
+							if ((participantX.Item1.Equals(participant.Item1) && participant.Item1 > 0) || participantX.Item2.Equals(RemoveSyntax(participant.Item2)))
 							{
 								alreadyInList = true;
 								break;
@@ -4832,7 +4839,7 @@ internal class Bot
 									string damage = string.Empty;
 									bool firstTime = true;
 									string[] splitted = line.Split(" `");
-									splitted[1].Insert(0, "`");
+
 									foreach (string item in splitted)
 									{
 										if (firstTime)

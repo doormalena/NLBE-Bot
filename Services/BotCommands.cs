@@ -36,8 +36,6 @@ public class BotCommands : BaseCommandModule
 		_discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
 		_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-
-		_logger.LogInformation("test)");// remove this line when you are done testing
 	}
 
 	[Command("Toernooi")]
@@ -272,11 +270,12 @@ public class BotCommands : BaseCommandModule
 										}
 									}
 								}
-								catch
+								catch (Exception ex)
 								{
-
+									_logger.LogDebug(ex, "Error while getting member for user ID {UserId} in guild {GuildName}.", user.Item1, ctx.Guild.Name);
 								}
-								if (tempName.Equals(string.Empty))
+
+								if (string.IsNullOrEmpty(tempName))
 								{
 									tempName = user.Item2;
 								}
@@ -356,10 +355,11 @@ public class BotCommands : BaseCommandModule
 							DiscordEmoji tempEmoji = DiscordEmoji.FromName(_discordClient, temp);
 							isEmoji = true;
 						}
-						catch
+						catch (Exception ex)
 						{
-
+							_logger.LogDebug(ex, "Error while trying to get emoji from string: {EmojiString}", opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
 						}
+
 						if (isEmoji)
 						{
 							theList.Add(sb.ToString(), emoji);
@@ -775,9 +775,11 @@ public class BotCommands : BaseCommandModule
 									DiscordEmoji tempEmoji = DiscordEmoji.FromName(_discordClient, temp);
 									isEmoji = true;
 								}
-								catch
+								catch (Exception ex)
 								{
+									_logger.LogDebug(ex, "Emoji {Emoji} could not be parsed.", temp);
 								}
+
 								if (isEmoji)
 								{
 									try
@@ -788,7 +790,7 @@ public class BotCommands : BaseCommandModule
 									catch (Exception ex)
 									{
 										await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon geen reactie(" + emoji + ") toevoegen bij bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ")!**");
-										_discordClient.Logger.LogWarning("Could not add reaction(" + emoji + ") for message(" + hoeveelste_bericht + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
+										_logger.LogWarning(ex, "Could not add reaction(" + emoji + ") for message(" + hoeveelste_bericht + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
 									}
 								}
 								else
@@ -848,9 +850,11 @@ public class BotCommands : BaseCommandModule
 								DiscordEmoji tempEmoji = DiscordEmoji.FromName(_discordClient, temp);
 								isEmoji = true;
 							}
-							catch
+							catch (Exception ex)
 							{
+								_logger.LogDebug(ex, "Emoji {Emoji} could not be parsed.", temp);
 							}
+
 							if (isEmoji)
 							{
 								try
@@ -862,7 +866,7 @@ public class BotCommands : BaseCommandModule
 								catch (Exception ex)
 								{
 									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") niet verwijderen!**");
-									_discordClient.Logger.LogWarning("Could not remove reaction(" + emoji + ") from message(" + (hoeveelste + 1) + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
+									_logger.LogWarning(ex, "Could not remove reaction(" + emoji + ") from message(" + (hoeveelste + 1) + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
 								}
 								if (channel.Id.Equals(Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID) || channel.Id.Equals(Constants.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID))
 								{
@@ -1163,18 +1167,18 @@ public class BotCommands : BaseCommandModule
 			{
 				if (!optioneel_events[0].ToLower().Contains("events") && !optioneel_events[0].ToLower().Contains("event"))
 				{
-					_discordClient.Logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
+					_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
 					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
 				}
 				else
 				{
-					_discordClient.Logger.LogWarning(">>> NLBE-Bot negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "! <<<");
+					_logger.LogWarning(">>> NLBE-Bot negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "! <<<");
 					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "!**");
 				}
 			}
 			else
 			{
-				_discordClient.Logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
+				_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
 				await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
 			}
 			await Bot.ConfirmCommandExecuted(ctx.Message);
@@ -1464,7 +1468,7 @@ public class BotCommands : BaseCommandModule
 				{
 					usersFound = true;
 				}
-				if (searchTerm.Contains('o') && !searchTerm.Contains('c') || !searchTerm.Contains('o') && searchTerm.Contains('c'))
+				if ((searchTerm.Contains('o') && !searchTerm.Contains('c')) || (!searchTerm.Contains('o') && searchTerm.Contains('c')))
 				{
 					Dictionary<DateTime, DiscordMember> dateMemberList = [];
 					foreach (DiscordMember member in memberList)
@@ -1602,9 +1606,9 @@ public class BotCommands : BaseCommandModule
 						await Bot.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
 					}
 				}
-				catch (TooManyResultsException e)
+				catch (TooManyResultsException ex)
 				{
-					_discordClient.Logger.LogWarning("(" + ctx.Command.Name + ") " + e.Message);
+					_logger.LogWarning(ex, "Too many results found for clan search with name {ClanName}. Cause: {Message}", clan_naam, ex.Message);
 					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel resultaten waren gevonden, wees specifieker!**");
 				}
 				await Bot.ConfirmCommandExecuted(ctx.Message);
@@ -1733,7 +1737,7 @@ public class BotCommands : BaseCommandModule
 					try
 					{
 						IReadOnlyList<DiscordMessage> messages = await channel.GetMessagesAsync(100);
-						messages.Reverse();
+
 						foreach (DiscordMessage message in messages)
 						{
 							if (!message.Pinned)
