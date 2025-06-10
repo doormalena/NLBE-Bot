@@ -509,7 +509,8 @@ public class BotCommands : BaseCommandModule
 							bool hasConfirmed = false;
 							bool firstTime = true;
 							WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], 552887317, false, true, false);
-							while (!hasAnswered || !hasConfirmed)
+
+							while (true)
 							{
 								if (firstTime)
 								{
@@ -539,22 +540,20 @@ public class BotCommands : BaseCommandModule
 									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Is dit de gebruiker dat je zocht? ( ja / nee )**");
 									DSharpPlus.Interactivity.InteractivityExtension interactivity = ctx.Client.GetInteractivity();
 									DSharpPlus.Interactivity.InteractivityResult<DiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.User);
-									if (!message.TimedOut)
+
+									if (!message.TimedOut && message.Result != null && message.Result.Content != null)
 									{
-										if (message.Result != null && message.Result.Content != null)
+										if (message.Result.Content.ToLower().Equals("ja"))
 										{
-											if (message.Result.Content.ToLower().Equals("ja"))
-											{
-												hasAnswered = true;
-												hasConfirmed = true;
-												break;
-											}
-											if (message.Result.Content.ToLower().Equals("stop"))
-											{
-												hasAnswered = true;
-												hasConfirmed = false;
-												break;
-											}
+											hasAnswered = true;
+											hasConfirmed = true;
+											break;
+										}
+										else if (message.Result.Content.ToLower().Equals("stop"))
+										{
+											hasAnswered = true;
+											hasConfirmed = false;
+											break;
 										}
 									}
 									else
@@ -563,7 +562,12 @@ public class BotCommands : BaseCommandModule
 										break;
 									}
 								}
+								else
+								{
+									break;
+								}
 							}
+
 							if (hasAnswered && hasConfirmed)
 							{
 								goodOption = false;
