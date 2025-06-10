@@ -3229,7 +3229,7 @@ internal class Bot
 				DEF newDef7 = new()
 				{
 					Name = "Inschrijvingsgeld",
-					Value = tournament.fee.amount.ToString() + (tournament.fee.currency != null ? tournament.fee.currency.Length > 0 ? " (" + tournament.fee.currency + ")" : string.Empty : string.Empty),
+					Value = tournament.fee.amount.ToString() + (!string.IsNullOrEmpty(tournament.fee.currency) ? " (" + tournament.fee.currency + ")" : string.Empty),
 					Inline = true
 				};
 				deflist.Add(newDef7);
@@ -3242,7 +3242,7 @@ internal class Bot
 				DEF newDef7 = new()
 				{
 					Name = "Winnaarsgeld",
-					Value = tournament.winner_award.amount.ToString() + (tournament.winner_award.currency != null ? tournament.winner_award.currency.Length > 0 ? " (" + tournament.winner_award.currency + ")" : string.Empty : string.Empty),
+					Value = tournament.winner_award.amount.ToString() + (!string.IsNullOrEmpty(tournament.winner_award.currency) ? " (" + tournament.winner_award.currency + ")" : string.Empty),
 					Inline = true
 				};
 				deflist.Add(newDef7);
@@ -4522,13 +4522,14 @@ internal class Bot
 		}
 		catch (Exception ex)
 		{
-			string attachUrl = string.Empty;
+			string attachUrl = "Nothing";
 			if (attachment != null)
 			{
 				DiscordAttachment attach = (DiscordAttachment) attachment;
 				attachUrl = attach.Url;
 			}
-			await HandleError("Initializing WGBattle object from (" + (url != null && url.Length > 0 ? url : attachment != null ? attachUrl : "Nothing") + "):\n", ex.Message, ex.StackTrace);
+
+			await HandleError("Initializing WGBattle object from (" + (!string.IsNullOrEmpty(url) ? url : attachUrl) + "):\n", ex.Message, ex.StackTrace);
 		}
 		return null;
 	}
