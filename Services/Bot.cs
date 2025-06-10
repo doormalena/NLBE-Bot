@@ -1143,62 +1143,64 @@ internal class Bot
 
 	private async Task HandleWeeklyEventDM(DiscordChannel Channel, DiscordMessage lastMessage)
 	{
-		if (Channel.IsPrivate && weeklyEventWinner != null && weeklyEventWinner.Item1 != 0)
+		if (!Channel.IsPrivate || weeklyEventWinner == null || weeklyEventWinner.Item1 == 0)
 		{
-			if (!lastMessage.Author.IsBot && Channel.Guild == null && lastMessage.CreationTimestamp > weeklyEventWinner.Item2)
+			return;
+		}
+
+		if (lastMessage.Author.IsBot || Channel.Guild != null || lastMessage.CreationTimestamp <= weeklyEventWinner.Item2)
+		{
+			return;
+		}
+
+		string vehiclesInString = await WGVehicle.vehiclesToString(WarGamingAppId, ["name"]);
+		Json json = new(vehiclesInString, string.Empty);
+		List<Json> jsons = json.subJsons[1].subJsons;
+		string chosenTank = null;
+		List<string> tanks = new(jsons.Count);
+
+		foreach (Json item in jsons)
+		{
+			if (item.tupleList.Count > 0)
 			{
-				string vehiclesInString = await WGVehicle.vehiclesToString(WarGamingAppId, ["name"]);
-				Json json = new(vehiclesInString, string.Empty);
-				List<Json> jsons = json.subJsons[1].subJsons;
-				string chosenTank = null;
-				List<string> tanks = [];
-
-				if (jsons.Count > 0)
-				{
-					foreach (Json item in jsons)
-					{
-						if (item.tupleList.Count > 0)
-						{
-							tanks.Add(item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty));
-						}
-					}
-					chosenTank = tanks.Find(tank => tank == lastMessage.Content);
-				}
-
-				if (string.IsNullOrEmpty(chosenTank))
-				{
-					//specifieker vragen
-					IEnumerable<string> containsStringList = tanks.Where(tank => tank.ToLower().Contains(lastMessage.Content.ToLower()));
-					if (containsStringList.Count() > 20)
-					{
-						await Channel.SendMessageAsync("Wees iets specifieker want er werden te veel resultaten gevonden!");
-					}
-					else if (!containsStringList.Any())
-					{
-						await Channel.SendMessageAsync("Die tank kon niet gevonden worden! Zoekterm: `" + lastMessage.Content + "`");
-					}
-					else
-					{
-						StringBuilder sb = new("```");
-						sb.Append(Environment.NewLine);
-						foreach (string tank in containsStringList)
-						{
-							sb.Append(tank + Environment.NewLine);
-						}
-						sb.AppendLine("```");
-						await Channel.SendMessageAsync("Deze tanks bevatten je zoekterm. **Kopieer** de naam van de tank en stuur hem naar mij door om zo de juiste te selecteren. (**Hoofdlettergevoelig**):");
-						await Channel.SendMessageAsync(sb.ToString());
-					}
-				}
-				else
-				{
-					//tank was chosen
-					await Channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
-					WeeklyEventHandler weeklyEventHandler = new();
-					await weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await GetWeeklyEventChannel());
-					weeklyEventWinner = new Tuple<ulong, DateTime>(0, DateTime.Now);//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
-				}
+				tanks.Add(item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty));
 			}
+		}
+
+		chosenTank = tanks.Find(tank => tank == lastMessage.Content);
+
+		if (string.IsNullOrEmpty(chosenTank))
+		{
+			//specifieker vragen
+			IEnumerable<string> containsStringList = tanks.Where(tank => tank.Contains(lastMessage.Content, StringComparison.OrdinalIgnoreCase));
+			if (containsStringList.Count() > 20)
+			{
+				await Channel.SendMessageAsync("Wees iets specifieker want er werden te veel resultaten gevonden!");
+			}
+			else if (!containsStringList.Any())
+			{
+				await Channel.SendMessageAsync("Die tank kon niet gevonden worden! Zoekterm: `" + lastMessage.Content + "`");
+			}
+			else
+			{
+				StringBuilder sb = new("```");
+				sb.Append(Environment.NewLine);
+				foreach (string tank in containsStringList)
+				{
+					sb.Append(tank + Environment.NewLine);
+				}
+				sb.AppendLine("```");
+				await Channel.SendMessageAsync("Deze tanks bevatten je zoekterm. **Kopieer** de naam van de tank en stuur hem naar mij door om zo de juiste te selecteren. (**Hoofdlettergevoelig**):");
+				await Channel.SendMessageAsync(sb.ToString());
+			}
+		}
+		else
+		{
+			//tank was chosen
+			await Channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
+			WeeklyEventHandler weeklyEventHandler = new();
+			await weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await GetWeeklyEventChannel());
+			weeklyEventWinner = new Tuple<ulong, DateTime>(0, DateTime.Now);//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
 		}
 	}
 
