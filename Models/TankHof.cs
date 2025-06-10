@@ -1,4 +1,4 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Models;
 
 public class TankHof(string link, string speler, string tank, int damage, int tier)
 {

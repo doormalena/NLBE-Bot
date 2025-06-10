@@ -1,4 +1,4 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Models;
 
 using System;
 using System.Collections.Generic;
