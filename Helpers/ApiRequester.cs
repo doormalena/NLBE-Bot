@@ -1,4 +1,4 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Helpers;
 
 using System.Collections.Generic;
 using System.Net.Http;

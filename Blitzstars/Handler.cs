@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Services;
 namespace NLBE_Bot.Blitzstars {
     public class Handler {
