@@ -14,7 +14,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Discord.Net" Version="2.4.0" />
     <PackageReference Include="DiscordHelper" Version="1.0.5" />
     <PackageReference Include="DSharpPlus" Version="4.4.9" />
     <PackageReference Include="DSharpPlus.CommandsNext" Version="4.4.9" />
@@ -22,7 +21,6 @@
     <PackageReference Include="FMWOTB" Version="1.0.52" />
     <PackageReference Include="JsonObjectConverter" Version="1.0.38" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.5" />
-    <PackageReference Include="System.Collections" Version="4.3.0" />
   </ItemGroup>
 
   <ItemGroup>
