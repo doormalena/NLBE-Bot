@@ -1,4 +1,4 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus;
@@ -12,6 +12,7 @@ using FMWOTB.Clans;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot;
 using NLBE_Bot.Blitzstars;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Models;
@@ -309,7 +310,7 @@ public class BotCommands : BaseCommandModule
 					EmbedOptions options = new()
 					{
 						Title = "Teams",
-						Description = (tiers.Count > 0 ? "Organisator: " + tiers[0].Organisator : "Geen teams"),
+						Description = tiers.Count > 0 ? "Organisator: " + tiers[0].Organisator : "Geen teams",
 						Fields = deflist,
 					};
 					await Bot.CreateEmbed(ctx.Channel, options);
@@ -764,7 +765,7 @@ public class BotCommands : BaseCommandModule
 						IReadOnlyList<DiscordMessage> xMessages = channel.GetMessagesAsync(hoeveelste_bericht).Result;
 						for (int i = 0; i < xMessages.Count; i++)
 						{
-							if (i == (hoeveelste_bericht - 1))
+							if (i == hoeveelste_bericht - 1)
 							{
 								DiscordEmoji theEmoji = Bot.GetDiscordEmoji(emoji);
 								string temp = theEmoji.GetDiscordName();
@@ -878,7 +879,7 @@ public class BotCommands : BaseCommandModule
 									{
 										await Bot.HandleError("Could not load messages from " + channel.Name + ": ", ex.Message, ex.StackTrace);
 									}
-									if (messages.Count == (hoeveelste + 1))
+									if (messages.Count == hoeveelste + 1)
 									{
 										DiscordMessage theMessage = messages[hoeveelste];
 										if (theMessage != null)
@@ -1262,7 +1263,7 @@ public class BotCommands : BaseCommandModule
 						StringBuilder sbFound = new();
 						for (int i = 0; i < foundMemberList.Count; i++)
 						{
-							sbFound.AppendLine((i + 1) + ". `" + foundMemberList[i].Username + "#" + foundMemberList[i].Discriminator.ToString() + "`");
+							sbFound.AppendLine(i + 1 + ". `" + foundMemberList[i].Username + "#" + foundMemberList[i].Discriminator.ToString() + "`");
 						}
 						if (sbFound.Length < 1024)
 						{
@@ -1286,7 +1287,7 @@ public class BotCommands : BaseCommandModule
 								{
 									if (number > 0 && number <= foundMemberList.Count)
 									{
-										await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[(number - 1)]);
+										await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[number - 1]);
 									}
 									else if (number > foundMemberList.Count)
 									{
@@ -1326,7 +1327,7 @@ public class BotCommands : BaseCommandModule
 									int index = Emoj.GetIndex(Bot.GetEmojiAsString(reacted[0].Name));
 									if (index > 0 && index <= foundMemberList.Count)
 									{
-										await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[(index - 1)]);
+										await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[index - 1]);
 									}
 									else
 									{
@@ -1463,7 +1464,7 @@ public class BotCommands : BaseCommandModule
 				{
 					usersFound = true;
 				}
-				if ((searchTerm.Contains('o') && !searchTerm.Contains('c')) || (!searchTerm.Contains('o') && searchTerm.Contains('c')))
+				if (searchTerm.Contains('o') && !searchTerm.Contains('c') || !searchTerm.Contains('o') && searchTerm.Contains('c'))
 				{
 					Dictionary<DateTime, DiscordMember> dateMemberList = [];
 					foreach (DiscordMember member in memberList)
@@ -1567,8 +1568,8 @@ public class BotCommands : BaseCommandModule
 				EmbedOptions options = new()
 				{
 					Title = "Gebruikerslijst [" + ctx.Guild.Name.adaptToDiscordChat() + ": " + members.Count + "] (Gevonden: " + amountOfMembers + ") " + "(Gesorteerd: " + sortedBy + ")",
-					Description = (usersFound ? string.Empty : "Geen gebruikers gevonden die voldoen aan de zoekterm!"),
-					Fields = (usersFound ? deflist : null)
+					Description = usersFound ? string.Empty : "Geen gebruikers gevonden die voldoen aan de zoekterm!",
+					Fields = usersFound ? deflist : null
 				};
 				await Bot.CreateEmbed(ctx.Channel, options);
 				await Bot.ConfirmCommandExecuted(ctx.Message);
@@ -2053,7 +2054,7 @@ public class BotCommands : BaseCommandModule
 							{
 								sb.Append(tank.Tank);
 							}
-							for (int i = (tank.Tank.Length < MAX_TANK_NAME_LENGTH_IN_WOTB ? tank.Tank.Length : MAX_TANK_NAME_LENGTH_IN_WOTB); i < MAX_TANK_NAME_LENGTH_IN_WOTB + 2; i++)
+							for (int i = tank.Tank.Length < MAX_TANK_NAME_LENGTH_IN_WOTB ? tank.Tank.Length : MAX_TANK_NAME_LENGTH_IN_WOTB; i < MAX_TANK_NAME_LENGTH_IN_WOTB + 2; i++)
 							{
 								sb.Append(" ");
 							}
@@ -2080,7 +2081,7 @@ public class BotCommands : BaseCommandModule
 				EmbedOptions options = new()
 				{
 					Title = "Hall Of Fame plekken van " + name.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_'),
-					Description = (found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald."),
+					Description = found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald.",
 					Fields = defList,
 				};
 				await Bot.CreateEmbed(ctx.Channel, options);

@@ -1,4 +1,4 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus;
@@ -19,6 +19,7 @@ using FMWOTB.Vehicles;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Models;
 using System;
@@ -357,8 +358,8 @@ internal class Bot
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();
 					if (x == weeklyEventItemMostDMGPlayer
-						|| (member.Id == Constants.THIBEASTMO_ID
-							&& guild.Id == Constants.DA_BOIS_ID))
+						|| member.Id == Constants.THIBEASTMO_ID
+							&& guild.Id == Constants.DA_BOIS_ID)
 					{
 						userNotFound = false;
 						weeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
@@ -1025,7 +1026,7 @@ internal class Bot
 			{
 				discordMessage = e.Message;
 				DiscordMember member = await e.Guild.GetMemberAsync(e.Author.Id);
-				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))))
+				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID)) || member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID)))
 				{
 					//MasteryChannel (komt wel in HOF)
 					if (e.Message.Attachments.Count > 0)
@@ -1378,7 +1379,7 @@ internal class Bot
 			{
 				foreach (DiscordMember member in members)
 				{
-					if ((memberChanges.Count + membersNotFound.Count) >= maxMemberChangesAmount)
+					if (memberChanges.Count + membersNotFound.Count >= maxMemberChangesAmount)
 					{
 						break;
 					}
@@ -1784,7 +1785,7 @@ internal class Bot
 						List<DiscordMessage> messages = [];
 						try
 						{
-							IReadOnlyList<DiscordMessage> xMessages = toernooiAanmeldenChannel.GetMessagesAsync((hoeveelste + 1)).Result;
+							IReadOnlyList<DiscordMessage> xMessages = toernooiAanmeldenChannel.GetMessagesAsync(hoeveelste + 1).Result;
 							foreach (DiscordMessage message in xMessages)
 							{
 								messages.Add(message);
@@ -1794,7 +1795,7 @@ internal class Bot
 						{
 							await HandleError("Could not load messages from " + toernooiAanmeldenChannel.Name + ":", ex.Message, ex.StackTrace);
 						}
-						if (messages.Count == (hoeveelste + 1))
+						if (messages.Count == hoeveelste + 1)
 						{
 							DiscordMessage theMessage = messages[hoeveelste];
 							if (theMessage != null)
@@ -1947,7 +1948,7 @@ internal class Bot
 									EmbedOptions options = new()
 									{
 										Title = "Teams",
-										Description = (teams.Count > 0 ? string.Empty : "Geen teams"),
+										Description = teams.Count > 0 ? string.Empty : "Geen teams",
 										Fields = deflist,
 									};
 									await CreateEmbed(channel, options);
@@ -2069,7 +2070,7 @@ internal class Bot
 						bool alreadyInList = false;
 						foreach (Tuple<ulong, string> participantX in participants)
 						{
-							if ((participantX.Item1.Equals(participant.Item1) && participant.Item1 > 0) || participantX.Item2.Equals(RemoveSyntax(participant.Item2)))
+							if (participantX.Item1.Equals(participant.Item1) && participant.Item1 > 0 || participantX.Item2.Equals(RemoveSyntax(participant.Item2)))
 							{
 								alreadyInList = true;
 								break;
@@ -2781,7 +2782,7 @@ internal class Bot
 						DEF newDef4 = new()
 						{
 							Name = "Rating (WR)",
-							Value = (member.statistics.rating.battles > 0 ? string.Format("{0:.##}", CalculateWinRate(member.statistics.rating.wins, member.statistics.rating.battles)) : "Nog geen rating gespeeld"),
+							Value = member.statistics.rating.battles > 0 ? string.Format("{0:.##}", CalculateWinRate(member.statistics.rating.wins, member.statistics.rating.battles)) : "Nog geen rating gespeeld",
 							Inline = true
 						};
 						deflist.Add(newDef4);
@@ -3043,7 +3044,7 @@ internal class Bot
 
 	private static double CalculateWinRate(int wins, int battles)
 	{
-		return (wins / battles) * 100;
+		return wins / battles * 100;
 	}
 
 	public static async Task ShowClanInfo(DiscordChannel channel, WGClan clan)
@@ -3221,7 +3222,7 @@ internal class Bot
 				DEF newDef7 = new()
 				{
 					Name = "Inschrijvingsgeld",
-					Value = tournament.fee.amount.ToString() + (tournament.fee.currency != null ? (tournament.fee.currency.Length > 0 ? " (" + tournament.fee.currency + ")" : string.Empty) : string.Empty),
+					Value = tournament.fee.amount.ToString() + (tournament.fee.currency != null ? tournament.fee.currency.Length > 0 ? " (" + tournament.fee.currency + ")" : string.Empty : string.Empty),
 					Inline = true
 				};
 				deflist.Add(newDef7);
@@ -3234,7 +3235,7 @@ internal class Bot
 				DEF newDef7 = new()
 				{
 					Name = "Winnaarsgeld",
-					Value = tournament.winner_award.amount.ToString() + (tournament.winner_award.currency != null ? (tournament.winner_award.currency.Length > 0 ? " (" + tournament.winner_award.currency + ")" : string.Empty) : string.Empty),
+					Value = tournament.winner_award.amount.ToString() + (tournament.winner_award.currency != null ? tournament.winner_award.currency.Length > 0 ? " (" + tournament.winner_award.currency + ")" : string.Empty : string.Empty),
 					Inline = true
 				};
 				deflist.Add(newDef7);
@@ -3501,7 +3502,7 @@ internal class Bot
 		{
 			Title = titel,
 			Fields = deflist,
-			ImageUrl = (tournament.logo != null ? (tournament.logo.original ?? string.Empty) : string.Empty),
+			ImageUrl = tournament.logo != null ? tournament.logo.original ?? string.Empty : string.Empty,
 		};
 		await CreateEmbed(channel, options);
 	}
@@ -3829,7 +3830,7 @@ internal class Bot
 				StringBuilder sbFound = new();
 				for (int i = 0; i < clanList.Count; i++)
 				{
-					sbFound.AppendLine((i + 1) + ". `" + clanList[i].tag + "`");
+					sbFound.AppendLine(i + 1 + ". `" + clanList[i].tag + "`");
 				}
 				if (sbFound.Length < 1024)
 				{
@@ -3883,7 +3884,7 @@ internal class Bot
 			{
 				if (number > 0 && number <= count)
 				{
-					return (number - 1);
+					return number - 1;
 				}
 				else if (number > count)
 				{
@@ -3923,7 +3924,7 @@ internal class Bot
 				int index = Emoj.GetIndex(GetEmojiAsString(reacted[0].Name));
 				if (index > 0 && index <= count)
 				{
-					return (index - 1);
+					return index - 1;
 				}
 				else
 				{
@@ -3979,9 +3980,9 @@ internal class Bot
 
 					memberList.RemoveAt(0);
 
-					if (counter == (membersPerColumn + (columnCounter == columns - 1 ? rest : 0)) || memberList.Count == 1)
+					if (counter == membersPerColumn + (columnCounter == columns - 1 ? rest : 0) || memberList.Count == 1)
 					{
-						if (columnCounter < (columns - 1))
+						if (columnCounter < columns - 1)
 						{
 							columnCounter++;
 						}
@@ -4113,9 +4114,9 @@ internal class Bot
 
 				nameList.RemoveAt(0);
 
-				if (counter == (membersPerColumn + (columnCounter == columns - 1 ? rest : 0)) || nameList.Count == 1)
+				if (counter == membersPerColumn + (columnCounter == columns - 1 ? rest : 0) || nameList.Count == 1)
 				{
-					if (columnCounter < (columns - 1))
+					if (columnCounter < columns - 1)
 					{
 						columnCounter++;
 					}
@@ -4164,7 +4165,7 @@ internal class Bot
 				}
 				else
 				{
-					defName = (firstChar.ToUpper() + (splitted.Length > 2 ? " - " + lastChar.ToUpper() : ""));
+					defName = firstChar.ToUpper() + (splitted.Length > 2 ? " - " + lastChar.ToUpper() : "");
 				}
 				DEF newDef = new()
 				{
@@ -4630,7 +4631,7 @@ internal class Bot
 								else
 								{
 									DiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, tierHOF);
-									return new Tuple<string, DiscordMessage>((tempMessage != null ? tempMessage.Content : string.Empty), tempMessage);
+									return new Tuple<string, DiscordMessage>(tempMessage != null ? tempMessage.Content : string.Empty, tempMessage);
 								}
 							}
 						}
@@ -4671,7 +4672,7 @@ internal class Bot
 				else
 				{
 					DiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, []);
-					return new Tuple<string, DiscordMessage>((tempMessage != null ? tempMessage.Content : string.Empty), tempMessage);
+					return new Tuple<string, DiscordMessage>(tempMessage != null ? tempMessage.Content : string.Empty, tempMessage);
 				}
 			}
 			else
@@ -4898,7 +4899,7 @@ internal class Bot
 						// ̲
 						// _ --> underscore
 						// ▁
-						sb.AppendLine((i + 1) + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
+						sb.AppendLine(i + 1 + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
 					}
 					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().adaptToDiscordChat());
 				}

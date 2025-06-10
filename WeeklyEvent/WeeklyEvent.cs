@@ -1,6 +1,7 @@
 using DiscordHelper;
 using DSharpPlus.Entities;
 using NLBE_Bot.Models;
+using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Globalization;

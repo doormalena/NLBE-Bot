@@ -1,4 +1,4 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Services;
 
 using DSharpPlus;
 using Microsoft.Extensions.Configuration;
