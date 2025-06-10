@@ -28,6 +28,9 @@
       <Pack>True</Pack>
       <PackagePath></PackagePath>
     </None>
+    <None Include=".packages\DiscordHelper.1.0.5.nupkg" />
+    <None Include=".packages\FMWOTB.1.0.52.nupkg" />
+    <None Include=".packages\JsonObjectConverter.1.0.38.nupkg" />
   </ItemGroup>
 
   <ItemGroup>

@@ -23,7 +23,7 @@ jobs:
 
     # The below step is temporary until the other repo's publish the output as NuGet packages on a feed.
     - name: "Setup internal packages"
-      run: dotnet nuget add source ${GITHUB_WORKSPACE}
+      run: dotnet nuget add source ${GITHUB_WORKSPACE}/.packages
 
     - name: Restore dependencies
       run: dotnet restore
