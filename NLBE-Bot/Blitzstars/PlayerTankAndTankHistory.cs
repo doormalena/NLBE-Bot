@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 public class PlayerTankAndTankHistory
 {
-	public PlayerVehicle.Vehicle PlayerTank
+	public Vehicle PlayerTank
 	{
 		get; set;
 	}

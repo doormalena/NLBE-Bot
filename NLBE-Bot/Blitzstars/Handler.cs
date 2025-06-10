@@ -124,7 +124,7 @@ public static class Handler
 		return aDatetime >= dateTime1 || dateTime2 < aDatetime;
 	}
 
-	public static Dictionary<int, PlayerTankAndTankHistory> Combine(List<PlayerVehicle.Vehicle> vehicleOfPlayers, List<TankHistory> tankHistoryList)
+	public static Dictionary<int, PlayerTankAndTankHistory> Combine(List<Vehicle> vehicleOfPlayers, List<TankHistory> tankHistoryList)
 	{
 		var ptathList = new Dictionary<int, PlayerTankAndTankHistory>();
 		foreach (var tankHistory in tankHistoryList)
@@ -135,7 +135,7 @@ public static class Handler
 				var x = tankHistoryList.Where(thl => thl.tank_id == tankHistory.tank_id);
 				var ptath = new PlayerTankAndTankHistory()
 				{
-					PlayerTank = single.Count() > 0 ? single.ElementAt(0) : new PlayerVehicle.Vehicle() { tank_id = x.ElementAt(0).tank_id, all = new PlayerVehicle.All() },
+					PlayerTank = single.Count() > 0 ? single.ElementAt(0) : new Vehicle() { tank_id = x.ElementAt(0).tank_id, all = new All() },
 					TnkHistoryList = x.ToList()
 				};
 				ptathList.Add(tankHistory.tank_id, ptath);
@@ -162,7 +162,7 @@ public static class Handler
 					last_battle_time = (long) Math.Round(i.TnkHistoryList[0].last_battle_time - 864E3),
 					region = i.TnkHistoryList[0].region,
 					tank_id = i.TnkHistoryList[0].tank_id,
-					all = new TankHistory.All()
+					all = new All()
 				});
 				i.TnkHistoryList = i.TnkHistoryList.OrderBy(x => x.last_battle_time).ThenByDescending(x => x._id).ToList();
 			}
@@ -308,7 +308,7 @@ public static class Handler
 			battle_life_time = e.battle_life_time - a.battle_life_time,
 			tier = e.tier,
 			tank_id = e.tank_id,
-			all = new TankHistory.All(),
+			all = new All(),
 			start_record = a,
 			end_record = e,
 			start_date = a.last_battle_time,
