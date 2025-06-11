@@ -9,4 +9,12 @@
     <UseVSTest>true</UseVSTest>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="RichardSzalay.MockHttp" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NLBE-Bot\NLBE-Bot.csproj" />
+  </ItemGroup>
+
 </Project>

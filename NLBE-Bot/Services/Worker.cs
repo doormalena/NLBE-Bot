@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Helpers;
 using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,7 +18,8 @@ public class Worker(IServiceProvider serviceProvider, ILogger<Worker> logger) : 
 	{
 		_logger.LogInformation("NLBE Bot is starting.");
 
-		string ipAddress = await PublicIpAddress.GetPublicIpAddressAsync();
+		using HttpClient client = new();
+		string ipAddress = await PublicIpAddress.GetPublicIpAddressAsync(client);
 		_logger.LogInformation("Ensure the public ip address {IpAddress} is allowed to access the WarGaming application.", ipAddress);
 
 		try

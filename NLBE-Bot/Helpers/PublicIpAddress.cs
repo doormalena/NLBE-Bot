@@ -5,16 +5,14 @@ using System;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-internal class PublicIpAddress
+public class PublicIpAddress
 {
 #pragma warning disable S1075 // URIs should not be hardcod
 	private const string ApiUrl = "https://api.ipify.org?format=json";
 #pragma warning restore S1075 // URIs should not be hardcoded
 
-	public static async Task<string> GetPublicIpAddressAsync()
+	public static async Task<string> GetPublicIpAddressAsync(HttpClient client)
 	{
-		using HttpClient client = new();
-
 		try
 		{
 			string response = await client.GetStringAsync(ApiUrl);
