@@ -320,6 +320,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Poll")]
 	[Aliases("p", "po", "pol")]
 	[Description("Creëert een nieuwe poll." +
@@ -401,6 +402,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Deputypoll")]
 	[Aliases("dp", "dpo", "dpol", "dpoll", "depoll", "deppoll", "depupoll", "deputpoll")]
 	[Description("Creëert een nieuwe poll ivm de kandidaat/inactieve clanleden.\n\n" +
@@ -667,6 +669,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Map")]
 	[Aliases("m", "ma", "maps")]
 	[Description("Laadt de map in de chat." +
@@ -744,6 +747,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Reageer")]
 	[Aliases("r", "re", "rea", "reag", "reage", "reagee")]
 	[Description("Geeft een reactie op het gegeven bericht in het gegeven kanaal met de gegeven emoji." +
@@ -807,6 +811,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Verwijderreactie")]
 	[Aliases("vr", "v", "ve", "ver", "verw", "verwi", "verwij", "verwijd", "verwijde", "verwijder", "verwijderr", "verwijderre", "verwijderrea", "verwijderreac", "verwijderreact", "verwijderreacti", "verwijdereactie")]
 	[Description("Verwijdert een reactie van het gegeven bericht in het gegeven kanaal met de gegeven emoji." +
@@ -974,6 +979,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Help")]
 	[Aliases("h", "he", "hel")]
 	[Description("Geeft alle commando's of geeft uitleg voor het gegeven commando." +
@@ -1187,6 +1193,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			await Bot.SayTheUserIsNotAllowed(ctx.Channel);
 		}
 	}
+
 	[Command("Gebruiker")]
 	[Aliases("speler", "spele", "spel", "spe", "sp", "s", "g", "ge", "geb", "gebr", "gebru", "gebrui", "gebruik", "gebruike", "gbruiker", "gbruikr", "gbrkr")]
 	[Description("Geeft info over een speler.\n-i --> op ID zoeken (zoekt ook buiten de discord server)\nAnders zoekt de bot op basis van de originele gebruikersnamen van de personen in deze server." +
@@ -1373,6 +1380,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Gebruikerslijst")]
 	[Aliases("gl")]
 	[Description("Geeft alle members van de server als format: username#discriminator.\n-u --> username\n-d --> discriminator\n-n --> nickname\n-! --> not\n-b --> geeft bijnamen ipv standaard format (enkel voor de weergave, niet voor de filtering)\n-o --> sorteert op datum van creatie van WarGaming account (de niet gevonden accounts sorteert ie alfabetisch)\n-c --> sorteert op clanjoindatum (de niet gevonden accounts sorteert ie alfabetisch)"
@@ -1583,6 +1591,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Clan")]
 	[Aliases("c", "cl", "cla")]
 	[Description("Geeft info over de clan.")]
@@ -1618,6 +1627,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("Clanmembers")]
 	[Aliases("cm", "clanm", "clanme", "clanmem", "clanmembe", "clanmember")]
 	[Description("Geeft spelers van de clan.\n-s --> duid discordmembers aan\n-d --> sorteren op laatst actief")]
@@ -1667,6 +1677,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("SpelerInfo")]
 	[Aliases("si")]
 	[Description("Geeft wotb info van een account.\n-i --> zoekt op spelerID")]
@@ -1718,6 +1729,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("ResetHOF")]
 	[Aliases("res", "rese", "rest", "rst", "rset", "reset")]
 	[Description("Verwijdert alle opgeslagen replays in de Hall Of Fame.")]
@@ -1803,6 +1815,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("VerwijderSpelerHOF")]
 	[Description("Verwijdert een bepaalde persoon van de HOF. (Hoofdlettergevoelig)")]
 	public async Task RemovePlayerFromHOF(CommandContext ctx, string naam)
@@ -1877,6 +1890,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("HernoemSpelerHOF")]
 	[Description("Verandert de naam in de HOF naar een andere naam. (Hoofdlettergevoelig)")]
 	public async Task RenamplePlayerHOF(CommandContext ctx, string oldName, string niewe_naam)
@@ -1942,6 +1956,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("hof")]
 	[Aliases("hf")]
 	[Description("Geeft een lijst van de spelers die in de Hall of Fame voorkomen.")]
@@ -1989,6 +2004,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 			}
 		}
 	}
+
 	[Command("hofplayer")]
 	[Aliases("hofp", "hp", "hofplaye", "hofplay", "hofpla", "hofpl", "hfplayer")]
 	[Description("Geeft een lijst van plekken dat de speler in de Hall Of Fame gehaald heeft.")]
