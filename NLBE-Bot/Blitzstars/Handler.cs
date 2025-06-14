@@ -8,9 +8,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-public static class Handler
+public class Handler(ApiRequester apiRequester) : IHandler
 {
-	public static List<Tank> Filter90DaysStats(List<Tank> tankHistories)
+	private readonly ApiRequester _apiRequester = apiRequester ?? throw new ArgumentNullException(nameof(apiRequester));
+
+	public List<Tank> Filter90DaysStats(List<Tank> tankHistories)
 	{
 		var list = new List<Tank>();
 		foreach (var tankHistory in tankHistories)
@@ -24,7 +26,7 @@ public static class Handler
 		}
 		return list.Distinct().ToList();
 	}
-	public static List<Tank> Filter60DaysStats(List<Tank> tankHistories)
+	public List<Tank> Filter60DaysStats(List<Tank> tankHistories)
 	{
 		var list = new List<Tank>();
 		foreach (var tankHistory in tankHistories)
@@ -38,7 +40,7 @@ public static class Handler
 		}
 		return list.Distinct().ToList();
 	}
-	public static List<Tank> Filter30DaysStats(List<Tank> tankHistories)
+	public List<Tank> Filter30DaysStats(List<Tank> tankHistories)
 	{
 		var list = new List<Tank>();
 		foreach (var tankHistory in tankHistories)
@@ -52,7 +54,7 @@ public static class Handler
 		}
 		return list.Distinct().ToList();
 	}
-	public static List<TankHistory> Filter90DaysStats(List<TankHistory> tankHistories)
+	public List<TankHistory> Filter90DaysStats(List<TankHistory> tankHistories)
 	{
 		var list = new List<TankHistory>();
 		foreach (var tankHistory in tankHistories)
@@ -66,7 +68,7 @@ public static class Handler
 		}
 		return list.Distinct().ToList();
 	}
-	public static List<TankHistory> Filter60DaysStats(List<TankHistory> tankHistories)
+	public List<TankHistory> Filter60DaysStats(List<TankHistory> tankHistories)
 	{
 		var list = new List<TankHistory>();
 		foreach (var tankHistory in tankHistories)
@@ -80,7 +82,7 @@ public static class Handler
 		}
 		return list.Distinct().ToList();
 	}
-	public static List<TankHistory> Filter30DaysStats(List<TankHistory> tankHistories)
+	public List<TankHistory> Filter30DaysStats(List<TankHistory> tankHistories)
 	{
 		var list = new List<TankHistory>();
 		foreach (var tankHistory in tankHistories)
@@ -94,17 +96,17 @@ public static class Handler
 		}
 		return list.Distinct().ToList();
 	}
-	public static DateTime ConvertToDateTime(long tankHistoryLastBattleTime)
+	public DateTime ConvertToDateTime(long tankHistoryLastBattleTime)
 	{
 		var aDatetime = new DateTime(1970, 1, 1).AddSeconds(tankHistoryLastBattleTime).ToUniversalTime();
 		if (IsWinter(aDatetime))
 			aDatetime = aDatetime.AddHours(1.0);
 		return aDatetime;
 	}
-	private static bool IsWinter(DateTime aDatetime)
+	private bool IsWinter(DateTime aDatetime)
 	{
-		DateTime dateTime1 = new DateTime(aDatetime.Year, 10, 1);
-		List<DateTime> dateTimeList1 = new List<DateTime>();
+		DateTime dateTime1 = new(aDatetime.Year, 10, 1);
+		List<DateTime> dateTimeList1 = [];
 		for (int index = 0; index < 31; ++index)
 		{
 			if (dateTime1.DayOfWeek == DayOfWeek.Sunday)
@@ -113,7 +115,7 @@ public static class Handler
 		}
 		dateTime1 = dateTimeList1[dateTimeList1.Count - 1];
 		DateTime dateTime2 = new DateTime(aDatetime.Year, 3, 1);
-		List<DateTime> dateTimeList2 = new List<DateTime>();
+		List<DateTime> dateTimeList2 = [];
 		for (int index = 0; index < 31; ++index)
 		{
 			if (dateTime2.DayOfWeek == DayOfWeek.Sunday)
@@ -124,7 +126,7 @@ public static class Handler
 		return aDatetime >= dateTime1 || dateTime2 < aDatetime;
 	}
 
-	public static Dictionary<int, PlayerTankAndTankHistory> Combine(List<Vehicle> vehicleOfPlayers, List<TankHistory> tankHistoryList)
+	public Dictionary<int, PlayerTankAndTankHistory> Combine(List<Vehicle> vehicleOfPlayers, List<TankHistory> tankHistoryList)
 	{
 		var ptathList = new Dictionary<int, PlayerTankAndTankHistory>();
 		foreach (var tankHistory in tankHistoryList)
@@ -210,14 +212,14 @@ public static class Handler
 		}
 		return returnTankHistory;
 	}
-	public static int Get90DayBattles(long accountId)
+	public int Get90DayBattles(long accountId)
 	{
-		var response = ApiRequester.GetRequest("https://www.blitzstars.com/api/tankhistories/for/" + accountId);
+		var response = _apiRequester.GetRequest("https://www.blitzstars.com/api/tankhistories/for/" + accountId);
 		var tankHistories = JsonConvert.DeserializeObject<List<TankHistory>>(response);
-		var responseVehicles = ApiRequester.GetRequest("https://api.wotblitz.eu/wotb/tanks/stats/?application_id=" + Bot.WarGamingAppId + "&account_id=" + accountId);
+		var responseVehicles = _apiRequester.GetRequest("https://api.wotblitz.eu/wotb/tanks/stats/?application_id=" + Bot.WarGamingAppId + "&account_id=" + accountId);
 		responseVehicles = Regex.Replace(responseVehicles, "\"data\":{\"([0-9]*)\"", "\"data\":{\"Vehicles\"", RegexOptions.NonBacktracking);
 		var playerVehicleData = JsonConvert.DeserializeObject<PlayerVehicle>(responseVehicles);
-		var combined = Handler.Combine(playerVehicleData.data.Vehicles.ToList(), tankHistories);
+		var combined = Combine(playerVehicleData.data.Vehicles.ToList(), tankHistories);
 		var dict = new Dictionary<int, TankHistory[]>();
 		const int amountOfDaysToFilerOn = 90;
 		var totalBattles90 = 0;
@@ -278,7 +280,7 @@ public static class Handler
 		}
 		return battles90d;
 	}
-	public static Dictionary<int, TankInfo> V(Dictionary<int, TankHistory[]> e)
+	private static Dictionary<int, TankInfo> V(Dictionary<int, TankHistory[]> e)
 	{
 		var t = new Dictionary<int, TankInfo>();
 		foreach (var s in e)

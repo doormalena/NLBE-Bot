@@ -21,12 +21,13 @@
 
   <ItemGroup>
     <PackageReference Include="DiscordHelper" Version="1.0.5" />
-    <PackageReference Include="DSharpPlus" Version="4.4.9" />
-    <PackageReference Include="DSharpPlus.CommandsNext" Version="4.4.9" />
-    <PackageReference Include="DSharpPlus.Interactivity" Version="4.4.9" />
+    <PackageReference Include="DSharpPlus" Version="4.5.1" />
+    <PackageReference Include="DSharpPlus.CommandsNext" Version="4.5.1" />
+    <PackageReference Include="DSharpPlus.Interactivity" Version="4.5.1" />
     <PackageReference Include="FMWOTB" Version="1.0.52" />
     <PackageReference Include="JsonObjectConverter" Version="1.0.38" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.5" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="9.0.6" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.6" />
   </ItemGroup>
 
   <ItemGroup>

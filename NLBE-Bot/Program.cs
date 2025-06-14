@@ -7,6 +7,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.Blitzstars;
+using NLBE_Bot.Helpers;
+using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using System;
 using System.Reflection;
@@ -52,8 +55,11 @@ public static class Program
 				});
 
 				services.AddHostedService<Worker>();
-				services.AddSingleton<Bot>();
+				services.AddSingleton<IBot, Bot>();
 				services.AddSingleton<BotCommands>();
+				services.AddSingleton<IHandler, Handler>();
+				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
+				services.AddHttpClient<IApiRequester, ApiRequester>();
 			});
 	}
 
@@ -77,3 +83,4 @@ public static class Program
 		return client;
 	}
 }
+

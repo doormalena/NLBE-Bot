@@ -21,6 +21,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot;
 using NLBE_Bot.Helpers;
+using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
@@ -31,7 +32,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class Bot
+public class Bot : IBot
 {
 	private static DiscordClient _discordClient;
 	private static ILogger<Bot> _logger;
@@ -87,7 +88,7 @@ internal class Bot
 		_discordClient.MessageCreated += Discord_MessageCreated;
 	}
 
-	public async Task RunAsync()
+	public virtual async Task RunAsync()
 	{
 		DiscordActivity act = new(Constants.Prefix, ActivityType.ListeningTo);
 		await _discordClient.ConnectAsync(act, UserStatus.Online);
@@ -594,17 +595,19 @@ internal class Bot
 						}
 
 						//remove in log
-						DiscordChannel logchannel = await GetLogChannel(e.Guild.Id);
-						if (logchannel != null)
+						IDiscordChannel logChannel = new DiscordChannelWrapper(await GetLogChannel(e.Guild.Id));
+
+						if (logChannel.Inner != null)
 						{
-							Dictionary<DateTime, List<DiscordMessage>> sortedMessages = (await logchannel.GetMessagesAsync(100)).SortMessages();
-							foreach (KeyValuePair<DateTime, List<DiscordMessage>> messageList in sortedMessages)
+							IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+							Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = logMessages.SortMessages();
+							foreach (KeyValuePair<DateTime, List<IDiscordMessage>> messageList in sortedMessages)
 							{
 								try
 								{
 									if (e.Message.CreationTimestamp.LocalDateTime.CompareDateTime(messageList.Key))
 									{
-										foreach (DiscordMessage aMessage in messageList.Value)
+										foreach (IDiscordMessage aMessage in messageList.Value)
 										{
 											DiscordMember member = await GetDiscordMember(e.Guild, e.User.Id);
 											if (member != null)
@@ -613,7 +616,7 @@ internal class Bot
 												string theEmoji = GetEmojiAsString(e.Emoji.Name);
 												if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && GetEmojiAsString(splitted[3]).Equals(theEmoji))
 												{
-													await aMessage.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
+													await aMessage.Inner.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
 												}
 											}
 										}
@@ -1801,22 +1804,23 @@ internal class Bot
 							{
 								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 								{
-									DiscordChannel logChannel = await GetLogChannel(channel.Guild.Id);
-									if (logChannel != null)
+									IDiscordChannel logChannel = new DiscordChannelWrapper(await GetLogChannel(channel.Guild.Id));
+
+									if (logChannel.Inner != null)
 									{
-										IReadOnlyList<DiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-										Dictionary<DateTime, List<DiscordMessage>> sortedMessages = logMessages.SortMessages();
+										IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+										Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = logMessages.SortMessages();
 										List<Tier> tiers = [];
 
-										foreach (KeyValuePair<DateTime, List<DiscordMessage>> sMessage in sortedMessages)
+										foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
 										{
 											string xdate = theMessage.Timestamp.ConvertToDate();
 											string ydate = sMessage.Key.ConvertToDate();
 
 											if (xdate.Equals(ydate))
 											{
-												sMessage.Value.Sort((x, y) => x.Timestamp.CompareTo(y.Timestamp));
-												foreach (DiscordMessage discMessage in sMessage.Value)
+												sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
+												foreach (IDiscordMessage discMessage in sMessage.Value)
 												{
 													string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
 													if (splitted[1].ToLower().Equals("teams"))
@@ -1872,23 +1876,22 @@ internal class Bot
 								}
 								else
 								{
-									Dictionary<DiscordEmoji, List<DiscordUser>> reactions = theMessage.SortReactions();
+									IDiscordMessage message = new DiscordMessageWrapper(theMessage);
+									Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = message.SortReactions();
 
 									List<Tier> teams = [];
-									foreach (KeyValuePair<DiscordEmoji, List<DiscordUser>> reaction in reactions)
+									foreach (KeyValuePair<IDiscordEmoji, List<IDiscordUser>> reaction in reactions)
 									{
 										Tier aTeam = new();
-										int counter = 1;
-										foreach (DiscordUser user in reaction.Value)
+										foreach (IDiscordUser user in reaction.Value)
 										{
-											string displayName = user.Username;
-											DiscordMember memberx = toernooiAanmeldenChannel.Guild.GetMemberAsync(user.Id).Result;
+											string displayName = user.Inner.Username;
+											DiscordMember memberx = toernooiAanmeldenChannel.Guild.GetMemberAsync(user.Inner.Id).Result;
 											if (memberx != null)
 											{
 												displayName = memberx.DisplayName;
 											}
-											aTeam.AddDeelnemer(displayName, user.Id);
-											counter++;
+											aTeam.AddDeelnemer(displayName, user.Inner.Id);
 										}
 										if (aTeam.Organisator.Equals(string.Empty))
 										{
@@ -1910,8 +1913,8 @@ internal class Bot
 										}
 										if (aTeam.TierNummer.Equals(string.Empty))
 										{
-											aTeam.TierNummer = reaction.Key;
-											string emojiAsString = GetEmojiAsString(reaction.Key);
+											aTeam.TierNummer = reaction.Key.Inner;
+											string emojiAsString = GetEmojiAsString(reaction.Key.Inner);
 											int index = Emoj.GetIndex(emojiAsString);
 											if (index != 0)
 											{

@@ -13,8 +13,8 @@ using FMWOTB.Tools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot;
-using NLBE_Bot.Blitzstars;
 using NLBE_Bot.Helpers;
+using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
@@ -22,21 +22,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-public class BotCommands : BaseCommandModule
+public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logger, IConfiguration configuration, IHandler handler) : BaseCommandModule
 {
 	private const int MAX_NAME_LENGTH_IN_WOTB = 25;
 	private const int MAX_TANK_NAME_LENGTH_IN_WOTB = 14;
 
-	private readonly DiscordClient _discordClient;
-	private readonly ILogger<BotCommands> _logger;
-	private readonly IConfiguration _configuration;
-
-	public BotCommands(DiscordClient discordClient, ILogger<BotCommands> logger, IConfiguration configuration)
-	{
-		_discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
-		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-		_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-	}
+	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly ILogger<BotCommands> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly IHandler _handler = handler ?? throw new ArgumentNullException(nameof(handler));
 
 	[Command("Toernooi")]
 	[Aliases("to", "toer", "t")]
@@ -590,7 +584,7 @@ public class BotCommands : BaseCommandModule
 											{
 												Onderwerp = Onderwerp.Replace("<dd-mm-yyyy>", account.clan.joined_at.Value.Day + "-" + account.clan.joined_at.Value.Month + "-" + account.clan.joined_at.Value.Year);
 											}
-											int amountOfBattles90 = Handler.Get90DayBattles(account.account_id);
+											int amountOfBattles90 = _handler.Get90DayBattles(account.account_id);
 											Onderwerp = Onderwerp.Replace("<90>", amountOfBattles90.ToString());
 											if (originalWat.ToLower().Equals("nieuw"))
 											{
@@ -894,20 +888,21 @@ public class BotCommands : BaseCommandModule
 										{
 											if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 											{
-												DiscordChannel logChannel = await Bot.GetLogChannel(ctx.Guild.Id);
-												if (logChannel != null)
+												IDiscordChannel logChannel = new DiscordChannelWrapper(await Bot.GetLogChannel(ctx.Guild.Id));
+
+												if (logChannel.Inner != null)
 												{
-													IReadOnlyList<DiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-													Dictionary<DateTime, List<DiscordMessage>> sortedMessages = logMessages.SortMessages();
-													foreach (KeyValuePair<DateTime, List<DiscordMessage>> sMessage in sortedMessages)
+													IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+													Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = logMessages.SortMessages();
+													foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
 													{
 														string xdate = theMessage.Timestamp.ConvertToDate();
 														string ydate = sMessage.Key.ConvertToDate();
 														if (xdate.Equals(ydate))
 														{
-															List<DiscordMessage> messagesToDelete = [];
-															sMessage.Value.Sort((x, y) => x.Timestamp.CompareTo(y.Timestamp));
-															foreach (DiscordMessage discMessage in sMessage.Value)
+															List<IDiscordMessage> messagesToDelete = [];
+															sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
+															foreach (IDiscordMessage discMessage in sMessage.Value)
 															{
 																string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
 																if (splitted[1].ToLower().Equals("teams"))
