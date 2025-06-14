@@ -90,15 +90,33 @@ public class Bot : IBot
 
 	public virtual async Task RunAsync()
 	{
-		DiscordActivity act = new(Constants.Prefix, ActivityType.ListeningTo);
-		await _discordClient.ConnectAsync(act, UserStatus.Online);
+		DiscordActivity activity = new(Constants.Prefix, ActivityType.ListeningTo);
+		await _discordClient.ConnectAsync(activity, UserStatus.Online);
 
 		await Task.Delay(-1);
+	}
+	private Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
+	{
+		if (e.Context.Guild.Id.Equals(Constants.NLBE_SERVER_ID) || e.Context.Guild.Id.Equals(Constants.DA_BOIS_ID))
+		{
+			if (e.Exception.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
+			{
+				e.Context.Channel.SendMessageAsync("**De bot heeft hier geen rechten voor!**");
+			}
+			else if (e.Command != null)
+			{
+				e.Context.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+				e.Context.Message.CreateReactionAsync(GetDiscordEmoji(Constants.ERROR_REACTION));
+				HandleError("Error with command (" + e.Command.Name + "):\n", e.Exception.Message.Replace("`", "'"), e.Exception.StackTrace).Wait();
+			}
+		}
+
+		return Task.CompletedTask;
 	}
 
 	private Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs args)
 	{
-		_discordClient.Logger.Log(LogLevel.Information, "Command executed: {CommandName}", args.Command.Name);
+		_logger.LogInformation("Command executed: {CommandName}", args.Command.Name);
 		return Task.CompletedTask;
 	}
 
@@ -430,24 +448,6 @@ public class Bot : IBot
 				await HandleError(message, string.Empty, string.Empty);
 			}
 		}
-	}
-
-	private Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
-	{
-		if (e.Context.Guild.Id.Equals(Constants.NLBE_SERVER_ID) || e.Context.Guild.Id.Equals(Constants.DA_BOIS_ID))
-		{
-			if (e.Exception.Message.ToLower().Contains("unauthorized"))
-			{
-				e.Context.Channel.SendMessageAsync("**De bot heeft hier geen rechten voor!**");
-			}
-			else if (e.Command != null)
-			{
-				e.Context.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
-				e.Context.Message.CreateReactionAsync(GetDiscordEmoji(Constants.ERROR_REACTION));
-				HandleError("Error with command (" + e.Command.Name + "):\n", e.Exception.Message.Replace("`", "'"), e.Exception.StackTrace).Wait();
-			}
-		}
-		return Task.CompletedTask;
 	}
 
 	private Task Discord_Ready(DiscordClient sender, ReadyEventArgs e)
