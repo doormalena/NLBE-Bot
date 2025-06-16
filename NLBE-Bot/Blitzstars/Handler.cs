@@ -1,7 +1,6 @@
 namespace NLBE_Bot.Blitzstars;
 
 using Newtonsoft.Json;
-using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using System;
@@ -9,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-public class Handler(IApiRequester apiRequester) : IHandler
+internal class Handler(IApiRequester apiRequester) : IHandler
 {
 	private readonly IApiRequester _apiRequester = apiRequester ?? throw new ArgumentNullException(nameof(apiRequester));
 

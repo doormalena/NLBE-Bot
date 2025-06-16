@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 
-public class ApiRequester(HttpClient client) : IApiRequester
+internal class ApiRequester(HttpClient client) : IApiRequester
 {
 	private readonly HttpClient _client = client ?? throw new ArgumentNullException(nameof(client));
 

@@ -32,17 +32,23 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-public class Bot : IBot
+internal class Bot : IBot
 {
-	private static DiscordClient _discordClient;
-	private static ILogger<Bot> _logger;
+	private readonly DiscordClient _discordClient;
+	private readonly IErrorHandler _errorHandler;
+	private readonly ILogger<Bot> _logger;
 	private readonly IConfiguration _configuration;
+	private readonly ICommandHandler _commandHandler;
+	private readonly IWeeklyEventHandler _weeklyEventHandler;
+	private readonly IDiscordMessageUtils _discordMessageUtils;
 
-	public static IReadOnlyDictionary<ulong, DiscordGuild> discGuildslist;
-	public static bool ignoreCommands = false;
-	public static bool ignoreEvents = false;
-	public static Tuple<ulong, DateTime> weeklyEventWinner = new(0, DateTime.Now);
-	private static DiscordMessage discordMessage;//temp message
+	public IReadOnlyDictionary<ulong, DiscordGuild> discGuildslist;
+
+	public bool IgnoreCommands { get; set; } = false;
+	public bool IgnoreEvents { get; set; } = false;
+
+	public Tuple<ulong, DateTime> weeklyEventWinner = new(0, DateTime.Now);
+	private DiscordMessage discordMessage;//temp message
 	private DateTime? lasTimeNamesWereUpdated;
 	private short heartBeatCounter = 0;
 
@@ -51,13 +57,16 @@ public class Bot : IBot
 		get; private set;
 	}
 
-	public Bot(DiscordClient discordClient, IServiceProvider serviceProvider, ILogger<Bot> logger, IConfiguration configuration)
+	public Bot(DiscordClient discordClient, IServiceProvider serviceProvider, IErrorHandler errorHandler, ILogger<Bot> logger, IConfiguration configuration, ICommandHandler commandHandler, IWeeklyEventHandler weeklyEventHandler, IDiscordMessageUtils discordMessageUtils)
 	{
-		// Note: temporary workarround to access the discored client and logger due to excessive usage of static methods. Needs more DI refactoring.
 		_discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+		_errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
 		_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+		_commandHandler = commandHandler;
+		_weeklyEventHandler = weeklyEventHandler;
+		_discordMessageUtils = discordMessageUtils;
+
 		WarGamingAppId = _configuration["NLBEBOT:WarGamingAppId"];
 
 		// Register Bot commands.
@@ -75,17 +84,20 @@ public class Bot : IBot
 		commands.RegisterCommands<BotCommands>();
 
 		// Subscribe to events.
-		commands.CommandErrored += Commands_CommandErrored;
-		commands.CommandExecuted += Commands_CommandExecuted;
+		commands.CommandExecuted += _commandHandler.OnCommandExecuted;
+		commands.CommandErrored += _commandHandler.OnCommandErrored;
+
 		_discordClient.Heartbeated += Discord_Heartbeated;
 		_discordClient.Ready += Discord_Ready;
+
 		_discordClient.GuildMemberAdded += Discord_GuildMemberAdded;
-		_discordClient.MessageReactionAdded += Discord_MessageReactionAdded;
-		_discordClient.GuildMemberRemoved += Discord_GuildMemberRemoved;
-		_discordClient.MessageReactionRemoved += Discord_MessageReactionRemoved;
-		_discordClient.MessageDeleted += Discord_MessageDeleted;
 		_discordClient.GuildMemberUpdated += Discord_GuildMemberUpdated;
+		_discordClient.GuildMemberRemoved += Discord_GuildMemberRemoved;
+
 		_discordClient.MessageCreated += Discord_MessageCreated;
+		_discordClient.MessageDeleted += Discord_MessageDeleted;
+		_discordClient.MessageReactionAdded += Discord_MessageReactionAdded;
+		_discordClient.MessageReactionRemoved += Discord_MessageReactionRemoved;
 	}
 
 	public virtual async Task RunAsync()
@@ -95,40 +107,16 @@ public class Bot : IBot
 
 		await Task.Delay(-1);
 	}
-	private Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
-	{
-		if (e.Context.Guild.Id.Equals(Constants.NLBE_SERVER_ID) || e.Context.Guild.Id.Equals(Constants.DA_BOIS_ID))
-		{
-			if (e.Exception.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
-			{
-				e.Context.Channel.SendMessageAsync("**De bot heeft hier geen rechten voor!**");
-			}
-			else if (e.Command != null)
-			{
-				e.Context.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
-				e.Context.Message.CreateReactionAsync(GetDiscordEmoji(Constants.ERROR_REACTION));
-				HandleError("Error with command (" + e.Command.Name + "):\n", e.Exception.Message.Replace("`", "'"), e.Exception.StackTrace).Wait();
-			}
-		}
 
-		return Task.CompletedTask;
-	}
-
-	private Task Commands_CommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs args)
-	{
-		_logger.LogInformation("Command executed: {CommandName}", args.Command.Name);
-		return Task.CompletedTask;
-	}
-
-	public static async Task<DiscordMessage> SendMessage(DiscordChannel channel, DiscordMember member, string guildName, string Message)
+	public async Task<DiscordMessage> SendMessage(DiscordChannel channel, DiscordMember member, string guildName, string message)
 	{
 		try
 		{
-			return await channel.SendMessageAsync(Message);
+			return await channel.SendMessageAsync(message);
 		}
 		catch (Exception ex)
 		{
-			await HandleError("[" + guildName + "] (" + channel.Name + ") Could not send message: ", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("[" + guildName + "] (" + channel.Name + ") Could not send message: ", ex);
 
 			if (ex.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
 			{
@@ -141,14 +129,14 @@ public class Bot : IBot
 
 			if (member != null)
 			{
-				await SendPrivateMessage(member, guildName, Message);
+				await SendPrivateMessage(member, guildName, message);
 			}
 		}
 
 		return null;
 	}
 
-	public static async Task<bool> SendPrivateMessage(DiscordMember member, string guildName, string Message)
+	public async Task<bool> SendPrivateMessage(DiscordMember member, string guildName, string Message)
 	{
 		try
 		{
@@ -157,12 +145,12 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("[" + guildName + "] Could not send private message: ", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("[" + guildName + "] Could not send private message: ", ex);
 		}
 		return false;
 	}
 
-	public static async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, EmbedOptions options)
+	public async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, EmbedOptions options)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -179,7 +167,7 @@ public class Bot : IBot
 			}
 			catch (Exception ex)
 			{
-				await HandleError("Could not set imageurl for embed: ", ex.Message, ex.StackTrace);
+				await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", ex);
 			}
 		}
 		if (options.Author != null)
@@ -203,7 +191,7 @@ public class Bot : IBot
 				}
 				catch (Exception innerEx)
 				{
-					await HandleError("Could not set imageurl for embed: ", innerEx.Message, innerEx.StackTrace);
+					await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", innerEx);
 				}
 			}
 		}
@@ -220,7 +208,7 @@ public class Bot : IBot
 					}
 					catch (Exception ex)
 					{
-						await HandleError("Something went wrong while trying to add a field to an embedded message:", ex.Message, ex.StackTrace);
+						await _errorHandler.HandleErrorAsync("Something went wrong while trying to add a field to an embedded message:", ex);
 					}
 				}
 			}
@@ -252,7 +240,7 @@ public class Bot : IBot
 			}
 			catch (Exception ex)
 			{
-				await HandleError("Error while adding emoji's:", ex.Message, ex.StackTrace);
+				await _errorHandler.HandleErrorAsync("Error while adding emoji's:", ex);
 			}
 			if (!string.IsNullOrEmpty(options.NextMessage))
 			{
@@ -262,7 +250,7 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("Error in createEmbed:", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Error in createEmbed:", ex);
 		}
 		return null;
 	}
@@ -271,7 +259,7 @@ public class Bot : IBot
 
 	private async Task Discord_Heartbeated(DiscordClient sender, HeartbeatEventArgs e)
 	{
-		if (ignoreEvents)
+		if (IgnoreEvents)
 		{
 			return;
 		}
@@ -328,19 +316,19 @@ public class Bot : IBot
 			try
 			{
 				_discordClient.Logger.LogInformation(winnerMessage);
-				WeeklyEventHandler weeklyEventHandler = new();
-				await weeklyEventHandler.ReadWeeklyEvent();
-				if (weeklyEventHandler.WeeklyEvent.StartDate.DayOfYear == DateTime.Now.DayOfYear - 7)//-7 omdat het dan zeker een nieuwe week is maar niet van twee weken gelden
+
+				await _weeklyEventHandler.ReadWeeklyEvent();
+				if (_weeklyEventHandler.WeeklyEvent.StartDate.DayOfYear == DateTime.Now.DayOfYear - 7)//-7 omdat het dan zeker een nieuwe week is maar niet van twee weken gelden
 				{
 					winnerMessage += "\nNa 1 week...";
-					WeeklyEventItem weeklyEventItemMostDMG = weeklyEventHandler.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
+					WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventHandler.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
 					if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
 					{
 						foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
 						{
 							if (guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
 							{
-								await WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, weeklyEventHandler.WeeklyEvent.Tank);
+								await WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, _weeklyEventHandler.WeeklyEvent.Tank);
 								break;
 							}
 						}
@@ -357,7 +345,7 @@ public class Bot : IBot
 			}
 		}
 	}
-	public static async Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
+	public async Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
 		bool userNotFound = true;
 		IReadOnlyCollection<DiscordMember> members = await guild.GetAllMembersAsync();
@@ -392,7 +380,7 @@ public class Bot : IBot
 						}
 						catch (Exception ex)
 						{
-							await HandleError("Could not send private message towards winner of weekly event.", ex.Message, ex.StackTrace);
+							await _errorHandler.HandleErrorAsync("Could not send private message towards winner of weekly event.", ex);
 						}
 						try
 						{
@@ -408,7 +396,7 @@ public class Bot : IBot
 						}
 						catch (Exception ex)
 						{
-							await HandleError("Could not send message in algemeen channel for weekly event winner announcement.", ex.Message, ex.StackTrace);
+							await _errorHandler.HandleErrorAsync("Could not send message in algemeen channel for weekly event winner announcement.", ex);
 						}
 						break;
 					}
@@ -433,7 +421,7 @@ public class Bot : IBot
 			}
 			else
 			{
-				await HandleError(message, string.Empty, string.Empty);
+				await _errorHandler.HandleErrorAsync(message);
 			}
 		}
 		else
@@ -445,7 +433,7 @@ public class Bot : IBot
 			}
 			else
 			{
-				await HandleError(message, string.Empty, string.Empty);
+				await _errorHandler.HandleErrorAsync(message);
 			}
 		}
 	}
@@ -467,7 +455,7 @@ public class Bot : IBot
 
 	private async Task Discord_MessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
 	{
-		if (ignoreEvents)
+		if (IgnoreEvents)
 		{
 			return;
 		}
@@ -478,7 +466,7 @@ public class Bot : IBot
 			if (toernooiAanmeldenChannel != null && e.Channel.Equals(toernooiAanmeldenChannel))
 			{
 				DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-				await GenerateLogMessage(message, toernooiAanmeldenChannel, e.User.Id, GetDiscordEmoji(e.Emoji.Name));
+				await GenerateLogMessage(message, toernooiAanmeldenChannel, e.User.Id, _discordMessageUtils.GetDiscordEmoji(e.Emoji.Name));
 			}
 			else
 			{
@@ -567,7 +555,7 @@ public class Bot : IBot
 	}
 	private async Task Discord_MessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
 	{
-		if (ignoreEvents)
+		if (IgnoreEvents)
 		{
 			return;
 		}
@@ -600,7 +588,7 @@ public class Bot : IBot
 						if (logChannel.Inner != null)
 						{
 							IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-							Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = logMessages.SortMessages();
+							Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
 							foreach (KeyValuePair<DateTime, List<IDiscordMessage>> messageList in sortedMessages)
 							{
 								try
@@ -613,8 +601,8 @@ public class Bot : IBot
 											if (member != null)
 											{
 												string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
-												string theEmoji = GetEmojiAsString(e.Emoji.Name);
-												if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && GetEmojiAsString(splitted[3]).Equals(theEmoji))
+												string theEmoji = _discordMessageUtils.GetEmojiAsString(e.Emoji.Name);
+												if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && _discordMessageUtils.GetEmojiAsString(splitted[3]).Equals(theEmoji))
 												{
 													await aMessage.Inner.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
 												}
@@ -624,13 +612,13 @@ public class Bot : IBot
 								}
 								catch (Exception ex)
 								{
-									await HandleError("Could not compare TimeStamps in MessageReactionRemoved:", ex.Message, ex.StackTrace);
+									await _errorHandler.HandleErrorAsync("Could not compare TimeStamps in MessageReactionRemoved:", ex);
 								}
 							}
 						}
 						else
 						{
-							await HandleError("Could not find log channel at MessageReactionRemoved!", string.Empty, string.Empty);
+							await _errorHandler.HandleErrorAsync("Could not find log channel at MessageReactionRemoved!");
 						}
 					}
 				}
@@ -640,7 +628,7 @@ public class Bot : IBot
 
 	private async Task Discord_MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
 	{
-		if (ignoreEvents)
+		if (IgnoreEvents)
 		{
 			return;
 		}
@@ -669,7 +657,7 @@ public class Bot : IBot
 
 	private async Task Discord_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
 	{
-		if (ignoreEvents)
+		if (IgnoreEvents)
 		{
 			return;
 		}
@@ -787,14 +775,14 @@ public class Bot : IBot
 			}
 			else
 			{
-				await HandleError("Could not grant new member[" + e.Member.DisplayName + " (" + e.Member.Username + "#" + e.Member.Discriminator + ")] the Noob role.", string.Empty, string.Empty);
+				await _errorHandler.HandleErrorAsync("Could not grant new member[" + e.Member.DisplayName + " (" + e.Member.Username + "#" + e.Member.Discriminator + ")] the Noob role.");
 			}
 		}
 	}
 
 	private async Task Discord_GuildMemberRemoved(DiscordClient sender, GuildMemberRemoveEventArgs e)
 	{
-		if (ignoreEvents)
+		if (IgnoreEvents)
 		{
 			return;
 		}
@@ -888,7 +876,7 @@ public class Bot : IBot
 
 	private async Task Discord_GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
 	{
-		if (!ignoreEvents)
+		if (!IgnoreEvents)
 		{
 			return;
 		}
@@ -919,7 +907,7 @@ public class Bot : IBot
 
 	private async Task Discord_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
 	{
-		if (ignoreEvents)
+		if (IgnoreEvents)
 		{
 			return;
 		}
@@ -1093,12 +1081,11 @@ public class Bot : IBot
 						string eventDescription = string.Empty;
 						try
 						{
-							WeeklyEventHandler weeklyEventHandler = new();
-							eventDescription = await weeklyEventHandler.GetStringForWeeklyEvent(replayInfo);
+							eventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(replayInfo);
 						}
 						catch (Exception ex)
 						{
-							await HandleError("Tijdens het nakijken van het wekelijkse event: ", ex.Message, ex.StackTrace);
+							await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
 						}
 						List<Tuple<string, string>> images = await GetAllMaps(e.Guild.Id);
 						foreach (Tuple<string, string> map in images)
@@ -1114,7 +1101,7 @@ public class Bot : IBot
 								}
 								catch (Exception ex)
 								{
-									await HandleError("Could not set thumbnail for embed:", ex.Message, ex.StackTrace);
+									await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
 								}
 								break;
 							}
@@ -1131,8 +1118,8 @@ public class Bot : IBot
 					}
 					else if (wasReplay)
 					{
-						await e.Message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
-						await e.Message.CreateReactionAsync(GetDiscordEmoji(Constants.ERROR_REACTION));
+						await e.Message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+						await e.Message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION));
 					}
 				}
 			}
@@ -1191,8 +1178,7 @@ public class Bot : IBot
 		{
 			//tank was chosen
 			await Channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
-			WeeklyEventHandler weeklyEventHandler = new();
-			await weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await GetWeeklyEventChannel());
+			await _weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await GetWeeklyEventChannel());
 			weeklyEventWinner = new Tuple<ulong, DateTime>(0, DateTime.Now);//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
 		}
 	}
@@ -1201,23 +1187,23 @@ public class Bot : IBot
 
 	#region getChannel
 
-	public static async Task<DiscordChannel> GetHallOfFameChannel(ulong GuildID)
+	public async Task<DiscordChannel> GetHallOfFameChannel(ulong GuildID)
 	{
 		long ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? 793268894454251570 : 793429499403304960;
 		return await GetChannel(GuildID, (ulong) ChatID);
 	}
-	public static async Task<DiscordChannel> GetMasteryReplaysChannel(ulong GuildID)
+	public async Task<DiscordChannel> GetMasteryReplaysChannel(ulong GuildID)
 	{
 		ulong ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? Constants.MASTERY_REPLAYS_ID : Constants.PRIVE_ID;
 		return await GetChannel(GuildID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetReplayResultsChannel()
+	public async Task<DiscordChannel> GetReplayResultsChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 583958593129414677;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetWeeklyEventChannel()
+	public async Task<DiscordChannel> GetWeeklyEventChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 897749692895596565;
@@ -1228,64 +1214,64 @@ public class Bot : IBot
 		}
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetAlgemeenChannel()
+	public async Task<DiscordChannel> GetAlgemeenChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 507575682046492692;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetOudLedenChannel()
+	public async Task<DiscordChannel> GetOudLedenChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 744462244951228507;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetDeputiesChannel()
+	public async Task<DiscordChannel> GetDeputiesChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 668211371522916389;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetWelkomChannel()
+	public async Task<DiscordChannel> GetWelkomChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 681960256296976405;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetRegelsChannel()
+	public async Task<DiscordChannel> GetRegelsChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 679531304882012165;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetLogChannel(ulong GuildID)
+	public async Task<DiscordChannel> GetLogChannel(ulong GuildID)
 	{
 		return GuildID == Constants.NLBE_SERVER_ID ? await GetChannel(GuildID, 782308602882031660) : await GetChannel(GuildID, 808319637447376899);
 	}
-	public static async Task<DiscordChannel> GetToernooiAanmeldenChannel(ulong GuildID)
+	public async Task<DiscordChannel> GetToernooiAanmeldenChannel(ulong GuildID)
 	{
 		return GuildID == Constants.NLBE_SERVER_ID
 			? await GetChannel(GuildID, Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID)
 			: await GetChannel(GuildID, Constants.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID);
 	}
-	public static async Task<DiscordChannel> GetMappenChannel(ulong GuildID)
+	public async Task<DiscordChannel> GetMappenChannel(ulong GuildID)
 	{
 		long ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? 782240999190953984 : 804856157918855209;
 		return await GetChannel(GuildID, (ulong) ChatID);
 	}
-	public static async Task<DiscordChannel> GetBottestChannel()
+	public async Task<DiscordChannel> GetBottestChannel()
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 781617141069774898;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetTestChannel()
+	public async Task<DiscordChannel> GetTestChannel()
 	{
 		ulong ServerID = Constants.DA_BOIS_ID;
 		ulong ChatID = 804477788676685874;
 		return await GetChannel(ServerID, ChatID);
 	}
-	public static async Task<DiscordChannel> GetPollsChannel(bool isDeputyPoll, ulong GuildID)
+	public async Task<DiscordChannel> GetPollsChannel(bool isDeputyPoll, ulong GuildID)
 	{
 		if (GuildID == Constants.NLBE_SERVER_ID)
 		{
@@ -1297,11 +1283,12 @@ public class Bot : IBot
 			return await GetTestChannel();
 		}
 	}
-	private static async Task<DiscordChannel> GetChannel(ulong serverID, ulong chatID)
+	private async Task<DiscordChannel> GetChannel(ulong serverID, ulong chatID)
 	{
 		try
 		{
 			DiscordGuild guild = await _discordClient.GetGuildAsync(serverID);
+
 			if (guild != null)
 			{
 				return guild.GetChannel(chatID);
@@ -1314,11 +1301,13 @@ public class Bot : IBot
 
 		return null;
 	}
-	private static async Task<DiscordGuild> GetGuild(ulong serverID)
+
+	private Task<DiscordGuild> GetGuild(ulong serverID)
 	{
-		return await _discordClient.GetGuildAsync(serverID);
+		return _discordClient.GetGuildAsync(serverID);
 	}
-	public static async Task<DiscordChannel> GetChannelBasedOnString(string guildNameOrTag, ulong guildID)
+
+	public async Task<DiscordChannel> GetChannelBasedOnString(string guildNameOrTag, ulong guildID)
 	{
 		bool isId = false;
 		if (guildNameOrTag.StartsWith('<'))
@@ -1354,7 +1343,7 @@ public class Bot : IBot
 
 	#endregion
 
-	public static async Task UpdateUsers()
+	public async Task UpdateUsers()
 	{
 		DiscordChannel bottestChannel = await GetBottestChannel();
 		if (bottestChannel != null)
@@ -1498,7 +1487,7 @@ public class Bot : IBot
 		}
 	}
 
-	public static async Task GenerateLogMessage(DiscordMessage message, DiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji)
+	public async Task GenerateLogMessage(DiscordMessage message, DiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji)
 	{
 		bool addInLog = true;
 		if (message.Author != null)
@@ -1510,12 +1499,12 @@ public class Bot : IBot
 		}
 		if (addInLog)
 		{
-			if (Emoj.GetIndex(GetEmojiAsString(emojiAsEmoji)) > 0)
+			if (Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(emojiAsEmoji)) > 0)
 			{
 				try
 				{
 					bool botReactedWithThisEmoji = false;
-					IReadOnlyList<DiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(GetDiscordEmoji(emojiAsEmoji));
+					IReadOnlyList<DiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji));
 					foreach (DiscordUser user in userListOfThisEmoji)
 					{
 						if (user.Id.Equals(Constants.NLBE_BOT) || user.Id.Equals(Constants.TESTBEASTV2_BOT))
@@ -1535,12 +1524,12 @@ public class Bot : IBot
 					}
 					else
 					{
-						await message.DeleteReactionsEmojiAsync(GetDiscordEmoji(emojiAsEmoji));
+						await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji));
 					}
 				}
 				catch (Exception ex)
 				{
-					await HandleError("While adding to log: ", ex.Message, ex.StackTrace);
+					await _errorHandler.HandleErrorAsync("While adding to log: ", ex);
 				}
 			}
 		}
@@ -1638,65 +1627,17 @@ public class Bot : IBot
 		return null;
 	}
 
-	public static async Task ConfirmCommandExecuting(DiscordMessage message)
+	public async Task ConfirmCommandExecuting(DiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.CreateReactionAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
 	}
-	public static async Task ConfirmCommandExecuted(DiscordMessage message)
+	public async Task ConfirmCommandExecuted(DiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.DeleteReactionsEmojiAsync(GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
 		await Task.Delay(875);
-		await message.CreateReactionAsync(GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION));
-	}
-
-	public static DiscordEmoji GetDiscordEmoji(string name)
-	{
-		try
-		{
-			return DiscordEmoji.FromName(_discordClient, name);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogDebug(ex, ex.Message);
-		}
-
-		DiscordEmoji theEmoji = DiscordEmoji.FromUnicode(name);
-		if (theEmoji != null)
-		{
-			return theEmoji;
-		}
-		else
-		{
-			try
-			{
-				theEmoji = DiscordEmoji.FromName(_discordClient, name);
-			}
-			catch (Exception ex)
-			{
-				HandleError("Could not load emoji:", ex.Message, ex.StackTrace).Wait();
-			}
-			return theEmoji;
-		}
-	}
-
-	public static string GetEmojiAsString(string emoji)
-	{
-		DiscordEmoji theEmoji = GetDiscordEmoji(emoji);
-		if (!theEmoji.GetDiscordName().Equals(emoji))
-		{
-			return theEmoji.GetDiscordName();
-		}
-
-		try
-		{
-			return DiscordEmoji.FromUnicode(_discordClient, emoji).Name;
-		}
-		catch
-		{
-			return emoji;
-		}
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION));
 	}
 
 	public static string GetProperFileName(string file)
@@ -1741,7 +1682,7 @@ public class Bot : IBot
 		return string.Empty;
 	}
 
-	public static async Task<List<Tier>> ReadTeams(DiscordChannel channel, DiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team)
+	public async Task<List<Tier>> ReadTeams(DiscordChannel channel, DiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team)
 	{
 		if (parameters_as_in_hoeveelste_team.Length <= 1)
 		{
@@ -1795,7 +1736,7 @@ public class Bot : IBot
 						}
 						catch (Exception ex)
 						{
-							await HandleError("Could not load messages from " + toernooiAanmeldenChannel.Name + ":", ex.Message, ex.StackTrace);
+							await _errorHandler.HandleErrorAsync("Could not load messages from " + toernooiAanmeldenChannel.Name + ":", ex);
 						}
 						if (messages.Count == hoeveelste + 1)
 						{
@@ -1809,7 +1750,7 @@ public class Bot : IBot
 									if (logChannel.Inner != null)
 									{
 										IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-										Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = logMessages.SortMessages();
+										Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
 										List<Tier> tiers = [];
 
 										foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
@@ -1829,7 +1770,7 @@ public class Bot : IBot
 														bool found = false;
 														foreach (Tier aTeam in tiers)
 														{
-															if (aTeam.TierNummer.Equals(GetEmojiAsString(splitted[3])))
+															if (aTeam.TierNummer.Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
 															{
 																found = true;
 																newTeam = aTeam;
@@ -1846,8 +1787,8 @@ public class Bot : IBot
 														{
 															if (newTeam.TierNummer.Equals(string.Empty))
 															{
-																newTeam.TierNummer = GetEmojiAsString(splitted[3]);
-																string emojiAsString = GetEmojiAsString(splitted[3]);
+																newTeam.TierNummer = _discordMessageUtils.GetEmojiAsString(splitted[3]);
+																string emojiAsString = _discordMessageUtils.GetEmojiAsString(splitted[3]);
 																int index = Emoj.GetIndex(emojiAsString);
 																newTeam.Index = index;
 															}
@@ -1871,13 +1812,13 @@ public class Bot : IBot
 									}
 									else
 									{
-										await HandleError("Could not find log channel!", string.Empty, string.Empty);
+										await _errorHandler.HandleErrorAsync("Could not find log channel!");
 									}
 								}
 								else
 								{
 									IDiscordMessage message = new DiscordMessageWrapper(theMessage);
-									Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = message.SortReactions();
+									Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = _discordMessageUtils.SortReactions(message);
 
 									List<Tier> teams = [];
 									foreach (KeyValuePair<IDiscordEmoji, List<IDiscordUser>> reaction in reactions)
@@ -1914,7 +1855,7 @@ public class Bot : IBot
 										if (aTeam.TierNummer.Equals(string.Empty))
 										{
 											aTeam.TierNummer = reaction.Key.Inner;
-											string emojiAsString = GetEmojiAsString(reaction.Key.Inner);
+											string emojiAsString = _discordMessageUtils.GetEmojiAsString(reaction.Key.Inner);
 											int index = Emoj.GetIndex(emojiAsString);
 											if (index != 0)
 											{
@@ -2042,7 +1983,7 @@ public class Bot : IBot
 			return teams;
 		}
 	}
-	public static async Task<List<Tuple<ulong, string>>> GetIndividualParticipants(List<Tier> teams, DiscordGuild guild)
+	public async Task<List<Tuple<ulong, string>>> GetIndividualParticipants(List<Tier> teams, DiscordGuild guild)
 	{
 		List<Tuple<ulong, string>> participants = [];
 		if (teams != null)
@@ -2114,12 +2055,12 @@ public class Bot : IBot
 		return stringItem;
 	}
 
-	public static List<Tuple<ulong, string>> RemoveSyntaxes(List<Tuple<ulong, string>> stringList)
+	public List<Tuple<ulong, string>> RemoveSyntaxes(List<Tuple<ulong, string>> stringList)
 	{
 		return stringList.Select(item => Tuple.Create(item.Item1, RemoveSyntax(item.Item2))).ToList();
 	}
 
-	public static async Task<List<string>> GetMentions(List<Tuple<ulong, string>> memberList, ulong guildID)
+	public async Task<List<string>> GetMentions(List<Tuple<ulong, string>> memberList, ulong guildID)
 	{
 		DiscordGuild guild = await GetGuild(guildID);
 		if (guild != null)
@@ -2179,7 +2120,7 @@ public class Bot : IBot
 		return null;
 	}
 
-	public static async Task WriteInLog(ulong guildID, string date, string message)
+	public async Task WriteInLog(ulong guildID, string date, string message)
 	{
 		DiscordChannel logChannel = await GetLogChannel(guildID);
 		if (logChannel != null)
@@ -2188,10 +2129,10 @@ public class Bot : IBot
 		}
 		else
 		{
-			await HandleError("Could not find log channel, message: " + date + "|" + message, string.Empty, string.Empty);
+			await _errorHandler.HandleErrorAsync("Could not find log channel, message: " + date + "|" + message);
 		}
 	}
-	public static async Task WriteInLog(ulong guildID, string message)
+	public async Task WriteInLog(ulong guildID, string message)
 	{
 		DiscordChannel logChannel = await GetLogChannel(guildID);
 		if (logChannel != null)
@@ -2200,10 +2141,10 @@ public class Bot : IBot
 		}
 		else
 		{
-			await HandleError("Could not find log channel, message: " + message, string.Empty, string.Empty);
+			await _errorHandler.HandleErrorAsync("Could not find log channel, message: " + message);
 		}
 	}
-	public static async Task ClearLog(ulong guildID, int amount)
+	public async Task ClearLog(ulong guildID, int amount)
 	{
 		DiscordChannel logChannel = await GetLogChannel(guildID);
 		if (logChannel != null)
@@ -2218,17 +2159,17 @@ public class Bot : IBot
 				}
 				catch (Exception ex)
 				{
-					await HandleError("Could not delete message:", ex.Message, ex.StackTrace);
+					await _errorHandler.HandleErrorAsync("Could not delete message:", ex);
 				}
 			}
 		}
 		else
 		{
-			await HandleError("Could not find log channel!", string.Empty, string.Empty);
+			await _errorHandler.HandleErrorAsync("Could not find log channel!");
 		}
 	}
 
-	public static async Task ChangeMemberNickname(DiscordMember member, string nickname)
+	public async Task ChangeMemberNickname(DiscordMember member, string nickname)
 	{
 		try
 		{
@@ -2241,7 +2182,7 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("Could not edit displayname for " + member.Username + ":", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Could not edit displayname for " + member.Username + ":", ex);
 		}
 	}
 	public static string UpdateName(DiscordMember member, string oldName)
@@ -2472,7 +2413,7 @@ public class Bot : IBot
 		return returnString;
 	}
 
-	public static bool CheckIfAllWithinRange(string[] tiers, int min, int max)
+	public bool CheckIfAllWithinRange(string[] tiers, int min, int max)
 	{
 		bool allWithinRange = true;
 		for (int i = 0; i < tiers.Length; i++)
@@ -2487,7 +2428,7 @@ public class Bot : IBot
 		return allWithinRange;
 	}
 
-	public static async Task CleanChannel(ulong serverID, ulong channelID)
+	public async Task CleanChannel(ulong serverID, ulong channelID)
 	{
 		DiscordChannel channel = await GetChannel(serverID, channelID);
 		IReadOnlyList<DiscordMessage> messages = channel.GetMessagesAsync(100).Result;
@@ -2500,7 +2441,7 @@ public class Bot : IBot
 			}
 		}
 	}
-	public static async Task CleanWelkomChannel()
+	public async Task CleanWelkomChannel()
 	{
 		DiscordChannel welkomChannel = await GetWelkomChannel();
 		IReadOnlyList<DiscordMessage> messages = welkomChannel.GetMessagesAsync(100).Result;
@@ -2513,7 +2454,7 @@ public class Bot : IBot
 			}
 		}
 	}
-	public static async Task CleanWelkomChannel(ulong userID)
+	public async Task CleanWelkomChannel(ulong userID)
 	{
 		DiscordChannel welkomChannel = await GetWelkomChannel();
 		IReadOnlyList<DiscordMessage> messages = welkomChannel.GetMessagesAsync(100).Result;
@@ -2542,7 +2483,7 @@ public class Bot : IBot
 		}
 	}
 
-	public static DiscordRole GetDiscordRole(ulong serverID, ulong id)
+	public DiscordRole GetDiscordRole(ulong serverID, ulong id)
 	{
 		foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
 		{
@@ -2561,7 +2502,7 @@ public class Bot : IBot
 		return null;
 	}
 
-	public static bool HasRight(DiscordMember member, Command command)
+	public bool HasRight(DiscordMember member, Command command)
 	{
 		if (member.Guild.Id.Equals(Constants.DA_BOIS_ID))
 		{
@@ -2593,7 +2534,7 @@ public class Bot : IBot
 		return member.Roles.Any(role => roleIds.Contains(role.Id));
 	}
 
-	public static async Task ShowMemberInfo(DiscordChannel channel, object gebruiker)
+	public async Task ShowMemberInfo(DiscordChannel channel, object gebruiker)
 	{
 		if (gebruiker is DiscordMember discordMember)
 		{
@@ -3049,7 +2990,7 @@ public class Bot : IBot
 		return wins / battles * 100;
 	}
 
-	public static async Task ShowClanInfo(DiscordChannel channel, WGClan clan)
+	public async Task ShowClanInfo(DiscordChannel channel, WGClan clan)
 	{
 		List<DEF> deflist = [];
 		DEF newDef1 = new()
@@ -3114,7 +3055,7 @@ public class Bot : IBot
 		await CreateEmbed(channel, options);
 	}
 
-	public static async Task ShowTournamentInfo(DiscordChannel channel, WGTournament tournament, string titel)
+	public async Task ShowTournamentInfo(DiscordChannel channel, WGTournament tournament, string titel)
 	{
 		List<DEF> deflist = [];
 		DEF newDef1 = new()
@@ -3509,7 +3450,7 @@ public class Bot : IBot
 		await CreateEmbed(channel, options);
 	}
 
-	public static async Task<DiscordMessage> SayCannotBePlayedAt(DiscordChannel channel, DiscordMember member, string guildName, string roomType)
+	public async Task<DiscordMessage> SayCannotBePlayedAt(DiscordChannel channel, DiscordMember member, string guildName, string roomType)
 	{
 		if (roomType.Length == 0)
 		{
@@ -3518,43 +3459,43 @@ public class Bot : IBot
 
 		return await SendMessage(channel, member, guildName, "**De battle mag niet in een " + roomType + " room gespeeld zijn!**");
 	}
-	public static async Task SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName)
+	public async Task SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName)
 	{
 		await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis, probeer het opnieuw!**");
 	}
-	public static async Task<DiscordMessage> SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName, string text)
+	public async Task<DiscordMessage> SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName, string text)
 	{
 		return await SendMessage(channel, member, guildName, text);
 	}
-	public static async Task SayWrongAttachments(DiscordChannel channel, DiscordMember member, string guildName)
+	public async Task SayWrongAttachments(DiscordChannel channel, DiscordMember member, string guildName)
 	{
 		await SendMessage(channel, member, guildName, "**Geen bruikbare documenten in de bijlage gevonden!**");
 	}
-	public static async Task SayNoAttachments(DiscordChannel channel, DiscordMember member, string guildName)
+	public async Task SayNoAttachments(DiscordChannel channel, DiscordMember member, string guildName)
 	{
 		await SendMessage(channel, member, guildName, "**Geen documenten in de bijlage gevonden!**");
 	}
-	public static async Task SayNoResponse(DiscordChannel channel)
+	public async Task SayNoResponse(DiscordChannel channel)
 	{
 		await channel.SendMessageAsync("`Time-out: Geen antwoord.`");
 	}
-	public static async Task SayNoResponse(DiscordChannel channel, DiscordMember member, string guildName)
+	public async Task SayNoResponse(DiscordChannel channel, DiscordMember member, string guildName)
 	{
 		await SendMessage(channel, member, guildName, "`Time-out: Geen antwoord.`");
 	}
-	public static async Task SayMustBeNumber(DiscordChannel channel)
+	public async Task SayMustBeNumber(DiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Je moest een cijfer geven!**");
 	}
-	public static async Task SayNumberTooSmall(DiscordChannel channel)
+	public async Task SayNumberTooSmall(DiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Dat cijfer was te klein!**");
 	}
-	public static async Task SayNumberTooBig(DiscordChannel channel)
+	public async Task SayNumberTooBig(DiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Dat cijfer was te groot!**");
 	}
-	public static async Task SayBeMoreSpecific(DiscordChannel channel)
+	public async Task SayBeMoreSpecific(DiscordChannel channel)
 	{
 		EmbedOptions options = new()
 		{
@@ -3563,7 +3504,7 @@ public class Bot : IBot
 		};
 		await CreateEmbed(channel, options);
 	}
-	public static DiscordMessage SayMultipleResults(DiscordChannel channel, string description)
+	public DiscordMessage SayMultipleResults(DiscordChannel channel, string description)
 	{
 		try
 		{
@@ -3572,11 +3513,11 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			HandleError("Something went wrong while trying to send an embedded message:", ex.Message, ex.StackTrace).Wait();
+			_errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex).Wait();
 			return null;
 		}
 	}
-	public static async Task SayNoResults(DiscordChannel channel, string description)
+	public async Task SayNoResults(DiscordChannel channel, string description)
 	{
 		try
 		{
@@ -3585,10 +3526,10 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("Something went wrong while trying to send an embedded message:", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
 		}
 	}
-	public static async Task SayTheUserIsNotAllowed(DiscordChannel channel)
+	public async Task SayTheUserIsNotAllowed(DiscordChannel channel)
 	{
 		try
 		{
@@ -3597,10 +3538,10 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("Something went wrong while trying to send an embedded message:", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
 		}
 	}
-	public static async Task SayBotNotAuthorized(DiscordChannel channel)
+	public async Task SayBotNotAuthorized(DiscordChannel channel)
 	{
 		try
 		{
@@ -3609,10 +3550,10 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("Something went wrong while trying to send an embedded message:", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
 		}
 	}
-	public static async Task SayTooManyCharacters(DiscordChannel channel)
+	public async Task SayTooManyCharacters(DiscordChannel channel)
 	{
 		try
 		{
@@ -3621,10 +3562,10 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("Something went wrong while trying to send an embedded message:", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
 		}
 	}
-	public static async Task<DiscordMessage> SayReplayNotWorthy(DiscordChannel channel, WGBattle battle)
+	public async Task<DiscordMessage> SayReplayNotWorthy(DiscordChannel channel, WGBattle battle)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -3650,7 +3591,7 @@ public class Bot : IBot
 				}
 				catch (Exception ex)
 				{
-					await HandleError("Could not set thumbnail for embed:", ex.Message, ex.StackTrace);
+					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
 				}
 				break;
 			}
@@ -3664,7 +3605,7 @@ public class Bot : IBot
 			}
 			catch (Exception ex)
 			{
-				await HandleError("Something went wrong while trying to send an embedded message:", ex.Message, ex.StackTrace);
+				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
 			}
 		}
 		else
@@ -3673,7 +3614,7 @@ public class Bot : IBot
 		}
 		return null;
 	}
-	public static async Task<DiscordMessage> SayReplayIsWorthy(DiscordChannel channel, WGBattle battle, int position)
+	public async Task<DiscordMessage> SayReplayIsWorthy(DiscordChannel channel, WGBattle battle, int position)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -3699,7 +3640,7 @@ public class Bot : IBot
 				}
 				catch (Exception ex)
 				{
-					await HandleError("Could not set thumbnail for embed:", ex.Message, ex.StackTrace);
+					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
 				}
 				break;
 			}
@@ -3713,20 +3654,19 @@ public class Bot : IBot
 			}
 			catch (Exception ex)
 			{
-				await HandleError("Something went wrong while trying to send an embedded message:", ex.Message, ex.StackTrace);
+				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
 			}
 		}
 		{
 			return await channel.SendMessageAsync(embed: embed);
 		}
 	}
-	private static async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
+	private async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
 	{
 		StringBuilder sb = new(preDescription);
 		try
 		{
-			WeeklyEventHandler weeklyEventHandler = new();
-			string weeklyEventDescription = await weeklyEventHandler.GetStringForWeeklyEvent(battle);
+			string weeklyEventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(battle);
 			if (weeklyEventDescription.Length > 0)
 			{
 				sb.Append(Environment.NewLine + weeklyEventDescription);
@@ -3734,7 +3674,7 @@ public class Bot : IBot
 		}
 		catch (Exception ex)
 		{
-			await HandleError("Tijdens het nakijken van het wekelijkse event: ", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
 		}
 		sb.Append(GetSomeReplayInfoAsText(battle, position).Replace(Constants.REPLACEABLE_UNDERSCORE_CHAR, '_'));
 		return sb.ToString();
@@ -3812,7 +3752,7 @@ public class Bot : IBot
 	}
 
 
-	public static async Task<WGClan> SearchForClan(DiscordChannel channel, DiscordMember member, string guildName, string clan_naam, bool loadMembers, DiscordUser user, Command command)
+	public async Task<WGClan> SearchForClan(DiscordChannel channel, DiscordMember member, string guildName, string clan_naam, bool loadMembers, DiscordUser user, Command command)
 	{
 		try
 		{
@@ -3864,7 +3804,7 @@ public class Bot : IBot
 		return null;
 	}
 
-	public static async Task<int> WaitForReply(DiscordChannel channel, DiscordUser user, string description, int count)
+	public async Task<int> WaitForReply(DiscordChannel channel, DiscordUser user, string description, int count)
 	{
 		DiscordMessage discMessage = SayMultipleResults(channel, description);
 		InteractivityExtension interactivity = _discordClient.GetInteractivity();
@@ -3907,7 +3847,7 @@ public class Bot : IBot
 			List<DiscordEmoji> reacted = [];
 			for (int i = 1; i <= 10; i++)
 			{
-				DiscordEmoji emoji = GetDiscordEmoji(Emoj.GetName(i));
+				DiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
 				if (emoji != null)
 				{
 					IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;
@@ -3923,7 +3863,7 @@ public class Bot : IBot
 
 			if (reacted.Count == 1)
 			{
-				int index = Emoj.GetIndex(GetEmojiAsString(reacted[0].Name));
+				int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(reacted[0].Name));
 				if (index > 0 && index <= count)
 				{
 					return index - 1;
@@ -3949,7 +3889,7 @@ public class Bot : IBot
 		return -1;
 	}
 
-	public static List<DEF> ListInMemberEmbed(int columns, List<DiscordMember> memberList, string searchTerm)
+	public List<DEF> ListInMemberEmbed(int columns, List<DiscordMember> memberList, string searchTerm)
 	{
 		List<DiscordMember> backupMemberList = [];
 		backupMemberList.AddRange(memberList);
@@ -3997,7 +3937,7 @@ public class Bot : IBot
 				}
 				catch (Exception ex)
 				{
-					HandleError("Error in gebruikerslijst:", ex.Message, ex.StackTrace).Wait();
+					_errorHandler.HandleErrorAsync("Error in gebruikerslijst:", ex).Wait();
 				}
 			}
 			List<DEF> deflist = [];
@@ -4046,7 +3986,7 @@ public class Bot : IBot
 		return [];
 	}
 
-	public static List<DEF> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, DiscordGuild guild)
+	public List<DEF> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, DiscordGuild guild)
 	{
 		if (memberList.Count == 0)
 		{
@@ -4131,7 +4071,7 @@ public class Bot : IBot
 			}
 			catch (Exception ex)
 			{
-				HandleError("Error in listInPlayerEmbed:", ex.Message, ex.StackTrace).Wait();
+				_errorHandler.HandleErrorAsync("Error in listInPlayerEmbed:", ex).Wait();
 			}
 		}
 
@@ -4181,7 +4121,7 @@ public class Bot : IBot
 		return deflist;
 	}
 
-	public static List<string> GetSearchTermAndCondition(params string[] parameter)
+	public List<string> GetSearchTermAndCondition(params string[] parameter)
 	{
 		string searchTerm = string.Empty;
 		string conditie = string.Empty;
@@ -4223,7 +4163,7 @@ public class Bot : IBot
 		return temp;
 	}
 
-	public static async Task<List<Tuple<string, string>>> GetAllMaps(ulong GuildID)
+	public async Task<List<Tuple<string, string>>> GetAllMaps(ulong GuildID)
 	{
 		DiscordChannel mapChannel = await GetMappenChannel(GuildID);
 		if (mapChannel != null)
@@ -4243,7 +4183,7 @@ public class Bot : IBot
 			}
 			catch (Exception ex)
 			{
-				await HandleError("Could not load messages from " + mapChannel.Name + ":", ex.Message, ex.StackTrace);
+				await _errorHandler.HandleErrorAsync("Could not load messages from " + mapChannel.Name + ":", ex);
 			}
 			images.Sort((x, y) => y.Item1.CompareTo(x.Item1));
 			images.Reverse();
@@ -4272,7 +4212,7 @@ public class Bot : IBot
 		return new Tuple<string, string>(clan, sb.ToString().Trim(' '));
 	}
 
-	public static async Task<WGAccount> SearchPlayer(DiscordChannel channel, DiscordMember member, DiscordUser user, string guildName, string naam)
+	public async Task<WGAccount> SearchPlayer(DiscordChannel channel, DiscordMember member, DiscordUser user, string guildName, string naam)
 	{
 		try
 		{
@@ -4351,15 +4291,15 @@ public class Bot : IBot
 	#region Hall Of Fame
 
 	//Methods are set chronological
-	public static async Task<Tuple<string, DiscordMessage>> Handle(string titel, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID, string url)
+	public async Task<Tuple<string, DiscordMessage>> Handle(string titel, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID, string url)
 	{
 		return await Handle(titel, null, channel, guildName, guildID, url, member);
 	}
-	public static async Task<Tuple<string, DiscordMessage>> Handle(string titel, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID, DiscordAttachment attachment)
+	public async Task<Tuple<string, DiscordMessage>> Handle(string titel, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID, DiscordAttachment attachment)
 	{
 		return await Handle(titel, attachment, channel, guildName, guildID, null, member);
 	}
-	private static async Task<Tuple<string, DiscordMessage>> Handle(string titel, object discAttach, DiscordChannel channel, string guildName, ulong guildID, string iets, DiscordMember member)
+	private async Task<Tuple<string, DiscordMessage>> Handle(string titel, object discAttach, DiscordChannel channel, string guildName, ulong guildID, string iets, DiscordMember member)
 	{
 		if (discAttach is DiscordAttachment attachment)
 		{
@@ -4405,7 +4345,7 @@ public class Bot : IBot
 			return new Tuple<string, DiscordMessage>("Er ging iets mis.", null);
 		}
 	}
-	private static async Task<Tuple<string, DiscordMessage>> GoHOFDetails(WGBattle replayInfo, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID)
+	private async Task<Tuple<string, DiscordMessage>> GoHOFDetails(WGBattle replayInfo, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID)
 	{
 		_ = (await channel.GetMessagesAsync(1))[0];
 		DiscordMessage tempMessage;
@@ -4420,15 +4360,15 @@ public class Bot : IBot
 						? await ReplayHOF(replayInfo, guildID, channel, member, guildName)
 						: new Tuple<string, DiscordMessage>("Replay bevatte geen details.", null);
 				}
-				catch (JsonNotFoundException e)
+				catch (JsonNotFoundException ex)
 				{
 					_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
-					await HandleError("While reading json from a replay:\n", e.Message, e.StackTrace);
+					await _errorHandler.HandleErrorAsync("While reading json from a replay:\n", ex);
 				}
-				catch (Exception e)
+				catch (Exception ex)
 				{
 					_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis bij het controleren van de HOF!**");
-					await HandleError("While checking HOF with a replay:\n", e.Message, e.StackTrace);
+					await _errorHandler.HandleErrorAsync("While checking HOF with a replay:\n", ex);
 				}
 				tempMessage = await SendMessage(channel, member, guildName, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
 				return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
@@ -4469,7 +4409,7 @@ public class Bot : IBot
 				}
 				catch (Exception ex)
 				{
-					await HandleError("Could not set thumbnail for embed:", ex.Message, ex.StackTrace);
+					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
 				}
 				break;
 			}
@@ -4484,7 +4424,7 @@ public class Bot : IBot
 		await CreateEmbed(channel, options);
 		return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
 	}
-	public static async Task<WGBattle> GetReplayInfo(string titel, object attachment, string ign, string url)
+	public async Task<WGBattle> GetReplayInfo(string titel, object attachment, string ign, string url)
 	{
 		string json = string.Empty;
 		bool playerIDFound = false;
@@ -4524,7 +4464,7 @@ public class Bot : IBot
 				attachUrl = attach.Url;
 			}
 
-			await HandleError("Initializing WGBattle object from (" + (!string.IsNullOrEmpty(url) ? url : attachUrl) + "):\n", ex.Message, ex.StackTrace);
+			await _errorHandler.HandleErrorAsync("Initializing WGBattle object from (" + (!string.IsNullOrEmpty(url) ? url : attachUrl) + "):\n", ex);
 		}
 		return null;
 	}
@@ -4570,7 +4510,7 @@ public class Bot : IBot
 		HttpResponseMessage response = await httpClient.PostAsync(url, form1);
 		return await response.Content.ReadAsStringAsync();
 	}
-	public static async Task<Tuple<string, DiscordMessage>> ReplayHOF(WGBattle battle, ulong guildID, DiscordChannel channel, DiscordMember member, string guildName)
+	public async Task<Tuple<string, DiscordMessage>> ReplayHOF(WGBattle battle, ulong guildID, DiscordChannel channel, DiscordMember member, string guildName)
 	{
 		if (battle.details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.details.clanid.Equals(Constants.NLBE2_CLAN_ID))
 		{
@@ -4656,7 +4596,7 @@ public class Bot : IBot
 								}
 								catch (Exception ex)
 								{
-									await HandleError("Could not set thumbnail for embed:", ex.Message, ex.StackTrace);
+									await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
 								}
 								break;
 							}
@@ -4691,7 +4631,7 @@ public class Bot : IBot
 		}
 		return null;
 	}
-	public static async Task<DiscordMessage> GetHOFMessage(ulong GuildID, int tier, string vehicle)
+	public async Task<DiscordMessage> GetHOFMessage(ulong GuildID, int tier, string vehicle)
 	{
 		DiscordChannel channel = await GetHallOfFameChannel(GuildID);
 		if (channel != null)
@@ -4747,7 +4687,7 @@ public class Bot : IBot
 						if (tierMessage.Embeds.Count > 0)
 						{
 							string emojiAsString = tierMessage.Embeds[0].Title.Replace("Tier ", string.Empty);
-							int index = Emoj.GetIndex(GetEmojiAsString(emojiAsString));
+							int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(emojiAsString));
 							if (index < tier)
 							{
 								LTmessages.Add(tierMessage);
@@ -4790,7 +4730,7 @@ public class Bot : IBot
 			return null;
 		}
 	}
-	public static List<DiscordMessage> GetTierMessages(int tier, IReadOnlyList<DiscordMessage> messages)
+	public List<DiscordMessage> GetTierMessages(int tier, IReadOnlyList<DiscordMessage> messages)
 	{
 		messages = messages.Reverse().ToList();
 		List<DiscordMessage> tierMessages = [];
@@ -4800,7 +4740,7 @@ public class Bot : IBot
 			{
 				if (message.Embeds.Count > 0)
 				{
-					if (message.Embeds[0].Title.Contains(GetDiscordEmoji(Emoj.GetName(tier))))
+					if (message.Embeds[0].Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier))))
 					{
 						tierMessages.Add(message);
 					}
@@ -4809,7 +4749,7 @@ public class Bot : IBot
 		}
 		return tierMessages;
 	}
-	public static List<Tuple<string, List<TankHof>>> ConvertHOFMessageToTupleListAsync(DiscordMessage message, int TIER)
+	public List<Tuple<string, List<TankHof>>> ConvertHOFMessageToTupleListAsync(DiscordMessage message, int TIER)
 	{
 		if (message.Embeds != null)
 		{
@@ -4874,7 +4814,7 @@ public class Bot : IBot
 		}
 		return null;
 	}
-	public static async Task EditHOFMessage(DiscordMessage message, List<Tuple<string, List<TankHof>>> tierHOF)
+	public async Task EditHOFMessage(DiscordMessage message, List<Tuple<string, List<TankHof>>> tierHOF)
 	{
 		try
 		{
@@ -4908,18 +4848,18 @@ public class Bot : IBot
 				}
 			}
 
-			newDiscEmbedBuilder.Title = "Tier " + GetDiscordEmoji(Emoj.GetName(tier));
+			newDiscEmbedBuilder.Title = "Tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier));
 
 			DiscordEmbed embed = newDiscEmbedBuilder.Build();
 			await message.ModifyAsync(embed);
 		}
-		catch (Exception e)
+		catch (Exception ex)
 		{
-			await HandleError("While editing HOF message: ", e.Message, e.StackTrace);
+			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
 			await discordMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, Constants.MAINTENANCE_REACTION));
 		}
 	}
-	public static async Task<DiscordMessage> AddReplayToMessage(WGBattle battle, DiscordMessage message, DiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
+	public async Task<DiscordMessage> AddReplayToMessage(WGBattle battle, DiscordMessage message, DiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
 	{
 		bool foundItem = false;
 		int position = 1;
@@ -4960,7 +4900,7 @@ public class Bot : IBot
 		await EditHOFMessage(message, tierHOF);
 		return await SayReplayIsWorthy(channel, battle, position);
 	}
-	public static async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID)
+	public async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID)
 	{
 		List<Tuple<string, List<TankHof>>> players = [];
 		DiscordChannel channel = await GetHallOfFameChannel(guildID);
@@ -5011,7 +4951,7 @@ public class Bot : IBot
 		return players;
 	}
 
-	public static async Task<bool> CreateOrCleanHOFMessages(DiscordChannel HOFchannel, List<Tuple<int, DiscordMessage>> tiersFound)
+	public async Task<bool> CreateOrCleanHOFMessages(DiscordChannel HOFchannel, List<Tuple<int, DiscordMessage>> tiersFound)
 	{
 		tiersFound.Reverse();
 		for (int i = 10; i >= 1; i--)
@@ -5048,9 +4988,9 @@ public class Bot : IBot
 		}
 		return true;
 	}
-	private static DiscordEmbed CreateHOFResetEmbed(int tier)
+	private DiscordEmbed CreateHOFResetEmbed(int tier)
 	{
-		return CreateStandardEmbed("Tier " + GetDiscordEmoji(Emoj.GetName(tier)), "Nog geen replays aan deze tier toegevoegd.", Constants.HOF_COLOR);
+		return CreateStandardEmbed("Tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier)), "Nog geen replays aan deze tier toegevoegd.", Constants.HOF_COLOR);
 	}
 	public static TankHof InitializeTankHof(WGBattle battle)
 	{
@@ -5134,25 +5074,17 @@ public class Bot : IBot
 				}.Build();
 				await returnedTuple.Item2.ModifyAsync(embed);
 			}
-			catch (Exception e)
+			catch (Exception ex)
 			{
-				await HandleError("While editing Resultaat message: ", e.Message, e.StackTrace);
+				await _errorHandler.HandleErrorAsync("While editing Resultaat message: ", ex);
 			}
 		}
 	}
 
 	#endregion
 
-	public static async Task HandleError(string message, string exceptionMessage, string stackTrace)
-	{
-		string formattedMessage = message + exceptionMessage + Environment.NewLine + stackTrace;
-		_logger.LogError(formattedMessage);
-		_discordClient.Logger.LogError(formattedMessage);
-		await SendThibeastmo(message, exceptionMessage, stackTrace);
-	}
-
 	//no longer sends to thibeastmo. This used to be a method to send towards thibeastmo but since thibeastmo is no longer hosting this it's moved towards the test channel
-	public static async Task SendThibeastmo(string message, string exceptionMessage = "", string stackTrace = "")
+	public async Task SendThibeastmo(string message, string exceptionMessage = "", string stackTrace = "")
 	{
 		DiscordChannel bottestChannel = await GetBottestChannel();
 		if (bottestChannel != null)

@@ -22,15 +22,19 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logger, IConfiguration configuration, IHandler handler) : BaseCommandModule
+internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandler, ILogger<BotCommands> logger, IConfiguration configuration,
+							IHandler handler, IBot bot, IDiscordMessageUtils discordMessageUtils) : BaseCommandModule
 {
 	private const int MAX_NAME_LENGTH_IN_WOTB = 25;
 	private const int MAX_TANK_NAME_LENGTH_IN_WOTB = 14;
 
 	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<BotCommands> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IHandler _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+	private readonly IBot _bot = bot ?? throw new ArgumentNullException(nameof(bot));
+	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 
 	[Command("Toernooi")]
 	[Aliases("to", "toer", "t")]
@@ -39,11 +43,11 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"`" + Constants.Prefix + "toernooi \"\" \"Morgen 20u\" 6 8 10` --> \"\" = Quick Tournament (is default waarde)")]
 	public async Task Toernooi(CommandContext ctx, string type, string wanneer, params string[] tiers_gesplitst_met_spatie)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				if (tiers_gesplitst_met_spatie.Length > 0)
 				{
 					bool allInt = true;
@@ -61,9 +65,9 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 					}
 					if (allInt)
 					{
-						if (Bot.CheckIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
+						if (_bot.CheckIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
 						{
-							DiscordChannel toernooiAanmeldenChannel = await Bot.GetToernooiAanmeldenChannel(ctx.Guild.Id);
+							DiscordChannel toernooiAanmeldenChannel = await _bot.GetToernooiAanmeldenChannel(ctx.Guild.Id);
 							if (toernooiAanmeldenChannel != null)
 							{
 								List<DEF> deflist = [];
@@ -92,7 +96,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								List<DiscordEmoji> emojiList = [];
 								for (int i = 0; i < tiers_gesplitst_met_spatie.Length; i++)
 								{
-									emojiList.Add(Bot.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
+									emojiList.Add(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
 								}
 
 								EmbedOptions options = new()
@@ -102,32 +106,32 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 									Fields = deflist,
 									Emojis = emojiList
 								};
-								await Bot.CreateEmbed(toernooiAanmeldenChannel, options);
+								await _bot.CreateEmbed(toernooiAanmeldenChannel, options);
 							}
 							else
 							{
-								await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #Toernooi-aanmelden kon niet gevonden worden!**");
+								await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #Toernooi-aanmelden kon niet gevonden worden!**");
 							}
 						}
 						else
 						{
-							await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De tiers moeten groter dan 0 en maximum 10 zijn!**");
+							await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De tiers moeten groter dan 0 en maximum 10 zijn!**");
 						}
 					}
 					else
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je moet als tiers getallen opgeven!**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je moet als tiers getallen opgeven!**");
 					}
 				}
 				else
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je moet minstens één tier geven!**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je moet minstens één tier geven!**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -139,20 +143,20 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"De bot zal dan je commando verwijderen en zelf een bericht plaatsen met dezelfde inhoud en tagt de mensen die zich aangemeld hebben voor het toernooi.")]
 	public async Task TagTeams(CommandContext ctx, params string[] optioneel_wat_je_wilt_zeggen)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				//remove message
 				await ctx.Channel.DeleteMessageAsync(ctx.Message);
 
 				//execute rest of command
-				List<Tier> tiers = await Bot.ReadTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, ["1"]);
+				List<Tier> tiers = await _bot.ReadTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, ["1"]);
 				if (tiers != null)
 				{
-					List<Tuple<ulong, string>> uniqueMemberList = await Bot.GetIndividualParticipants(tiers, ctx.Guild);
-					List<string> mentionList = await Bot.GetMentions(uniqueMemberList, ctx.Guild.Id);
+					List<Tuple<ulong, string>> uniqueMemberList = await _bot.GetIndividualParticipants(tiers, ctx.Guild);
+					List<string> mentionList = await _bot.GetMentions(uniqueMemberList, ctx.Guild.Id);
 					if (mentionList != null)
 					{
 						if (mentionList.Count > 0)
@@ -195,24 +199,24 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						}
 						else
 						{
-							await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Er konden geen mentions geladen worden.**");
+							await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Er konden geen mentions geladen worden.**");
 						}
 					}
 					else
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De mentions konden niet geladen worden.**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De mentions konden niet geladen worden.**");
 					}
 					//zet individuele spelers in lijst --> pas bot.getindividual... aan naar Tuple<ulong, string>
 					//Maak een list van tags (op basis van ID, maar indien het niet gaad gewoon letterlijk #item2
 				}
 				else
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De teams konden niet geladen worden.**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De teams konden niet geladen worden.**");
 				}
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -223,12 +227,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"Bijvoorbeeld:`" + Constants.Prefix + "teams` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Constants.Prefix + "teams 1` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Constants.Prefix + "teams 2` --> geeft de teams van het 2de meest recente bericht in Toernooi-aanmelden")]
 	public async Task Teams(CommandContext ctx, params string[] optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
-				List<Tier> tiers = await Bot.ReadTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
+				List<Tier> tiers = await _bot.ReadTeams(ctx.Channel, ctx.Member, ctx.Guild.Name, optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt);
 				if (tiers != null && tiers.Count > 0)
 				{
 					List<DEF> deflist = [];
@@ -280,8 +284,8 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						def.Value = sb.ToString();
 						deflist.Add(def);
 					}
-					List<Tuple<ulong, string>> tempParticipants = await Bot.GetIndividualParticipants(tiers, ctx.Guild);
-					List<Tuple<ulong, string>> participants = Bot.RemoveSyntaxes(tempParticipants);
+					List<Tuple<ulong, string>> tempParticipants = await _bot.GetIndividualParticipants(tiers, ctx.Guild);
+					List<Tuple<ulong, string>> participants = _bot.RemoveSyntaxes(tempParticipants);
 					if (tiers.Count > 1)
 					{
 						participants.Sort();
@@ -306,17 +310,17 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						Description = tiers.Count > 0 ? "Organisator: " + tiers[0].Organisator : "Geen teams",
 						Fields = deflist,
 					};
-					await Bot.CreateEmbed(ctx.Channel, options);
+					await _bot.CreateEmbed(ctx.Channel, options);
 				}
 				else if (tiers == null)
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De teams konden niet geladen worden.**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De teams konden niet geladen worden.**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -327,12 +331,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"Bijvoorbeeld:`" + Constants.Prefix + "poll \"Een titel tussen aanhalingstekens indien er spaties zijn\" Vlaanderen :one: Wallonië :two:`\n`" + Constants.Prefix + "poll test de hemel :thumbsup: de hemel, de hel :thinking: de hel :thumbsdown:`")]
 	public async Task Poll(CommandContext ctx, string uitleg, params string[] opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
-				DiscordChannel pollChannel = await Bot.GetPollsChannel(false, ctx.Guild.Id);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
+				DiscordChannel pollChannel = await _bot.GetPollsChannel(false, ctx.Guild.Id);
 				if (pollChannel != null)
 				{
 					List<DEF> deflist = [];
@@ -345,7 +349,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						DiscordEmoji emoji = null;
 						try
 						{
-							emoji = Bot.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
+							emoji = _discordMessageUtils.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
 							string temp = emoji.GetDiscordName();
 							DiscordEmoji tempEmoji = DiscordEmoji.FromName(_discordClient, temp);
 							isEmoji = true;
@@ -388,17 +392,17 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						Fields = deflist,
 						Emojis = emojiList,
 					};
-					await Bot.CreateEmbed(pollChannel, options);
+					await _bot.CreateEmbed(pollChannel, options);
 				}
 				else
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #polls kon niet gevonden worden!**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #polls kon niet gevonden worden!**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -413,20 +417,20 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	public async Task Deputypoll(CommandContext ctx, string Tag, string Onderwerp, string speler_naam, params string[] optioneel_clan_naam_indien_nieuwe_kandidaat)
 	{
 		// 3 reacties voorzien, :thumbsup: :thinking: :thumbsdown:
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				bool validChannel = false;
-				DiscordChannel deputiesChannel = await Bot.GetDeputiesChannel();
+				DiscordChannel deputiesChannel = await _bot.GetDeputiesChannel();
 				if (deputiesChannel != null && ctx.Channel.Id.Equals(deputiesChannel.Id))
 				{
 					validChannel = true;
 				}
 				if (!validChannel)
 				{
-					DiscordChannel bottestChannel = await Bot.GetBottestChannel();
+					DiscordChannel bottestChannel = await _bot.GetBottestChannel();
 					if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
 					{
 						validChannel = true;
@@ -434,7 +438,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 				}
 				if (!validChannel)
 				{
-					DiscordChannel bottestChannel = await Bot.GetTestChannel();
+					DiscordChannel bottestChannel = await _bot.GetTestChannel();
 					if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
 					{
 						validChannel = true;
@@ -451,7 +455,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						}
 						sb.Append(optioneel_clan_naam_indien_nieuwe_kandidaat[i]);
 					}
-					DiscordChannel deputiesPollsChannel = await Bot.GetPollsChannel(true, ctx.Guild.Id);
+					DiscordChannel deputiesPollsChannel = await _bot.GetPollsChannel(true, ctx.Guild.Id);
 					//https://www.blitzstars.com/player/eu/
 					bool goodOption = true;
 					DiscordRole deputiesNLBERole = ctx.Guild.GetRole(Constants.DEPUTY_NLBE_ROLE);
@@ -514,7 +518,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								}
 								else
 								{
-									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Geef opnieuw een naam:**");
+									await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Geef opnieuw een naam:**");
 									DSharpPlus.Interactivity.InteractivityExtension interactivityx = ctx.Client.GetInteractivity();
 									DSharpPlus.Interactivity.InteractivityResult<DiscordMessage> messagex = await interactivityx.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.User);
 									if (!messagex.TimedOut)
@@ -526,14 +530,14 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 									}
 									else
 									{
-										await Bot.SayNoResponse(ctx.Channel);
+										await _bot.SayNoResponse(ctx.Channel);
 										break;
 									}
 								}
-								account = await Bot.SearchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, speler_naam);
+								account = await _bot.SearchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, speler_naam);
 								if (account != null)
 								{
-									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Is dit de gebruiker dat je zocht? ( ja / nee )**");
+									await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Is dit de gebruiker dat je zocht? ( ja / nee )**");
 									DSharpPlus.Interactivity.InteractivityExtension interactivity = ctx.Client.GetInteractivity();
 									DSharpPlus.Interactivity.InteractivityResult<DiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.User);
 
@@ -554,7 +558,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 									}
 									else
 									{
-										await Bot.SayNoResponse(ctx.Channel);
+										await _bot.SayNoResponse(ctx.Channel);
 										break;
 									}
 								}
@@ -596,7 +600,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 												}
 												else
 												{
-													await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je moet de clan meegeven waarin de speler wilt joinen!**");
+													await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je moet de clan meegeven waarin de speler wilt joinen!**");
 													allGood = false;
 												}
 											}
@@ -616,9 +620,9 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 											if (allGood)
 											{
 												List<DiscordEmoji> emojies = [];
-												emojies.Add(Bot.GetDiscordEmoji(":thumbsup:"));
-												emojies.Add(Bot.GetDiscordEmoji(":thinking:"));
-												emojies.Add(Bot.GetDiscordEmoji(":thumbsdown:"));
+												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thumbsup:"));
+												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thinking:"));
+												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thumbsdown:"));
 												DiscordEmbedBuilder.EmbedAuthor author = new()
 												{
 													Name = ctx.Member.DisplayName,
@@ -632,7 +636,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 													Emojis = emojies,
 													Author = author,
 												};
-												await Bot.CreateEmbed(deputiesPollsChannel, options);
+												await _bot.CreateEmbed(deputiesPollsChannel, options);
 											}
 										}
 									}
@@ -643,29 +647,29 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								}
 								if (!goodOption)
 								{
-									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon de speler niet vinden.**");
+									await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon de speler niet vinden.**");
 								}
 							}
 						}
 						else
 						{
-							await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je hebt een verkeerde `Wat` meegegeven.**");
+							await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je hebt een verkeerde `Wat` meegegeven.**");
 						}
 					}
 					else
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je hebt een verkeerde `Tag` meegegeven.**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je hebt een verkeerde `Tag` meegegeven.**");
 					}
 				}
 				else
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je mag deze commando enkel vanuit " + (deputiesChannel != null ? deputiesChannel.Mention : "#deputies") + " uitvoeren!**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Je mag deze commando enkel vanuit " + (deputiesChannel != null ? deputiesChannel.Mention : "#deputies") + " uitvoeren!**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -676,12 +680,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"Bijvoorbeeld:`" + Constants.Prefix + "map` --> geeft de lijst van mappen\n`" + Constants.Prefix + "map list` --> geeft de lijst van mappen\n`" + Constants.Prefix + "map mines` --> geeft de map \"Mines\"")]
 	public async Task MapLoader(CommandContext ctx, params string[] map)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
-				List<Tuple<string, string>> images = await Bot.GetAllMaps(ctx.Guild.Id);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
+				List<Tuple<string, string>> images = await _bot.GetAllMaps(ctx.Guild.Id);
 				if (images != null)
 				{
 					StringBuilder sbMap = new();
@@ -705,7 +709,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 							Title = "Mappen",
 							Description = sb.ToString(),
 						};
-						await Bot.CreateEmbed(ctx.Channel, options);
+						await _bot.CreateEmbed(ctx.Channel, options);
 					}
 					else
 					{
@@ -721,7 +725,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 									Title = item.Item1,
 									ImageUrl = item.Item2
 								};
-								await Bot.CreateEmbed(ctx.Channel, options);
+								await _bot.CreateEmbed(ctx.Channel, options);
 								break;
 							}
 						}
@@ -731,19 +735,19 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 							{
 								Title = "De map `" + sbMap.ToString() + "` kon niet gevonden worden."
 							};
-							await Bot.CreateEmbed(ctx.Channel, options);
+							await _bot.CreateEmbed(ctx.Channel, options);
 						}
 					}
 				}
 				else
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon de mappen niet uit een kanaal halen.**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon de mappen niet uit een kanaal halen.**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -754,11 +758,11 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"Bijvoorbeeld:`" + Constants.Prefix + "reageer toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: zet\n`" + Constants.Prefix + "reageer polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: zet")]
 	public async Task Respond(CommandContext ctx, string naam_van_kanaal, int hoeveelste_bericht, string emoji)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				IEnumerable<DiscordChannel> channels = ctx.Guild.Channels.Values;
 				foreach (DiscordChannel channel in channels)
 				{
@@ -769,7 +773,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						{
 							if (i == hoeveelste_bericht - 1)
 							{
-								DiscordEmoji theEmoji = Bot.GetDiscordEmoji(emoji);
+								DiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
 								string temp = theEmoji.GetDiscordName();
 								bool isEmoji = false;
 								try
@@ -787,27 +791,27 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 									try
 									{
 										await xMessages[i].CreateReactionAsync(theEmoji);
-										await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ") is toegevoegd!**");
+										await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ") is toegevoegd!**");
 									}
 									catch (Exception ex)
 									{
-										await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon geen reactie(" + emoji + ") toevoegen bij bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ")!**");
+										await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon geen reactie(" + emoji + ") toevoegen bij bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ")!**");
 										_logger.LogWarning(ex, "Could not add reaction(" + emoji + ") for message(" + hoeveelste_bericht + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
 									}
 								}
 								else
 								{
-									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De emoji(" + emoji + ") geen bestaande emoji!**");
+									await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De emoji(" + emoji + ") geen bestaande emoji!**");
 								}
 							}
 						}
 					}
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -818,11 +822,11 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"Bijvoorbeeld:`" + Constants.Prefix + "verwijderreactie toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: verwijdert\n`" + Constants.Prefix + "verwijderreactie polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: verwijdert")]
 	public async Task RemoveResponse(CommandContext ctx, string naam_van_kanaal, string hoeveelste_bericht, string emoji)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				int hoeveelste = -1;
 				bool goodNumber = true;
 				try
@@ -845,7 +849,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 							channelFound = true;
 							IReadOnlyList<DiscordMessage> zMessages = channel.GetMessagesAsync(hoeveelste + 1).Result;
 							IReadOnlyList<DiscordUser> userReactionsFromTheEmoji = [];
-							DiscordEmoji theEmoji = Bot.GetDiscordEmoji(emoji);
+							DiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
 							string temp = theEmoji.GetDiscordName();
 							bool isEmoji = false;
 							try
@@ -864,11 +868,11 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								{
 									userReactionsFromTheEmoji = await zMessages[hoeveelste].GetReactionsAsync(theEmoji);
 									await zMessages[hoeveelste].DeleteReactionsEmojiAsync(theEmoji);
-									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") is verwijderd!**");
+									await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") is verwijderd!**");
 								}
 								catch (Exception ex)
 								{
-									await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") niet verwijderen!**");
+									await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") niet verwijderen!**");
 									_logger.LogWarning(ex, "Could not remove reaction(" + emoji + ") from message(" + (hoeveelste + 1) + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
 								}
 								if (channel.Id.Equals(Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID) || channel.Id.Equals(Constants.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID))
@@ -884,7 +888,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 									}
 									catch (Exception ex)
 									{
-										await Bot.HandleError("Could not load messages from " + channel.Name + ": ", ex.Message, ex.StackTrace);
+										await _errorHandler.HandleErrorAsync("Could not load messages from " + channel.Name + ": ", ex);
 									}
 									if (messages.Count == hoeveelste + 1)
 									{
@@ -893,12 +897,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 										{
 											if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 											{
-												IDiscordChannel logChannel = new DiscordChannelWrapper(await Bot.GetLogChannel(ctx.Guild.Id));
+												IDiscordChannel logChannel = new DiscordChannelWrapper(await _bot.GetLogChannel(ctx.Guild.Id));
 
 												if (logChannel.Inner != null)
 												{
 													IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-													Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = logMessages.SortMessages();
+													Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
 													foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
 													{
 														string xdate = theMessage.Timestamp.ConvertToDate();
@@ -916,7 +920,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 																	foreach (DiscordUser user in userReactionsFromTheEmoji)
 																	{
 																		DiscordMember tempMemberByUser = await ctx.Guild.GetMemberAsync(user.Id);
-																		if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && Bot.GetEmojiAsString(theEmoji).Equals(Bot.GetEmojiAsString(splitted[3])))
+																		if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && _discordMessageUtils.GetEmojiAsString(theEmoji).Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
 																		{
 																			messagesToDelete.Add(discMessage);
 																		}
@@ -929,7 +933,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 															}
 															if (messagesToDelete.Count > 0)
 															{
-																await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**In de log werden er ook aanpassingen gedaan om het teams commando up-to-date te houden.**");
+																await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**In de log werden er ook aanpassingen gedaan om het teams commando up-to-date te houden.**");
 															}
 															break;
 														}
@@ -937,45 +941,45 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 												}
 												else
 												{
-													await Bot.HandleError("Could not find log channel!", string.Empty, string.Empty);
+													await _errorHandler.HandleErrorAsync("Could not find log channel!");
 												}
 											}
 										}
 										else
 										{
-											await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het bericht kon niet gevonden worden!**");
+											await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het bericht kon niet gevonden worden!**");
 										}
 									}
 								}
 							}
 							else
 							{
-								await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het gegeven emoji is geen bestaande emoji!**");
+								await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het gegeven emoji is geen bestaande emoji!**");
 							}
 							break;
 						}
 					}
 					if (!channelFound)
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kanaal kon niet gevonden worden.**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kanaal kon niet gevonden worden.**");
 					}
 				}
 				else
 				{
 					if (goodNumber)
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Dat getal is te klein, het moet groter dan 0 zijn!**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Dat getal is te klein, het moet groter dan 0 zijn!**");
 					}
 					else
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Dat getal is geen bruikbaar getal!**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Dat getal is geen bruikbaar getal!**");
 					}
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -986,11 +990,11 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"Bijvoorbeeld:`" + Constants.Prefix + "help`\n`" + Constants.Prefix + "help teams`")]
 	public async Task Help(CommandContext ctx, params string[] optioneel_commando)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				if (optioneel_commando.Length == 0)
 				{
 					StringBuilder sb = new();
@@ -998,7 +1002,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 					List<string> commandoList = [];
 					foreach (Command command in commands)
 					{
-						if (!commandoList.Contains(command.Name) && Bot.HasRight(ctx.Member, command))
+						if (!commandoList.Contains(command.Name) && _bot.HasRight(ctx.Member, command))
 						{
 							commandoList.Add(command.Name);
 							sb.AppendLine(command.Name);
@@ -1018,7 +1022,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						Description = "Versie: `" + Constants.version + "`",
 						Fields = deflist
 					};
-					await Bot.CreateEmbed(ctx.Channel, options);
+					await _bot.CreateEmbed(ctx.Channel, options);
 				}
 				else if (optioneel_commando.Length == 1)
 				{
@@ -1138,24 +1142,24 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								Title = "Help voor `" + command.Key + "`",
 								Fields = deflist,
 							};
-							await Bot.CreateEmbed(ctx.Channel, options);
+							await _bot.CreateEmbed(ctx.Channel, options);
 							break;
 						}
 					}
 					if (!commandFound)
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kan info voor " + optioneel_commando[0] + " niet vinden omdat deze commando niet bestaat!**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kan info voor " + optioneel_commando[0] + " niet vinden omdat deze commando niet bestaat!**");
 					}
 				}
 				else
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel parameters! Max 1 parameter!**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel parameters! Max 1 parameter!**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1163,34 +1167,34 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Negeert alle commando's behalve deze commando zelf tot de gebruiker dit weer inschakelt. Indien \"event\" of \"events\" als parameter meegegeven wordt, negeert hij de events. Je kan de events met dezelfde commando terug inschakelen.")]
 	public async Task Ignore(CommandContext ctx, params string[] optioneel_events)
 	{
-		if (Bot.HasRight(ctx.Member, ctx.Command))
+		if (_bot.HasRight(ctx.Member, ctx.Command))
 		{
-			await Bot.ConfirmCommandExecuting(ctx.Message);
-			Bot.ignoreEvents = !Bot.ignoreEvents;
+			await _bot.ConfirmCommandExecuting(ctx.Message);
+			_bot.IgnoreEvents = !_bot.IgnoreEvents;
 
 			if (optioneel_events.Length > 0)
 			{
 				if (!optioneel_events[0].ToLower().Contains("events") && !optioneel_events[0].ToLower().Contains("event"))
 				{
-					_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
+					_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (_bot.IgnoreCommands ? "" : " niet meer") + "! <<<");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (_bot.IgnoreCommands ? "" : " niet meer") + "!**");
 				}
 				else
 				{
-					_logger.LogWarning(">>> NLBE-Bot negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "! <<<");
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de events" + (Bot.ignoreEvents ? "" : " niet meer") + "!**");
+					_logger.LogWarning(">>> NLBE-Bot negeert nu de events" + (_bot.IgnoreEvents ? "" : " niet meer") + "! <<<");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de events" + (_bot.IgnoreEvents ? "" : " niet meer") + "!**");
 				}
 			}
 			else
 			{
-				_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "! <<<");
-				await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (Bot.ignoreCommands ? "" : " niet meer") + "!**");
+				_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (_bot.IgnoreCommands ? "" : " niet meer") + "! <<<");
+				await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (_bot.IgnoreCommands ? "" : " niet meer") + "!**");
 			}
-			await Bot.ConfirmCommandExecuted(ctx.Message);
+			await _bot.ConfirmCommandExecuted(ctx.Message);
 		}
 		else
 		{
-			await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+			await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 		}
 	}
 
@@ -1200,14 +1204,14 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"Bijvoorbeeld:`" + Constants.Prefix + "gebruiker 1`\n`" + Constants.Prefix + "gebruiker sjt`")]
 	public async Task Speler(CommandContext ctx, params string[] optioneel_zoeken_op_id__zoekterm)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				string searchTerm = "";
 				string conditie = "";
-				List<string> temp = Bot.GetSearchTermAndCondition(optioneel_zoeken_op_id__zoekterm);
+				List<string> temp = _bot.GetSearchTermAndCondition(optioneel_zoeken_op_id__zoekterm);
 				if (temp[0] != string.Empty)
 				{
 					searchTerm = temp[0];
@@ -1236,24 +1240,24 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 							DiscordUser discordUser = await _discordClient.GetUserAsync(tempID);
 							if (discordUser != null)
 							{
-								await Bot.ShowMemberInfo(ctx.Channel, discordUser);
+								await _bot.ShowMemberInfo(ctx.Channel, discordUser);
 								found = true;
 							}
 						}
-						catch (Exception e)
+						catch (Exception ex)
 						{
 							error = true;
-							await Bot.HandleError("Something went wrong while showing the memberInfo:\n", e.Message, e.StackTrace);
-							await Bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name);
+							await _errorHandler.HandleErrorAsync("Something went wrong while showing the memberInfo:\n", ex);
+							await _bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name);
 						}
 						if (!found && !error)
 						{
-							await Bot.SayNoResults(ctx.Channel, "**Gebruiker met ID `" + conditie + "` kon niet gevonden worden!**");
+							await _bot.SayNoResults(ctx.Channel, "**Gebruiker met ID `" + conditie + "` kon niet gevonden worden!**");
 						}
 					}
 					else
 					{
-						await Bot.SayMustBeNumber(ctx.Channel);
+						await _bot.SayMustBeNumber(ctx.Channel);
 					}
 				}
 				else
@@ -1277,7 +1281,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						}
 						if (sbFound.Length < 1024)
 						{
-							DiscordMessage discMessage = Bot.SayMultipleResults(ctx.Channel, sbFound.ToString());
+							DiscordMessage discMessage = _bot.SayMultipleResults(ctx.Channel, sbFound.ToString());
 							DSharpPlus.Interactivity.InteractivityExtension interactivity = ctx.Client.GetInteractivity();
 							DSharpPlus.Interactivity.InteractivityResult<DiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == ctx.Channel && x.Author == ctx.User);
 							if (!message.TimedOut)
@@ -1297,20 +1301,20 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								{
 									if (number > 0 && number <= foundMemberList.Count)
 									{
-										await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[number - 1]);
+										await _bot.ShowMemberInfo(ctx.Channel, foundMemberList[number - 1]);
 									}
 									else if (number > foundMemberList.Count)
 									{
-										await Bot.SayNumberTooBig(ctx.Channel);
+										await _bot.SayNumberTooBig(ctx.Channel);
 									}
 									else if (1 > number)
 									{
-										await Bot.SayNumberTooSmall(ctx.Channel);
+										await _bot.SayNumberTooSmall(ctx.Channel);
 									}
 								}
 								else
 								{
-									await Bot.SayMustBeNumber(ctx.Channel);
+									await _bot.SayMustBeNumber(ctx.Channel);
 								}
 							}
 							else if (discMessage != null)
@@ -1318,7 +1322,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								List<DiscordEmoji> reacted = [];
 								for (int i = 1; i <= 10; i++)
 								{
-									DiscordEmoji emoji = Bot.GetDiscordEmoji(Emoj.GetName(i));
+									DiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
 									if (emoji != null)
 									{
 										IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;
@@ -1334,10 +1338,10 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 
 								if (reacted.Count == 1)
 								{
-									int index = Emoj.GetIndex(Bot.GetEmojiAsString(reacted[0].Name));
+									int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(reacted[0].Name));
 									if (index > 0 && index <= foundMemberList.Count)
 									{
-										await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[index - 1]);
+										await _bot.ShowMemberInfo(ctx.Channel, foundMemberList[index - 1]);
 									}
 									else
 									{
@@ -1350,33 +1354,33 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								}
 								else
 								{
-									await Bot.SayNoResponse(ctx.Channel);
+									await _bot.SayNoResponse(ctx.Channel);
 								}
 							}
 							else
 							{
-								await Bot.SayNoResponse(ctx.Channel);
+								await _bot.SayNoResponse(ctx.Channel);
 							}
 						}
 						else
 						{
-							await Bot.SayBeMoreSpecific(ctx.Channel);
+							await _bot.SayBeMoreSpecific(ctx.Channel);
 						}
 					}
 					else if (foundMemberList.Count == 1)
 					{
-						await Bot.ShowMemberInfo(ctx.Channel, foundMemberList[0]);
+						await _bot.ShowMemberInfo(ctx.Channel, foundMemberList[0]);
 					}
 					else if (foundMemberList.Count == 0)
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Gebruiker(**`" + conditie.Replace("\\", string.Empty) + "`**) kon niet gevonden worden! (In een lijst van " + aantalGebruikers + " gebruikers)**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Gebruiker(**`" + conditie.Replace("\\", string.Empty) + "`**) kon niet gevonden worden! (In een lijst van " + aantalGebruikers + " gebruikers)**");
 					}
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1393,16 +1397,16 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 		"`" + Constants.Prefix + "gl -on [NLBE]` --> geeft de leden waarbij \"[NLBE]\" in de bijnaam voorkomt en sorteert dit op de creatie van het WG account")]
 	public async Task PlayerList(CommandContext ctx, params string[] optioneel_optie_met_als_default_ud__waarde)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				const int COLUMNS = 3;
 				string searchTerm = "ud";
 				string conditie = "";
 				bool usersFound = false;
-				List<string> temp = Bot.GetSearchTermAndCondition(optioneel_optie_met_als_default_ud__waarde);
+				List<string> temp = _bot.GetSearchTermAndCondition(optioneel_optie_met_als_default_ud__waarde);
 				if (temp[0] != string.Empty)
 				{
 					searchTerm = temp[0];
@@ -1527,7 +1531,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 										}
 										catch
 										{
-											await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon gegevens niet nakijken bij **`" + account.nickname.Replace("\\", string.Empty) + "`** met als ID **`" + account.account_id + "`");
+											await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon gegevens niet nakijken bij **`" + account.nickname.Replace("\\", string.Empty) + "`** met als ID **`" + account.account_id + "`");
 										}
 									}
 								}
@@ -1564,7 +1568,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 
 				if (amountOfMembers > 0)
 				{
-					deflist = Bot.ListInMemberEmbed(COLUMNS, memberList, searchTerm);
+					deflist = _bot.ListInMemberEmbed(COLUMNS, memberList, searchTerm);
 				}
 
 				string sortedBy = "alfabetisch";
@@ -1582,12 +1586,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 					Description = usersFound ? string.Empty : "Geen gebruikers gevonden die voldoen aan de zoekterm!",
 					Fields = usersFound ? deflist : null
 				};
-				await Bot.CreateEmbed(ctx.Channel, options);
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.CreateEmbed(ctx.Channel, options);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1597,33 +1601,33 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Geeft info over de clan.")]
 	public async Task Clan(CommandContext ctx, string clan_naam)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				try
 				{
-					WGClan clan = await Bot.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, clan_naam, false, ctx.User, ctx.Command);
+					WGClan clan = await _bot.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, clan_naam, false, ctx.User, ctx.Command);
 					if (clan != null)
 					{
-						await Bot.ShowClanInfo(ctx.Channel, clan);
+						await _bot.ShowClanInfo(ctx.Channel, clan);
 					}
 					else
 					{
-						await Bot.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
+						await _bot.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
 					}
 				}
 				catch (TooManyResultsException ex)
 				{
 					_logger.LogWarning(ex, "Too many results found for clan search with name {ClanName}. Cause: {Message}", clan_naam, ex.Message);
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel resultaten waren gevonden, wees specifieker!**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel resultaten waren gevonden, wees specifieker!**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1633,26 +1637,26 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Geeft spelers van de clan.\n-s --> duid discordmembers aan\n-d --> sorteren op laatst actief")]
 	public async Task ClanMembers(CommandContext ctx, params string[] optioneel_discordmembers_aanduiden_en_of_sorteren_op_laatst_actief__clan_naam)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				string searchTerm = "";
 				string conditie = "";
-				List<string> temp = Bot.GetSearchTermAndCondition(optioneel_discordmembers_aanduiden_en_of_sorteren_op_laatst_actief__clan_naam);
+				List<string> temp = _bot.GetSearchTermAndCondition(optioneel_discordmembers_aanduiden_en_of_sorteren_op_laatst_actief__clan_naam);
 				if (temp[0] != string.Empty)
 				{
 					searchTerm = temp[0];
 				}
 				conditie = temp[1];
 
-				WGClan clan = await Bot.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, conditie, true, ctx.User, ctx.Command);
+				WGClan clan = await _bot.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, conditie, true, ctx.User, ctx.Command);
 				if (clan != null)
 				{
 					List<Members> playersList = !searchTerm.Contains('d') ? clan.members.OrderBy(p => p.account_name.ToLower()).ToList() : clan.members;
 
-					List<DEF> defList = Bot.ListInPlayerEmbed(3, playersList, searchTerm, ctx.Guild);
+					List<DEF> defList = _bot.ListInPlayerEmbed(3, playersList, searchTerm, ctx.Guild);
 					string sorting = "alfabetisch";
 					if (searchTerm.Contains('d'))
 					{
@@ -1663,17 +1667,17 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						Title = "Clanmembers van [" + clan.tag.adaptToDiscordChat() + "] (Gevonden: " + clan.members.Count + ") (Gesorteerd: " + sorting + ")",
 						Fields = defList
 					};
-					await Bot.CreateEmbed(ctx.Channel, options);
+					await _bot.CreateEmbed(ctx.Channel, options);
 				}
 				else
 				{
-					await Bot.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
+					await _bot.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1683,15 +1687,15 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Geeft wotb info van een account.\n-i --> zoekt op spelerID")]
 	public async Task PlayerInfo(CommandContext ctx, params string[] optioneel_zoeken_op_ID__ign_naam)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				// -i --> zoek op ID
 				string searchTerm = "";
 				string conditie;
-				List<string> temp = Bot.GetSearchTermAndCondition(optioneel_zoeken_op_ID__ign_naam);
+				List<string> temp = _bot.GetSearchTermAndCondition(optioneel_zoeken_op_ID__ign_naam);
 				if (temp[0] != string.Empty)
 				{
 					searchTerm = temp[0];
@@ -1705,27 +1709,27 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 						WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], id, false, true, true);
 						if (account != null)
 						{
-							await Bot.ShowMemberInfo(ctx.Channel, account);
+							await _bot.ShowMemberInfo(ctx.Channel, account);
 						}
 						else
 						{
-							await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**GebruikersID (`" + id + "`) kon niet gevonden worden!**");
+							await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**GebruikersID (`" + id + "`) kon niet gevonden worden!**");
 						}
 					}
 					else
 					{
-						await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Geef een ID!**");
+						await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Geef een ID!**");
 					}
 				}
 				else
 				{
-					await Bot.SearchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, conditie);
+					await _bot.SearchPlayer(ctx.Channel, ctx.Member, ctx.User, ctx.Guild.Name, conditie);
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1735,12 +1739,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Verwijdert alle opgeslagen replays in de Hall Of Fame.")]
 	public async Task ResetHof(CommandContext ctx)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
-				DiscordChannel channel = await Bot.GetHallOfFameChannel(ctx.Guild.Id);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
+				DiscordChannel channel = await _bot.GetHallOfFameChannel(ctx.Guild.Id);
 				if (channel != null)
 				{
 					bool noErrors = true;
@@ -1764,7 +1768,7 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 											{
 												if (embed.Title != null)
 												{
-													if (embed.Title.Contains(Bot.GetDiscordEmoji(Emoj.GetName(i))))
+													if (embed.Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i))))
 													{
 														tiersFound.Add(new Tuple<int, DiscordMessage>(i, message));
 														containsItem = true;
@@ -1782,36 +1786,36 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 							}
 						}
 					}
-					catch (Exception e)
+					catch (Exception ex)
 					{
-						await Bot.HandleError("While getting the HOF messages (" + ctx.Command.Name + "): ", e.Message, e.StackTrace);
+						await _errorHandler.HandleErrorAsync("While getting the HOF messages (" + ctx.Command.Name + "): ", ex);
 						noErrors = false;
 					}
 					if (noErrors)
 					{
-						if (await Bot.CreateOrCleanHOFMessages(channel, tiersFound))
+						if (await _bot.CreateOrCleanHOFMessages(channel, tiersFound))
 						{
-							await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame is gereset!**");
+							await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame is gereset!**");
 						}
 						else
 						{
-							await Bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon de berichten niet resetten!**");
+							await _bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon de berichten niet resetten!**");
 						}
 					}
 					else
 					{
-						await Bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon niet gereset worden door een interne reden!**");
+						await _bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon niet gereset worden door een interne reden!**");
 					}
 				}
 				else
 				{
-					await Bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gereset worden!**");
+					await _bot.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gereset worden!**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1820,25 +1824,25 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Verwijdert een bepaalde persoon van de HOF. (Hoofdlettergevoelig)")]
 	public async Task RemovePlayerFromHOF(CommandContext ctx, string naam)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				bool foundAtLeastOnce = false;
 				naam = naam.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 				naam = naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-				DiscordChannel channel = await Bot.GetHallOfFameChannel(ctx.Guild.Id);
+				DiscordChannel channel = await _bot.GetHallOfFameChannel(ctx.Guild.Id);
 				if (channel != null)
 				{
 					IReadOnlyList<DiscordMessage> messages = await channel.GetMessagesAsync(100);
 					for (int i = 1; i <= 10; i++)
 					{
-						List<DiscordMessage> tempTierMessages = Bot.GetTierMessages(i, messages);
+						List<DiscordMessage> tempTierMessages = _bot.GetTierMessages(i, messages);
 						foreach (DiscordMessage message in tempTierMessages)
 						{
 							bool playerRemoved = false;
-							List<Tuple<string, List<TankHof>>> tupleList = Bot.ConvertHOFMessageToTupleListAsync(message, i);
+							List<Tuple<string, List<TankHof>>> tupleList = _bot.ConvertHOFMessageToTupleListAsync(message, i);
 							if (tupleList != null)
 							{
 								List<Tuple<string, List<TankHof>>> tempTupleList = [];
@@ -1872,21 +1876,21 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								{
 									foundAtLeastOnce = true;
 								}
-								await Bot.EditHOFMessage(message, tupleList);
-								await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + Bot.GetDiscordEmoji(Emoj.GetName(i)) + "**");
+								await _bot.EditHOFMessage(message, tupleList);
+								await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
 							}
 						}
 					}
 				}
 				if (!foundAtLeastOnce)
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + naam + "` als naam komt niet voor in de HOF.**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + naam + "` als naam komt niet voor in de HOF.**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1895,26 +1899,26 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Verandert de naam in de HOF naar een andere naam. (Hoofdlettergevoelig)")]
 	public async Task RenamplePlayerHOF(CommandContext ctx, string oldName, string niewe_naam)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
 				bool foundAtLeastOnce = false;
 				oldName = oldName.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 				oldName = oldName.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 				niewe_naam = niewe_naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-				DiscordChannel channel = await Bot.GetHallOfFameChannel(ctx.Guild.Id);
+				DiscordChannel channel = await _bot.GetHallOfFameChannel(ctx.Guild.Id);
 				if (channel != null)
 				{
 					IReadOnlyList<DiscordMessage> messages = await channel.GetMessagesAsync(100);
 					for (int i = 1; i <= 10; i++)
 					{
-						List<DiscordMessage> tempTierMessages = Bot.GetTierMessages(i, messages);
+						List<DiscordMessage> tempTierMessages = _bot.GetTierMessages(i, messages);
 						foreach (DiscordMessage message in tempTierMessages)
 						{
 							bool nameChanged = false;
-							List<Tuple<string, List<TankHof>>> tupleList = Bot.ConvertHOFMessageToTupleListAsync(message, i);
+							List<Tuple<string, List<TankHof>>> tupleList = _bot.ConvertHOFMessageToTupleListAsync(message, i);
 							if (tupleList != null)
 							{
 								foreach (Tuple<string, List<TankHof>> tupleItem in tupleList)
@@ -1938,21 +1942,21 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 								{
 									foundAtLeastOnce = true;
 								}
-								await Bot.EditHOFMessage(message, tupleList);
-								await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + Bot.GetDiscordEmoji(Emoj.GetName(i)) + "**");
+								await _bot.EditHOFMessage(message, tupleList);
+								await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
 							}
 						}
 					}
 				}
 				if (!foundAtLeastOnce)
 				{
-					await Bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + oldName + "` als naam komt niet voor in de HOF.**");
+					await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + oldName + "` als naam komt niet voor in de HOF.**");
 				}
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -1962,12 +1966,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Geeft een lijst van de spelers die in de Hall of Fame voorkomen.")]
 	public async Task Hof(CommandContext ctx)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
-				await Bot.ConfirmCommandExecuting(ctx.Message);
-				List<Tuple<string, List<TankHof>>> playerList = await Bot.GetTankHofsPerPlayer(ctx.Guild.Id);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
+				List<Tuple<string, List<TankHof>>> playerList = await _bot.GetTankHofsPerPlayer(ctx.Guild.Id);
 				playerList = playerList.OrderBy(x => x.Item2.Count).ToList();
 				playerList.Reverse();
 				StringBuilder sb = new("```");
@@ -1995,12 +1999,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 					Title = "Hall Of Fame plekken per speler",
 					Description = sb.ToString()
 				};
-				await Bot.CreateEmbed(ctx.Channel, options);
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.CreateEmbed(ctx.Channel, options);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}
@@ -2010,13 +2014,13 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 	[Description("Geeft een lijst van plekken dat de speler in de Hall Of Fame gehaald heeft.")]
 	public async Task HofPlayer(CommandContext ctx, string name)
 	{
-		if (!Bot.ignoreCommands)
+		if (!_bot.IgnoreCommands)
 		{
-			if (Bot.HasRight(ctx.Member, ctx.Command))
+			if (_bot.HasRight(ctx.Member, ctx.Command))
 			{
 				name = name.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-				await Bot.ConfirmCommandExecuting(ctx.Message);
-				List<Tuple<string, List<TankHof>>> playerList = await Bot.GetTankHofsPerPlayer(ctx.Guild.Id);
+				await _bot.ConfirmCommandExecuting(ctx.Message);
+				List<Tuple<string, List<TankHof>>> playerList = await _bot.GetTankHofsPerPlayer(ctx.Guild.Id);
 				List<DEF> defList = [];
 				playerList.Reverse();
 				bool found = false;
@@ -2103,12 +2107,12 @@ public class BotCommands(DiscordClient discordClient, ILogger<BotCommands> logge
 					Description = found ? string.Empty : "Deze speler heeft nog geen plekken in de Hall Of Fame gehaald.",
 					Fields = defList,
 				};
-				await Bot.CreateEmbed(ctx.Channel, options);
-				await Bot.ConfirmCommandExecuted(ctx.Message);
+				await _bot.CreateEmbed(ctx.Channel, options);
+				await _bot.ConfirmCommandExecuted(ctx.Message);
 			}
 			else
 			{
-				await Bot.SayTheUserIsNotAllowed(ctx.Channel);
+				await _bot.SayTheUserIsNotAllowed(ctx.Channel);
 			}
 		}
 	}

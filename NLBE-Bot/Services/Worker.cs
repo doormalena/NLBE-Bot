@@ -3,10 +3,8 @@ namespace NLBE_Bot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using System;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 

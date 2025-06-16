@@ -1,4 +1,4 @@
-namespace NLBE_Bot.Helpers;
+namespace NLBE_Bot.Interfaces;
 
 public interface IHandler
 {

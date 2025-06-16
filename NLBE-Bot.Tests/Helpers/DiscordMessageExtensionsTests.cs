@@ -1,9 +1,13 @@
 namespace NLBE_Bot.Tests.Helpers;
 
+using DSharpPlus;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using Newtonsoft.Json.Linq;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,6 +19,16 @@ public class DiscordMessageExtensionsTests
 	public void SortReactionsTest()
 	{
 		// Arrange.
+		DiscordConfiguration discordConfig = new()
+		{
+			Token = "dummy",
+			TokenType = TokenType.Bot
+		};
+		DiscordClient discordClient = new(discordConfig);
+		Mock<IErrorHandler> errorHandlerMock = new();
+		Mock<ILogger<Worker>> loggerMock = new();
+		DiscordMessageUtils utils = new(discordClient, errorHandlerMock.Object, loggerMock.Object);
+
 		Mock<IDiscordEmoji> emoji1Mock = new();
 		Mock<IDiscordEmoji> emoji2Mock = new();
 		Mock<IDiscordUser> user1Mock = new();
@@ -36,7 +50,7 @@ public class DiscordMessageExtensionsTests
 		messageMock.Setup(r => r.GetReactionsAsync(emoji2Mock.Object)).ReturnsAsync([user2Mock.Object]);
 
 		// Act.
-		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = messageMock.Object.SortReactions();
+		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = utils.SortReactions(messageMock.Object);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);
@@ -47,7 +61,18 @@ public class DiscordMessageExtensionsTests
 	[TestMethod]
 	public void SortMessagesTest()
 	{
-		// Arrange.
+		// Arrange.		
+		DiscordConfiguration discordConfig = new()
+		{
+			Token = "dummy",
+			TokenType = TokenType.Bot
+		}
+		;
+		DiscordClient discordClient = new(discordConfig);
+		Mock<IErrorHandler> errorHandlerMock = new();
+		Mock<ILogger<Worker>> loggerMock = new();
+		DiscordMessageUtils utils = new(discordClient, errorHandlerMock.Object, loggerMock.Object);
+
 		// Example log format: "01-06-2024 12:34:56|rest"
 		string content1 = "01-06-2024 12:34:56|something";
 		string content2 = "01-06-2024 12:34:56|another";
@@ -62,7 +87,7 @@ public class DiscordMessageExtensionsTests
 		List<IDiscordMessage> messages = [msg1.Object, msg2.Object, msg3.Object];
 
 		// Act.
-		Dictionary<DateTime, List<IDiscordMessage>> result = messages.SortMessages();
+		Dictionary<DateTime, List<IDiscordMessage>> result = utils.SortMessages(messages);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);
