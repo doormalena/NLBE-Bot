@@ -311,14 +311,14 @@ internal class Bot : IBot
 		else if (DateTime.Now.DayOfWeek == dayToCheck && DateTime.Now.Hour == hourToCheck && heartBeatCounter == 2)//14u omdat wotb ook wekelijks op maandag 14u restart
 		{
 			//We have a weekly winner
-			string winnerMessage = "We hebben een wekelijkse winnaar.";
+			string winnerMessage = "Het wekelijkse event is afgelopen.";
 			DiscordChannel bottestChannel = await GetBottestChannel();
 			try
 			{
 				_discordClient.Logger.LogInformation(winnerMessage);
 
 				await _weeklyEventHandler.ReadWeeklyEvent();
-				if (_weeklyEventHandler.WeeklyEvent.StartDate.DayOfYear == DateTime.Now.DayOfYear - 7)//-7 omdat het dan zeker een nieuwe week is maar niet van twee weken gelden
+				if (_weeklyEventHandler.WeeklyEvent.StartDate.DayOfYear == DateTime.Now.DayOfYear - 7)//-7 omdat het dan zeker een nieuwe week is maar niet van twee weken geleden
 				{
 					winnerMessage += "\nNa 1 week...";
 					WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventHandler.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
