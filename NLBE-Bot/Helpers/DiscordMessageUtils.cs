@@ -4,6 +4,7 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
@@ -57,22 +58,25 @@ internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler er
 		return sortedMessages;
 	}
 
-	public DiscordEmoji GetDiscordEmoji(string name)
+	public IDiscordEmoji GetDiscordEmoji(string name)
 	{
+		DiscordEmoji theEmoji;
+
 		try
 		{
-			return DiscordEmoji.FromName(_discordClient, name);
+			theEmoji = DiscordEmoji.FromName(_discordClient, name);
+			return new DiscordEmojiWrapper(theEmoji);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogDebug(ex, ex.Message);
 		}
 
-		DiscordEmoji theEmoji = DiscordEmoji.FromUnicode(name);
+		theEmoji = DiscordEmoji.FromUnicode(name);
 
 		if (theEmoji != null)
 		{
-			return theEmoji;
+			return new DiscordEmojiWrapper(theEmoji);
 		}
 
 		try
@@ -84,12 +88,12 @@ internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler er
 			_errorHandler.HandleErrorAsync("Could not load emoji:", ex).Wait();
 		}
 
-		return theEmoji;
+		return new DiscordEmojiWrapper(theEmoji);
 	}
 
 	public string GetEmojiAsString(string emoji)
 	{
-		DiscordEmoji theEmoji = GetDiscordEmoji(emoji);
+		IDiscordEmoji theEmoji = GetDiscordEmoji(emoji);
 
 		if (!theEmoji.GetDiscordName().Equals(emoji))
 		{

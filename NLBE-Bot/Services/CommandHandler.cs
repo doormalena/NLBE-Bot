@@ -3,6 +3,7 @@ namespace NLBE_Bot.Services;
 using DSharpPlus.CommandsNext;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using System;
 using System.Threading.Tasks;
 
@@ -14,29 +15,42 @@ internal class CommandHandler(ILogger<CommandHandler> logger, IErrorHandler erro
 
 	public Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
 	{
-		_logger.LogInformation("Command executed: {CommandName}", e.Command.Name);
-
-		return Task.CompletedTask;
+		ICommand commandInfo = e.Command != null ? new CommandWrapper(e.Command) : null;
+		return HandleCommandExecuted(commandInfo);
 	}
 
 	public Task OnCommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
 	{
-		if (!e.Context.Guild.Id.Equals(Constants.NLBE_SERVER_ID) && !e.Context.Guild.Id.Equals(Constants.DA_BOIS_ID))
-		{
-			return Task.CompletedTask;
-		}
+		CommandContextWrapper contextInfo = new(e.Context);
+		ICommand commandInfo = e.Command != null ? new CommandWrapper(e.Command) : null;
+		return HandleCommandError(contextInfo, commandInfo, e.Exception);
+	}
 
-		if (e.Exception.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
-		{
-			e.Context.Channel.SendMessageAsync("**De bot heeft hier geen rechten voor!**");
-		}
-		else if (e.Command != null)
-		{
-			e.Context.Message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
-			e.Context.Message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION));
-			_errorHandler.HandleErrorAsync("Error with command (" + e.Command.Name + "):\n", e.Exception).Wait();
-		}
-
+	public Task HandleCommandExecuted(ICommand command)
+	{
+		_logger.LogInformation("Command executed: {CommandName}", command.Name);
 		return Task.CompletedTask;
+	}
+
+	public async Task HandleCommandError(ICommandContext context, ICommand command, Exception exception)
+	{
+		if (!context.GuildId.Equals(Constants.NLBE_SERVER_ID) && !context.GuildId.Equals(Constants.DA_BOIS_ID))
+		{
+			return;
+		}
+
+		if (exception.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
+		{
+			await context.SendUnauthorizedMessageAsync();
+		}
+		else if (command != null)
+		{
+			IDiscordEmoji inProgressEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION);
+			IDiscordEmoji errorEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION);
+
+			await context.DeleteInProgressReactionAsync(inProgressEmoji);
+			await context.AddErrorReactionAsync(errorEmoji);
+			await _errorHandler.HandleErrorAsync($"Error with command ({command.Name}):\n", exception);
+		}
 	}
 }

@@ -466,7 +466,7 @@ internal class Bot : IBot
 			if (toernooiAanmeldenChannel != null && e.Channel.Equals(toernooiAanmeldenChannel))
 			{
 				DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-				await GenerateLogMessage(message, toernooiAanmeldenChannel, e.User.Id, _discordMessageUtils.GetDiscordEmoji(e.Emoji.Name));
+				await GenerateLogMessage(message, toernooiAanmeldenChannel, e.User.Id, _discordMessageUtils.GetDiscordEmoji(e.Emoji.Name).ToString());
 			}
 			else
 			{
@@ -1118,8 +1118,8 @@ internal class Bot : IBot
 					}
 					else if (wasReplay)
 					{
-						await e.Message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
-						await e.Message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION));
+						await e.Message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
+						await e.Message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION).Inner);
 					}
 				}
 			}
@@ -1504,7 +1504,7 @@ internal class Bot : IBot
 				try
 				{
 					bool botReactedWithThisEmoji = false;
-					IReadOnlyList<DiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji));
+					IReadOnlyList<DiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji).Inner);
 					foreach (DiscordUser user in userListOfThisEmoji)
 					{
 						if (user.Id.Equals(Constants.NLBE_BOT) || user.Id.Equals(Constants.TESTBEASTV2_BOT))
@@ -1524,7 +1524,7 @@ internal class Bot : IBot
 					}
 					else
 					{
-						await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji));
+						await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji).Inner);
 					}
 				}
 				catch (Exception ex)
@@ -1630,14 +1630,14 @@ internal class Bot : IBot
 	public async Task ConfirmCommandExecuting(DiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
 	}
 	public async Task ConfirmCommandExecuted(DiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
 		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION));
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION).Inner);
 	}
 
 	public static string GetProperFileName(string file)
@@ -3847,15 +3847,15 @@ internal class Bot : IBot
 			List<DiscordEmoji> reacted = [];
 			for (int i = 1; i <= 10; i++)
 			{
-				DiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
+				IDiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
 				if (emoji != null)
 				{
-					IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;
+					IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji.Inner).Result;
 					foreach (DiscordUser tempUser in users)
 					{
 						if (tempUser.Id.Equals(user.Id))
 						{
-							reacted.Add(emoji);
+							reacted.Add(emoji.Inner);
 						}
 					}
 				}
@@ -4740,7 +4740,7 @@ internal class Bot : IBot
 			{
 				if (message.Embeds.Count > 0)
 				{
-					if (message.Embeds[0].Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier))))
+					if (message.Embeds[0].Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier)).ToString()))
 					{
 						tierMessages.Add(message);
 					}

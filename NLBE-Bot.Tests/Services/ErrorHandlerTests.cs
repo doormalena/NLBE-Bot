@@ -27,7 +27,8 @@ public class ErrorHandlerTests
 			It.IsAny<EventId>(),
 			It.Is<It.IsAnyType>((v, t) => v != null && v.ToString().Contains(message)),
 			null,
-			It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+			It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+		Times.Once);
 #pragma warning restore CS8602
 	}
 
@@ -53,7 +54,8 @@ public class ErrorHandlerTests
 				v.ToString().Contains(message) &&
 				v.ToString().Contains(exception.Message)),
 			exception,
-			It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+			It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+		Times.Once);
 #pragma warning restore CS8602
 	}
 

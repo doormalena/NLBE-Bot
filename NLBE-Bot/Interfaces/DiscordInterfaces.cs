@@ -37,6 +37,9 @@ public interface IDiscordEmoji
 	{
 		get;
 	}
+
+	public string GetDiscordName();
+	public string ToString();
 }
 public interface IDiscordUser
 {
@@ -47,10 +50,31 @@ public interface IDiscordUser
 }
 public interface IDiscordChannel
 {
-	public Task<IReadOnlyList<IDiscordMessage>> GetMessagesAsync(int limit);
+	public Task<IReadOnlyList<IDiscordMessage>> GetMessagesAsync(int limit = 100);
 
 	public DiscordChannel Inner
 	{
 		get;
 	}
+}
+public interface ICommand
+{
+	public string Name
+	{
+		get;
+	}
+}
+
+public interface ICommandContext
+{
+	public ulong GuildId
+	{
+		get;
+	}
+
+	public Task SendUnauthorizedMessageAsync();
+
+	public Task DeleteInProgressReactionAsync(IDiscordEmoji emoji);
+
+	public Task AddErrorReactionAsync(IDiscordEmoji emoji);
 }

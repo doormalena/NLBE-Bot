@@ -96,7 +96,7 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 								List<DiscordEmoji> emojiList = [];
 								for (int i = 0; i < tiers_gesplitst_met_spatie.Length; i++)
 								{
-									emojiList.Add(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
+									emojiList.Add(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))).Inner);
 								}
 
 								EmbedOptions options = new()
@@ -346,7 +346,7 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 					for (int i = 0; i < opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties.Length; i++)
 					{
 						bool isEmoji = false;
-						DiscordEmoji emoji = null;
+						IDiscordEmoji emoji = null;
 						try
 						{
 							emoji = _discordMessageUtils.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
@@ -361,8 +361,8 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 
 						if (isEmoji)
 						{
-							theList.Add(sb.ToString(), emoji);
-							emojiList.Add(emoji);
+							theList.Add(sb.ToString(), emoji.Inner);
+							emojiList.Add(emoji.Inner);
 							sb.Clear();
 						}
 						else
@@ -620,9 +620,9 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 											if (allGood)
 											{
 												List<DiscordEmoji> emojies = [];
-												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thumbsup:"));
-												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thinking:"));
-												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thumbsdown:"));
+												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thumbsup:").Inner);
+												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thinking:").Inner);
+												emojies.Add(_discordMessageUtils.GetDiscordEmoji(":thumbsdown:").Inner);
 												DiscordEmbedBuilder.EmbedAuthor author = new()
 												{
 													Name = ctx.Member.DisplayName,
@@ -773,8 +773,8 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 						{
 							if (i == hoeveelste_bericht - 1)
 							{
-								DiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
-								string temp = theEmoji.GetDiscordName();
+								IDiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
+								string temp = theEmoji.Inner.GetDiscordName();
 								bool isEmoji = false;
 								try
 								{
@@ -790,7 +790,7 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 								{
 									try
 									{
-										await xMessages[i].CreateReactionAsync(theEmoji);
+										await xMessages[i].CreateReactionAsync(theEmoji.Inner);
 										await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ") is toegevoegd!**");
 									}
 									catch (Exception ex)
@@ -849,7 +849,7 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 							channelFound = true;
 							IReadOnlyList<DiscordMessage> zMessages = channel.GetMessagesAsync(hoeveelste + 1).Result;
 							IReadOnlyList<DiscordUser> userReactionsFromTheEmoji = [];
-							DiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
+							IDiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
 							string temp = theEmoji.GetDiscordName();
 							bool isEmoji = false;
 							try
@@ -866,8 +866,8 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 							{
 								try
 								{
-									userReactionsFromTheEmoji = await zMessages[hoeveelste].GetReactionsAsync(theEmoji);
-									await zMessages[hoeveelste].DeleteReactionsEmojiAsync(theEmoji);
+									userReactionsFromTheEmoji = await zMessages[hoeveelste].GetReactionsAsync(theEmoji.Inner);
+									await zMessages[hoeveelste].DeleteReactionsEmojiAsync(theEmoji.Inner);
 									await _bot.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") is verwijderd!**");
 								}
 								catch (Exception ex)
@@ -920,7 +920,7 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 																	foreach (DiscordUser user in userReactionsFromTheEmoji)
 																	{
 																		DiscordMember tempMemberByUser = await ctx.Guild.GetMemberAsync(user.Id);
-																		if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && _discordMessageUtils.GetEmojiAsString(theEmoji).Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
+																		if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && _discordMessageUtils.GetEmojiAsString(theEmoji.ToString()).Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
 																		{
 																			messagesToDelete.Add(discMessage);
 																		}
@@ -1322,15 +1322,15 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 								List<DiscordEmoji> reacted = [];
 								for (int i = 1; i <= 10; i++)
 								{
-									DiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
+									IDiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
 									if (emoji != null)
 									{
-										IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;
+										IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji.Inner).Result;
 										foreach (DiscordUser user in users)
 										{
 											if (user.Id.Equals(ctx.User.Id))
 											{
-												reacted.Add(emoji);
+												reacted.Add(emoji.Inner);
 											}
 										}
 									}
@@ -1768,7 +1768,7 @@ internal class BotCommands(DiscordClient discordClient, IErrorHandler errorHandl
 											{
 												if (embed.Title != null)
 												{
-													if (embed.Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i))))
+													if (embed.Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)).ToString()))
 													{
 														tiersFound.Add(new Tuple<int, DiscordMessage>(i, message));
 														containsItem = true;

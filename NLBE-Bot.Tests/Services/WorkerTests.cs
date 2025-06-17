@@ -9,20 +9,29 @@ using System;
 [TestClass]
 public class WorkerTests
 {
+	private Mock<ILogger<Worker>>? _loggerMock;
+	private Mock<IServiceProvider>? _serviceProviderMock;
+	private Mock<IPublicIpAddress>? _publicIpMock;
+	private Mock<IBot>? _botMock;
+
+	[TestInitialize]
+	public void Setup()
+	{
+		_loggerMock = new Mock<ILogger<Worker>>();
+		_serviceProviderMock = new Mock<IServiceProvider>();
+		_publicIpMock = new Mock<IPublicIpAddress>();
+		_botMock = new Mock<IBot>();
+	}
+
 	[TestMethod]
 	public async Task ExecuteAsync_LogsStartupAndShutdown()
 	{
 		// Arrange
-		Mock<ILogger<Worker>> loggerMock = new();
-		Mock<IServiceProvider> serviceProviderMock = new();
-		Mock<IPublicIpAddress> publicIpMock = new();
-		Mock<IBot> botMock = new();
+		_serviceProviderMock!.Setup(sp => sp.GetService(typeof(IBot))).Returns(_botMock!.Object);
+		_publicIpMock!.Setup(m => m.GetPublicIpAddressAsync()).ReturnsAsync("1.2.3.4");
+		_botMock!.Setup(b => b.RunAsync()).Returns(Task.CompletedTask);
 
-		serviceProviderMock.Setup(sp => sp.GetService(typeof(IBot))).Returns(botMock.Object);
-		publicIpMock.Setup(m => m.GetPublicIpAddressAsync()).ReturnsAsync("1.2.3.4");
-		botMock.Setup(b => b.RunAsync()).Returns(Task.CompletedTask);
-
-		Worker worker = new(serviceProviderMock.Object, loggerMock.Object, publicIpMock.Object);
+		Worker worker = new(_serviceProviderMock.Object, _loggerMock!.Object, _publicIpMock.Object);
 
 		using CancellationTokenSource cts = new();
 		cts.CancelAfter(10); // Cancel quickly to exit loop
@@ -32,14 +41,14 @@ public class WorkerTests
 
 		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-		loggerMock.Verify(l => l.Log(
+		_loggerMock.Verify(l => l.Log(
 		  LogLevel.Information,
 		  It.IsAny<EventId>(),
 		  It.Is<It.IsAnyType>((v, t) => v != null && v.ToString().Contains("NLBE Bot is starting.")),
 		  null,
 		  It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
 
-		loggerMock.Verify(l => l.Log(
+		_loggerMock.Verify(l => l.Log(
 		  LogLevel.Information,
 		  It.IsAny<EventId>(),
 		  It.Is<It.IsAnyType>((v, t) => v != null && v.ToString().Contains("NLBE Bot is stopped.")),
@@ -52,24 +61,18 @@ public class WorkerTests
 	public async Task ExecuteAsync_HandlesOperationCanceledException()
 	{
 		// Arrange
-		Mock<ILogger<Worker>> loggerMock = new();
-		Mock<IServiceProvider> serviceProviderMock = new();
-		Mock<IPublicIpAddress> publicIpMock = new();
-		Mock<IBot> botMock = new();
+		_serviceProviderMock!.Setup(sp => sp.GetService(typeof(IBot))).Returns(_botMock!.Object);
+		_publicIpMock!.Setup(m => m.GetPublicIpAddressAsync()).ReturnsAsync("1.2.3.4");
+		_botMock.Setup(b => b.RunAsync()).ThrowsAsync(new OperationCanceledException());
 
-		serviceProviderMock.Setup(sp => sp.GetService(typeof(IBot))).Returns(botMock.Object);
-		publicIpMock.Setup(m => m.GetPublicIpAddressAsync()).ReturnsAsync("1.2.3.4");
-		botMock.Setup(b => b.RunAsync()).ThrowsAsync(new OperationCanceledException());
-
-
-		Worker worker = new(serviceProviderMock.Object, loggerMock.Object, publicIpMock.Object);
+		Worker worker = new(_serviceProviderMock.Object, _loggerMock!.Object, _publicIpMock.Object);
 
 		// Act
 		await worker.StartAsync(CancellationToken.None);
 
 		// Assert
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-		loggerMock.Verify(l => l.Log(
+		_loggerMock.Verify(l => l.Log(
 		  LogLevel.Information,
 		  It.IsAny<EventId>(),
 		  It.Is<It.IsAnyType>((v, t) => v != null && v.ToString().Contains("NLBE Bot was cancelled gracefully.")),
@@ -81,33 +84,21 @@ public class WorkerTests
 	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenServiceProviderIsNull()
 	{
-		// Act.		
-		Mock<ILogger<Worker>> loggerMock = new();
-		Mock<IPublicIpAddress> publicIpMock = new();
-
-		// Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => new Worker(null, loggerMock.Object, publicIpMock.Object));
+		// Act & Assert.
+		Assert.ThrowsException<ArgumentNullException>(() => new Worker(null, _loggerMock!.Object, _publicIpMock!.Object));
 	}
 
 	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenLoggerIsNull()
 	{
-		// Act.		
-		Mock<IServiceProvider> serviceProviderMock = new();
-		Mock<IPublicIpAddress> publicIpMock = new();
-
-		// Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => new Worker(serviceProviderMock.Object, null, publicIpMock.Object));
+		// Act & Assert.
+		Assert.ThrowsException<ArgumentNullException>(() => new Worker(_serviceProviderMock!.Object, null, _publicIpMock!.Object));
 	}
 
 	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenPublicIpAddressIsNull()
 	{
-		// Act.
-		Mock<IServiceProvider> serviceProviderMock = new();
-		Mock<ILogger<Worker>> loggerMock = new();
-
-		// Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => new Worker(serviceProviderMock.Object, loggerMock.Object, null));
+		// Act & Assert.
+		Assert.ThrowsException<ArgumentNullException>(() => new Worker(_serviceProviderMock!.Object, _loggerMock!.Object, null));
 	}
 }

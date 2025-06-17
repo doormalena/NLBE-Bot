@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.Entities;
 using System;
 using System.Collections.Generic;
 
@@ -10,7 +9,7 @@ internal interface IDiscordMessageUtils
 
 	public Dictionary<DateTime, List<IDiscordMessage>> SortMessages(IReadOnlyList<IDiscordMessage> messages);
 
-	public DiscordEmoji GetDiscordEmoji(string name);
+	public IDiscordEmoji GetDiscordEmoji(string name);
 
 	public string GetEmojiAsString(string emoji);
 }

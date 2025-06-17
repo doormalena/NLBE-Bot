@@ -1,5 +1,6 @@
 namespace NLBE_Bot.Models;
 
+using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using NLBE_Bot.Interfaces;
 using System.Collections.Generic;
@@ -42,6 +43,16 @@ public class DiscordEmojiWrapper(DiscordEmoji emoji) : IDiscordEmoji
 	{
 		get;
 	} = emoji;
+
+	public string GetDiscordName()
+	{
+		return Inner.GetDiscordName();
+	}
+
+	public override string ToString()
+	{
+		return Inner.ToString();
+	}
 }
 
 public class DiscordUserWrapper(DiscordUser user) : IDiscordUser
@@ -64,3 +75,31 @@ public class DiscordChannelWrapper(DiscordChannel channel) : IDiscordChannel
 	public DiscordChannel Inner => _channel;
 }
 
+public class CommandWrapper(Command command) : ICommand
+{
+	private readonly Command _command = command;
+
+	public string Name => _command.Name;
+}
+
+public class CommandContextWrapper(CommandContext context) : ICommandContext
+{
+	private readonly CommandContext _context = context;
+
+	public ulong GuildId => _context.Guild.Id;
+
+	public Task SendUnauthorizedMessageAsync()
+	{
+		return _context.Channel.SendMessageAsync("**De bot heeft hier geen rechten voor!**");
+	}
+
+	public Task DeleteInProgressReactionAsync(IDiscordEmoji emoji)
+	{
+		return _context.Message.DeleteReactionsEmojiAsync(emoji.Inner);
+	}
+
+	public Task AddErrorReactionAsync(IDiscordEmoji emoji)
+	{
+		return _context.Message.CreateReactionAsync(emoji.Inner);
+	}
+}
