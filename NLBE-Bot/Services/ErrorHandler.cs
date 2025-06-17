@@ -1,6 +1,5 @@
-namespace NLBE_Bot.Helpers;
+namespace NLBE_Bot.Services;
 
-using DSharpPlus;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using System;
@@ -12,8 +11,7 @@ public class ErrorHandler(ILogger<ErrorHandler> logger) : IErrorHandler
 
 	public async Task HandleErrorAsync(string message, Exception ex = null)
 	{
-		string formattedMessage = $"{message}{ex?.Message}{Environment.NewLine}{ex?.StackTrace}";
-		_logger.LogError(ex, formattedMessage);
+		_logger.LogError(ex, "{Message}{ExMessage}{NewLine}{ExStackTrace}", message, ex?.Message, Environment.NewLine, ex?.StackTrace);
 
 		// Optionally: send to Discord channel.
 		await Task.CompletedTask;

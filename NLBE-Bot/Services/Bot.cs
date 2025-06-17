@@ -1450,7 +1450,7 @@ internal class Bot : IBot
 			{
 				foreach (KeyValuePair<DiscordMember, string> memberChange in memberChanges)
 				{
-					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**Gaat bijnaam van **`" + memberChange.Key.DisplayName + "`** aanpassen naar **`" + memberChange.Value + "`");
+					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van **`" + memberChange.Key.DisplayName + "`** wordt aangepast naar **`" + memberChange.Value + "`");
 					await ChangeMemberNickname(memberChange.Key, memberChange.Value);
 				}
 				foreach (DiscordMember memberNotFound in membersNotFound)
@@ -2176,7 +2176,7 @@ internal class Bot : IBot
 			void mem(MemberEditModel item)
 			{
 				item.Nickname = nickname;
-				item.AuditLogReason = "Changed by NLBE-";
+				item.AuditLogReason = "Changed by NLBE-Bot";
 			}
 			await member.ModifyAsync(mem);
 		}
