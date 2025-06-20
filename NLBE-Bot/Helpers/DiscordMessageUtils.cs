@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Helpers;
 
-using DSharpPlus;
 using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
@@ -9,9 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler errorHandler, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
+internal class DiscordMessageUtils(IDiscordClientWrapper discordClient, IErrorHandler errorHandler, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
 {
-	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<DiscordMessageUtils> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -63,7 +62,7 @@ internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler er
 
 		try
 		{
-			theEmoji = DiscordEmoji.FromName(_discordClient, name);
+			theEmoji = DiscordEmoji.FromName(_discordClient.Inner, name);
 			return new DiscordEmojiWrapper(theEmoji);
 		}
 		catch (Exception ex)
@@ -80,7 +79,7 @@ internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler er
 
 		try
 		{
-			theEmoji = DiscordEmoji.FromName(_discordClient, name);
+			theEmoji = DiscordEmoji.FromName(_discordClient.Inner, name);
 		}
 		catch (Exception ex)
 		{
@@ -101,7 +100,7 @@ internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler er
 
 		try
 		{
-			return DiscordEmoji.FromUnicode(_discordClient, emoji).Name;
+			return DiscordEmoji.FromUnicode(_discordClient.Inner, emoji).Name;
 		}
 		catch
 		{

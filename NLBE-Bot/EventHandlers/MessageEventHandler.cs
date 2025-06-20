@@ -1,4 +1,4 @@
-namespace NLBE_Bot.Services;
+namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.CommandsNext;
@@ -12,33 +12,41 @@ using Microsoft.Extensions.Logging;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
+using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class MessageHandler(DiscordClient discordClient, IConfiguration configuration, IErrorHandler errorHandler, IBotState botState,
-								IChannelService channelService, IUserService userService, IDiscordMessageUtils discordMessageUtils, IWeeklyEventHandler weeklyEventHandler,
-								IMapService mapService, IReplayService replayService, ITournamentService tournamentService, IHallOfFameService hallOfFameService, IMessageService messageService) : IMessageHandler
+internal class MessageEventHandler(IConfiguration configuration, IErrorHandler errorHandler, IBotState botState, ILogger<MessageEventHandler> logger,
+								IChannelService channelService, IUserService userService, IDiscordMessageUtils discordMessageUtils, IWeeklyEventService weeklyEventHandler,
+								IMapService mapService, IReplayService replayService, ITournamentService tournamentService, IHallOfFameService hallOfFameService, IMessageService messageService) : IMessageEventHandler
 {
-	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
-	private readonly IWeeklyEventHandler _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
+	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 	private readonly IReplayService _replayService = replayService ?? throw new ArgumentNullException(nameof(replayService));
 	private readonly ITournamentService _tournamentService = tournamentService ?? throw new ArgumentNullException(nameof(tournamentService));
 	private readonly IHallOfFameService _hallOfFameService = hallOfFameService ?? throw new ArgumentNullException(nameof(hallOfFameService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+	private readonly ILogger<MessageEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public async Task OnMessageCreated(DiscordClient sender, MessageCreateEventArgs e)
+	public void Register(IDiscordClientWrapper client)
+	{
+		client.MessageCreated += OnMessageCreated;
+		client.MessageDeleted += OnMessageDeleted;
+		client.MessageReactionAdded += OnMessageReactionAdded;
+		client.MessageReactionRemoved += OnMessageReactionRemoved;
+	}
+
+	internal async Task OnMessageCreated(DiscordClient sender, MessageCreateEventArgs e)
 	{
 		if (_botState.IgnoreEvents)
 		{
@@ -64,14 +72,14 @@ internal class MessageHandler(DiscordClient discordClient, IConfiguration config
 			CommandsNextExtension commandsNext = sender.GetCommandsNext();
 			if (commandsNext == null)
 			{
-				_discordClient.Logger.Log(LogLevel.Information, "CommandsNext is not enabled.");
+				_logger.LogInformation("CommandsNext is not enabled.");
 				return;
 			}
 
 			Command command = commandsNext.FindCommand(commandName, out string rawArguments);
 			if (command == null)
 			{
-				_discordClient.Logger.Log(LogLevel.Information, "Unknown command.");
+				_logger.LogInformation("Unknown command.");
 				return;
 			}
 
@@ -86,7 +94,7 @@ internal class MessageHandler(DiscordClient discordClient, IConfiguration config
 			{
 				// Log or handle any errors that occur during command execution
 				Console.WriteLine();
-				_discordClient.Logger.Log(LogLevel.Error, ex, "Error executing command: {0}", ex.Message);
+				_logger.LogError(ex, "Error executing command: {0}", ex.Message);
 			}
 
 			await commandsNext.ExecuteCommandAsync(ctx);
@@ -265,7 +273,8 @@ internal class MessageHandler(DiscordClient discordClient, IConfiguration config
 			await HandleWeeklyEventDM(e.Channel, e.Message);
 		}
 	}
-	public async Task OnMessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
+
+	internal async Task OnMessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
 	{
 		if (_botState.IgnoreEvents)
 		{
@@ -294,7 +303,7 @@ internal class MessageHandler(DiscordClient discordClient, IConfiguration config
 		}
 	}
 
-	public async Task OnMessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
+	internal async Task OnMessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
 	{
 		if (_botState.IgnoreEvents)
 		{
@@ -395,7 +404,7 @@ internal class MessageHandler(DiscordClient discordClient, IConfiguration config
 		}
 	}
 
-	public async Task OnMessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
+	internal async Task OnMessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
 	{
 		if (_botState.IgnoreEvents)
 		{
@@ -467,6 +476,7 @@ internal class MessageHandler(DiscordClient discordClient, IConfiguration config
 			}
 		}
 	}
+
 	private async Task HandleWeeklyEventDM(DiscordChannel Channel, DiscordMessage lastMessage)
 	{
 		if (!Channel.IsPrivate || _botState.WeeklyEventWinner == null || _botState.WeeklyEventWinner.Item1 == 0)

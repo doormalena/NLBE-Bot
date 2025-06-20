@@ -24,4 +24,14 @@ internal interface IBotState
 	{
 		get; set;
 	}
+
+	public DateTime? LasTimeNamesWereUpdated
+	{
+		get; set;
+	}
+
+	public short HeartBeatCounter
+	{
+		get; set;
+	}
 }

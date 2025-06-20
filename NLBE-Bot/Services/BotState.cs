@@ -84,4 +84,43 @@ internal class BotState : IBotState
 			}
 		}
 	}
+
+	private DateTime? _lasTimeNamesWereUpdated;
+
+	public DateTime? LasTimeNamesWereUpdated
+	{
+		get
+		{
+			lock (_lock)
+			{
+				return _lasTimeNamesWereUpdated;
+			}
+		}
+		set
+		{
+			lock (_lock)
+			{
+				_lasTimeNamesWereUpdated = value;
+			}
+		}
+	}
+
+	private short _heartBeatCounter = 0;
+	public short HeartBeatCounter
+	{
+		get
+		{
+			lock (_lock)
+			{
+				return _heartBeatCounter;
+			}
+		}
+		set
+		{
+			lock (_lock)
+			{
+				_heartBeatCounter = value;
+			}
+		}
+	}
 }

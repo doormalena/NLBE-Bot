@@ -1,28 +1,28 @@
-namespace NLBE_Bot.Tests.Services;
+namespace NLBE_Bot.Tests.EventHandlers;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
-using NLBE_Bot.Services;
 using NSubstitute;
 using System;
 using System.Threading.Tasks;
 
 [TestClass]
-public class CommandHandlerTests
+public class CommandEventHandlerTests
 {
-	private ILogger<CommandHandler>? _loggerMock;
+	private ILogger<CommandEventHandler>? _loggerMock;
 	private IErrorHandler? _errorHandlerMock;
 	private IDiscordMessageUtils? _discordMessageUtilsMock;
-	private CommandHandler? _handler;
+	private CommandEventHandler? _handler;
 
 	[TestInitialize]
 	public void Setup()
 	{
-		_loggerMock = Substitute.For<ILogger<CommandHandler>>();
+		_loggerMock = Substitute.For<ILogger<CommandEventHandler>>();
 		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
-		_handler = new CommandHandler(_loggerMock, _errorHandlerMock, _discordMessageUtilsMock);
+		_handler = new CommandEventHandler(_loggerMock, _errorHandlerMock, _discordMessageUtilsMock);
 	}
 
 	[TestMethod]

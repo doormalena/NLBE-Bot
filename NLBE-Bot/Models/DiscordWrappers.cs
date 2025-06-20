@@ -1,12 +1,109 @@
 namespace NLBE_Bot.Models;
 
+using DSharpPlus;
+using DSharpPlus.AsyncEvents;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
+using DSharpPlus.EventArgs;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Extensions;
 using NLBE_Bot.Interfaces;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
+public class DiscordClientWrapper(DiscordClient client) : IDiscordClientWrapper
+{
+	private readonly DiscordClient _inner = client;
+
+	public DiscordClient Inner => _inner;
+	public IReadOnlyDictionary<ulong, DiscordGuild> Guilds => _inner.Guilds;
+
+	public Task ConnectAsync(DiscordActivity activity, UserStatus status)
+	{
+		return _inner.ConnectAsync(activity, status);
+	}
+	public ICommandsNextExtension UseCommandsNext(CommandsNextConfiguration config)
+	{
+		return new CommandsNextExtensionWrapper(_inner.UseCommandsNext(config));
+	}
+	public ICommandsNextExtension GetCommandsNext()
+	{
+		return new CommandsNextExtensionWrapper(_inner.GetCommandsNext());
+	}
+	public Task<DiscordUser> GetUserAsync(ulong userId)
+	{
+		return _inner.GetUserAsync(userId);
+	}
+	public Task<DiscordGuild> GetGuildAsync(ulong guildId)
+	{
+		return _inner.GetGuildAsync(guildId);
+	}
+	public InteractivityExtension GetInteractivity()
+	{
+		return _inner.GetInteractivity();
+	}
+	public Task<DiscordMessage> SendMessageAsync(DiscordChannel channel, string content, DiscordEmbed embed = null)
+	{
+		return _inner.SendMessageAsync(channel, content, embed);
+	}
+	public event AsyncEventHandler<DiscordClient, ReadyEventArgs> Ready
+	{
+		add => _inner.Ready += value; remove => _inner.Ready -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, HeartbeatEventArgs> Heartbeated
+	{
+		add => _inner.Heartbeated += value; remove => _inner.Heartbeated -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, MessageCreateEventArgs> MessageCreated
+	{
+		add => _inner.MessageCreated += value; remove => _inner.MessageCreated -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, MessageDeleteEventArgs> MessageDeleted
+	{
+		add => _inner.MessageDeleted += value; remove => _inner.MessageDeleted -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, MessageReactionAddEventArgs> MessageReactionAdded
+	{
+		add => _inner.MessageReactionAdded += value; remove => _inner.MessageReactionAdded -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, MessageReactionRemoveEventArgs> MessageReactionRemoved
+	{
+		add => _inner.MessageReactionRemoved += value; remove => _inner.MessageReactionRemoved -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, GuildMemberAddEventArgs> GuildMemberAdded
+	{
+		add => _inner.GuildMemberAdded += value; remove => _inner.GuildMemberAdded -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, GuildMemberUpdateEventArgs> GuildMemberUpdated
+	{
+		add => _inner.GuildMemberUpdated += value; remove => _inner.GuildMemberUpdated -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, GuildMemberRemoveEventArgs> GuildMemberRemoved
+	{
+		add => _inner.GuildMemberRemoved += value; remove => _inner.GuildMemberRemoved -= value;
+	}
+}
+public class CommandsNextExtensionWrapper : ICommandsNextExtension
+{
+	private readonly CommandsNextExtension _inner;
+	public CommandsNextExtensionWrapper(CommandsNextExtension inner)
+	{
+		_inner = inner;
+	}
+	public void RegisterCommands<T>() where T : BaseCommandModule
+	{
+		_inner.RegisterCommands<T>();
+	}
+	public event AsyncEventHandler<CommandsNextExtension, CommandExecutionEventArgs> CommandExecuted
+	{
+		add => _inner.CommandExecuted += value; remove => _inner.CommandExecuted -= value;
+	}
+	public event AsyncEventHandler<CommandsNextExtension, CommandErrorEventArgs> CommandErrored
+	{
+		add => _inner.CommandErrored += value; remove => _inner.CommandErrored -= value;
+	}
+}
 public class DiscordMessageWrapper(DiscordMessage message) : IDiscordMessage
 {
 	private readonly DiscordMessage _message = message;

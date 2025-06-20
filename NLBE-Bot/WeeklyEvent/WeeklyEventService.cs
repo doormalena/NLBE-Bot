@@ -1,26 +1,127 @@
 namespace NLBE_Bot;
 
+using DiscordHelper;
 using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class WeeklyEventHandler(IErrorHandler errorHandler, IChannelService channelService) : IWeeklyEventHandler
+internal class WeeklyEventService(IErrorHandler errorHandler, IChannelService channelService, IUserService userService, IBotState botState) : IWeeklyEventService
 {
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
+	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
+	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 
 	public DiscordMessage DiscordMessage
 	{
 		get; set;
 	} //The last message in Weekly events
+
 	public WeeklyEvent WeeklyEvent
 	{
 		get; set;
 	}
+
+	public async Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
+	{
+		bool userNotFound = true;
+		IReadOnlyCollection<DiscordMember> members = await guild.GetAllMembersAsync();
+		if (weeklyEventItemMostDMG.Player != null)
+		{
+			string weeklyEventItemMostDMGPlayer = weeklyEventItemMostDMG.Player
+				.Replace("\\", string.Empty)
+				.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
+				.ToLower();
+			foreach (DiscordMember member in members)
+			{
+				if (!member.IsBot)
+				{
+					Tuple<string, string> gebruiker = _userService.GetIGNFromMember(member.DisplayName);
+					string x = gebruiker.Item2
+						.Replace("\\", string.Empty)
+						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
+						.ToLower();
+					if (x == weeklyEventItemMostDMGPlayer
+						|| (member.Id == Constants.THIBEASTMO_ID
+							&& guild.Id == Constants.DA_BOIS_ID))
+					{
+						userNotFound = false;
+
+						_botState.WeeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
+
+						try
+						{
+							await member.SendMessageAsync("Hallo " + member.Mention + ",\n\nProficiat! Je hebt het wekelijkse event gewonnen van de **" + tank + "** met **" + weeklyEventItemMostDMG.Value + "** damage.\n" +
+														  "Dit wilt zeggen dat jij de tank voor het wekelijkse event mag kiezen.\n" +
+														  "Je kan je keuze maken door enkel de naam van de tank naar mij te sturen. Indien ik de tank niet kan vinden dan zal ik je voorthelpen.\n" +
+														  "De enige voorwaarde is wel dat je niet een recent gekozen tank opnieuw kiest."
+														  + "\n\nSucces met je keuze!");
+						}
+						catch (Exception ex)
+						{
+							await _errorHandler.HandleErrorAsync("Could not send private message towards winner of weekly event.", ex);
+						}
+						try
+						{
+							DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+							if (algemeenChannel != null)
+							{
+								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').adaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
+																	   "\n" +
+																	   "`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
+																	   "\n\n" +
+																	   "We wachten nu af tot de winnaar een nieuwe tank kiest.");
+							}
+						}
+						catch (Exception ex)
+						{
+							await _errorHandler.HandleErrorAsync("Could not send message in algemeen channel for weekly event winner announcement.", ex);
+						}
+						break;
+					}
+				}
+			}
+		}
+		else
+		{
+			DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+			if (algemeenChannel != null)
+			{
+				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
+			}
+		}
+		DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+		if (userNotFound)
+		{
+			string message = "Weekly event winnaar was niet gevonden! Je zal het zelf moeten regelen met het `weekly` commando.";
+			if (bottestChannel != null)
+			{
+				await bottestChannel.SendMessageAsync(message);
+			}
+			else
+			{
+				await _errorHandler.HandleErrorAsync(message);
+			}
+		}
+		else
+		{
+			string message = "Weekly event winnaar gevonden!";
+			if (bottestChannel != null)
+			{
+				await bottestChannel.SendMessageAsync(message);
+			}
+			else
+			{
+				await _errorHandler.HandleErrorAsync(message);
+			}
+		}
+	}
+
 	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WGBattle battle)
 	{
 		List<WeeklyEventType> weeklyEventTypes = [];

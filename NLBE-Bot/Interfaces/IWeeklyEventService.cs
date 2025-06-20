@@ -4,12 +4,14 @@ using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
 using System.Threading.Tasks;
 
-internal interface IWeeklyEventHandler
+internal interface IWeeklyEventService
 {
 	public WeeklyEvent WeeklyEvent
 	{
 		get; set;
 	}
+
+	public Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank);
 
 	public Task ReadWeeklyEvent();
 

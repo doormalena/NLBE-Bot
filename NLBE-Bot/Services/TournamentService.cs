@@ -5,22 +5,27 @@ using DSharpPlus.Entities;
 using FMWOTB.Tournament;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class TournamentService(IErrorHandler errorHandler, IConfiguration configuration, IUserService userService, IChannelService channelService, IMessageService messageService, IDiscordMessageUtils discordMessageUtils) : ITournamentService
+internal class TournamentService(ILogger<TournamentService> logger, IErrorHandler errorHandler, IConfiguration configuration, IUserService userService, IChannelService channelService, IMessageService messageService,
+		IDiscordMessageUtils discordMessageUtils, IGuildProvider guildProvider) : ITournamentService
 {
+	private readonly ILogger<TournamentService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+	private readonly IGuildProvider _guildProvider = guildProvider ?? throw new ArgumentNullException(nameof(guildProvider));
 
 	public async Task GenerateLogMessage(DiscordMessage message, DiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji)
 	{
@@ -539,5 +544,433 @@ internal class TournamentService(IErrorHandler errorHandler, IConfiguration conf
 			}
 		}
 		return string.Empty;
+	}
+	public async Task<List<Tier>> ReadTeams(DiscordChannel channel, DiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team)
+	{
+		if (parameters_as_in_hoeveelste_team.Length <= 1)
+		{
+			int hoeveelste = 1;
+			bool isInt = true;
+			if (parameters_as_in_hoeveelste_team.Length > 0)
+			{
+				try
+				{
+					hoeveelste = Convert.ToInt32(parameters_as_in_hoeveelste_team[0]);
+				}
+				catch
+				{
+					isInt = false;
+				}
+			}
+			if (isInt)
+			{
+				bool goodNumber = true;
+				if (hoeveelste >= 1)
+				{
+					if (hoeveelste > 100)
+					{
+						await _messageService.SendMessage(channel, member, guildName, "**Het getal mag maximum 100 zijn!**");
+						goodNumber = false;
+					}
+					else
+					{
+						hoeveelste--;
+					}
+				}
+				else if (hoeveelste < 1)
+				{
+					await _messageService.SendMessage(channel, member, guildName, "**Het getal moet groter zijn dan 0!**");
+					goodNumber = false;
+				}
+
+				if (goodNumber)
+				{
+					DiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(channel.Guild.Id);
+					if (toernooiAanmeldenChannel != null)
+					{
+						List<DiscordMessage> messages = [];
+						try
+						{
+							IReadOnlyList<DiscordMessage> xMessages = toernooiAanmeldenChannel.GetMessagesAsync(hoeveelste + 1).Result;
+							foreach (DiscordMessage message in xMessages)
+							{
+								messages.Add(message);
+							}
+						}
+						catch (Exception ex)
+						{
+							await _errorHandler.HandleErrorAsync("Could not load messages from " + toernooiAanmeldenChannel.Name + ":", ex);
+						}
+						if (messages.Count == hoeveelste + 1)
+						{
+							DiscordMessage theMessage = messages[hoeveelste];
+							if (theMessage != null)
+							{
+								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+								{
+									IDiscordChannel logChannel = new DiscordChannelWrapper(await _channelService.GetLogChannel(channel.Guild.Id));
+
+									if (logChannel.Inner != null)
+									{
+										IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+										Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
+										List<Tier> tiers = [];
+
+										foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
+										{
+											string xdate = theMessage.Timestamp.ConvertToDate();
+											string ydate = sMessage.Key.ConvertToDate();
+
+											if (xdate.Equals(ydate))
+											{
+												sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
+												foreach (IDiscordMessage discMessage in sMessage.Value)
+												{
+													string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
+													if (splitted[1].ToLower().Equals("teams"))
+													{
+														Tier newTeam = new();
+														bool found = false;
+														foreach (Tier aTeam in tiers)
+														{
+															if (aTeam.TierNummer.Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
+															{
+																found = true;
+																newTeam = aTeam;
+																break;
+															}
+														}
+														ulong id = 0;
+														if (splitted.Length > 4)
+														{
+															_ = ulong.TryParse(splitted[4], out id);
+														}
+														newTeam.AddDeelnemer(splitted[2], id);
+														if (!found)
+														{
+															if (newTeam.TierNummer.Equals(string.Empty))
+															{
+																newTeam.TierNummer = _discordMessageUtils.GetEmojiAsString(splitted[3]);
+																string emojiAsString = _discordMessageUtils.GetEmojiAsString(splitted[3]);
+																int index = Emoj.GetIndex(emojiAsString);
+																newTeam.Index = index;
+															}
+															if (newTeam.Organisator.Equals(string.Empty))
+															{
+																newTeam.Organisator = splitted[4].Replace("\\", string.Empty);
+															}
+															tiers.Add(newTeam);
+														}
+													}
+												}
+												break;
+											}
+										}
+
+										tiers = EditWhenRedundance(tiers);
+										tiers.Sort((x, y) => x.Index.CompareTo(y.Index));
+
+										return tiers;
+
+									}
+									else
+									{
+										await _errorHandler.HandleErrorAsync("Could not find log channel!");
+									}
+								}
+								else
+								{
+									IDiscordMessage message = new DiscordMessageWrapper(theMessage);
+									Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = _discordMessageUtils.SortReactions(message);
+
+									List<Tier> teams = [];
+									foreach (KeyValuePair<IDiscordEmoji, List<IDiscordUser>> reaction in reactions)
+									{
+										Tier aTeam = new();
+										foreach (IDiscordUser user in reaction.Value)
+										{
+											string displayName = user.Inner.Username;
+											DiscordMember memberx = toernooiAanmeldenChannel.Guild.GetMemberAsync(user.Inner.Id).Result;
+											if (memberx != null)
+											{
+												displayName = memberx.DisplayName;
+											}
+											aTeam.AddDeelnemer(displayName, user.Inner.Id);
+										}
+										if (aTeam.Organisator.Equals(string.Empty))
+										{
+											foreach (KeyValuePair<ulong, DiscordGuild> aGuild in _guildProvider.Guilds)
+											{
+												if (aGuild.Key.Equals(Constants.NLBE_SERVER_ID))
+												{
+													DiscordMember theMemberAuthor = await _userService.GetDiscordMember(aGuild.Value, theMessage.Author.Id);
+													if (theMemberAuthor != null)
+													{
+														aTeam.Organisator = theMemberAuthor.DisplayName;
+													}
+												}
+											}
+											if (aTeam.Organisator.Equals(string.Empty))
+											{
+												aTeam.Organisator = "Niet gevonden";
+											}
+										}
+										if (aTeam.TierNummer.Equals(string.Empty))
+										{
+											aTeam.TierNummer = reaction.Key.Inner;
+											string emojiAsString = _discordMessageUtils.GetEmojiAsString(reaction.Key.Inner);
+											int index = Emoj.GetIndex(emojiAsString);
+											if (index != 0)
+											{
+												aTeam.Index = index;
+												teams.Add(aTeam);
+											}
+										}
+									}
+									teams = EditWhenRedundance(teams);
+									teams.Sort((x, y) => x.Index.CompareTo(y.Index));
+									List<DEF> deflist = [];
+									foreach (Tier aTeam in teams)
+									{
+										DEF def = new()
+										{
+											Inline = true,
+											Name = "Tier " + aTeam.TierNummer
+										};
+										int counter = 1;
+										StringBuilder sb = new();
+										foreach (Tuple<ulong, string> user in aTeam.Deelnemers)
+										{
+											string tempName = string.Empty;
+											DiscordMember tempUser = await channel.Guild.GetMemberAsync(user.Item1);
+											tempName = tempUser != null ? tempUser.DisplayName : user.Item2;
+											sb.AppendLine(counter + ". " + tempName);
+											counter++;
+										}
+										def.Value = sb.ToString();
+										deflist.Add(def);
+									}
+
+									EmbedOptions options = new()
+									{
+										Title = "Teams",
+										Description = teams.Count > 0 ? string.Empty : "Geen teams",
+										Fields = deflist,
+									};
+									await _messageService.CreateEmbed(channel, options);
+									return [];
+								}
+							}
+							else
+							{
+								await _messageService.SendMessage(channel, member, guildName, "**Het bericht kon niet gevonden worden!**");
+							}
+						}
+						else
+						{
+							await _messageService.SendMessage(channel, member, guildName, "**Dit bericht kon niet gevonden worden!**");
+						}
+					}
+					else
+					{
+						await _messageService.SendMessage(channel, member, guildName, "**Het kanaal #Toernooi-aanmelden kon niet gevonden worden!**");
+					}
+				}
+			}
+			else
+			{
+				await _messageService.SendMessage(channel, member, guildName, "**Je moet cijfer meegeven!**");
+			}
+		}
+		else
+		{
+			await _messageService.SendMessage(channel, member, guildName, "**Je mag maar één cijfer meegeven!**");
+		}
+		return null;
+	}
+	private static List<Tier> EditWhenRedundance(List<Tier> teams)
+	{
+		if (teams.Count > 1)
+		{
+			List<Tier> newTeams = [];
+			int aCounter = 0;
+			foreach (Tier aTeam in teams)
+			{
+				Tier newTeam = new();
+				foreach (Tuple<ulong, string> aDeelnemer in aTeam.Deelnemers)
+				{
+					bool neverFound = true;
+					int bCounter = 0;
+					int amountFound = 0;
+					foreach (Tier bTeam in teams)
+					{
+						if (aCounter != bCounter)
+						{
+							foreach (Tuple<ulong, string> bDeelnemer in bTeam.Deelnemers)
+							{
+								if (aDeelnemer.Equals(bDeelnemer))
+								{
+									neverFound = false;
+									amountFound++;
+								}
+							}
+						}
+						bCounter++;
+					}
+					if (neverFound)
+					{
+						newTeam.AddDeelnemer("**" + aDeelnemer.Item2 + "**", aDeelnemer.Item1);
+						newTeam.Uniekelingen.Add(aDeelnemer.Item2);
+					}
+					else if (amountFound == 1)
+					{
+						newTeam.AddDeelnemer("`" + aDeelnemer.Item2.Replace("\\", string.Empty) + "`", aDeelnemer.Item1);
+					}
+					else
+					{
+						newTeam.AddDeelnemer(aDeelnemer.Item2, aDeelnemer.Item1);
+					}
+				}
+				newTeam.Datum = aTeam.Datum;
+				newTeam.Organisator = aTeam.Organisator;
+				newTeam.TierNummer = aTeam.TierNummer;
+				newTeam.Index = aTeam.Index;
+				newTeams.Add(newTeam);
+				aCounter++;
+			}
+			return newTeams;
+		}
+		else
+		{
+			return teams;
+		}
+	}
+	public async Task<List<Tuple<ulong, string>>> GetIndividualParticipants(List<Tier> teams, DiscordGuild guild)
+	{
+		List<Tuple<ulong, string>> participants = [];
+		if (teams != null)
+		{
+			if (teams.Count > 0)
+			{
+				participants.Add(new Tuple<ulong, string>(0, teams[0].Organisator));
+				foreach (Tier team in teams)
+				{
+					foreach (Tuple<ulong, string> participant in team.Deelnemers)
+					{
+						string temp = string.Empty;
+						try
+						{
+							DiscordMember tempMember = await guild.GetMemberAsync(participant.Item1);
+							if (tempMember != null && tempMember.DisplayName != null && tempMember.DisplayName.Length > 0)
+							{
+								temp = tempMember.DisplayName;
+							}
+						}
+						catch (Exception ex)
+						{
+							_logger.LogDebug(ex, ex.Message);
+						}
+
+						temp = string.IsNullOrEmpty(temp) ? participant.Item2 : participant.Item2.RemoveSyntax();
+						bool alreadyInList = false;
+						foreach (Tuple<ulong, string> participantX in participants)
+						{
+							if ((participantX.Item1.Equals(participant.Item1) && participant.Item1 > 0) || participantX.Item2.Equals(participant.Item2.RemoveSyntax()))
+							{
+								alreadyInList = true;
+								break;
+							}
+						}
+						if (!alreadyInList)
+						{
+							participants.Add(new Tuple<ulong, string>(participant.Item1, temp));
+						}
+					}
+				}
+
+				return participants.AsEnumerable().OrderBy(x => x.Item2).ToList();
+			}
+			else
+			{
+				return participants;
+			}
+		}
+		else
+		{
+			return participants;
+		}
+	}
+	public bool CheckIfAllWithinRange(string[] tiers, int min, int max)
+	{
+		bool allWithinRange = true;
+		for (int i = 0; i < tiers.Length; i++)
+		{
+			int temp = Convert.ToInt32(tiers[i]);
+			if (temp < min || temp > max)
+			{
+				allWithinRange = false;
+				break;
+			}
+		}
+		return allWithinRange;
+	}
+	public async Task<List<string>> GetMentions(List<Tuple<ulong, string>> memberList, ulong guildID)
+	{
+		DiscordGuild guild = await _guildProvider.GetGuild(guildID);
+		if (guild != null)
+		{
+			List<string> mentionList = [];
+			foreach (Tuple<ulong, string> member in memberList)
+			{
+				bool addByString = true;
+				if (member.Item1 > 1)
+				{
+					DiscordMember tempMember = await guild.GetMemberAsync(member.Item1);
+					if (tempMember != null)
+					{
+						if (tempMember.Mention != null)
+						{
+							if (tempMember.Mention.Length > 0)
+							{
+								addByString = false;
+								mentionList.Add(tempMember.Mention);
+							}
+						}
+					}
+				}
+				if (addByString)
+				{
+					bool added = false;
+					IReadOnlyCollection<DiscordMember> usersList = await guild.GetAllMembersAsync();
+					if (usersList != null)
+					{
+						foreach (DiscordMember memberItem in usersList)
+						{
+							if (memberItem.DisplayName != null)
+							{
+								if (memberItem.DisplayName.ToLower().Equals(member.Item2.ToLower()))
+								{
+									if (memberItem.Mention != null)
+									{
+										if (memberItem.Mention.Length > 0)
+										{
+											mentionList.Add(memberItem.Mention);
+											added = true;
+										}
+									}
+									break;
+								}
+							}
+						}
+					}
+					if (!added)
+					{
+						mentionList.Add("@" + member.Item2);
+					}
+				}
+			}
+			return mentionList;
+		}
+		return null;
 	}
 }

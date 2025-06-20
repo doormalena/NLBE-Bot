@@ -1,8 +1,49 @@
 namespace NLBE_Bot.Interfaces;
 
+using DSharpPlus;
+using DSharpPlus.AsyncEvents;
+using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
+using DSharpPlus.EventArgs;
+using DSharpPlus.Interactivity;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+
+public interface IDiscordClientWrapper
+{
+	public DiscordClient Inner
+	{
+		get;
+	}
+	public IReadOnlyDictionary<ulong, DiscordGuild> Guilds
+	{
+		get;
+	}
+	public Task ConnectAsync(DiscordActivity activity, UserStatus status);
+	public ICommandsNextExtension UseCommandsNext(CommandsNextConfiguration config);
+	public ICommandsNextExtension GetCommandsNext();
+	public Task<DiscordUser> GetUserAsync(ulong userId);
+	public Task<DiscordGuild> GetGuildAsync(ulong guildId);
+	public InteractivityExtension GetInteractivity();
+	public Task<DiscordMessage> SendMessageAsync(DiscordChannel channel, string content, DiscordEmbed embed = null);
+
+	public event AsyncEventHandler<DiscordClient, ReadyEventArgs> Ready;
+	public event AsyncEventHandler<DiscordClient, HeartbeatEventArgs> Heartbeated;
+	public event AsyncEventHandler<DiscordClient, MessageCreateEventArgs> MessageCreated;
+	public event AsyncEventHandler<DiscordClient, MessageDeleteEventArgs> MessageDeleted;
+	public event AsyncEventHandler<DiscordClient, MessageReactionAddEventArgs> MessageReactionAdded;
+	public event AsyncEventHandler<DiscordClient, MessageReactionRemoveEventArgs> MessageReactionRemoved;
+	public event AsyncEventHandler<DiscordClient, GuildMemberAddEventArgs> GuildMemberAdded;
+	public event AsyncEventHandler<DiscordClient, GuildMemberUpdateEventArgs> GuildMemberUpdated;
+	public event AsyncEventHandler<DiscordClient, GuildMemberRemoveEventArgs> GuildMemberRemoved;
+
+}
+public interface ICommandsNextExtension
+{
+	public void RegisterCommands<T>() where T : BaseCommandModule;
+	public event AsyncEventHandler<CommandsNextExtension, CommandExecutionEventArgs> CommandExecuted;
+	public event AsyncEventHandler<CommandsNextExtension, CommandErrorEventArgs> CommandErrored;
+}
 
 public interface IDiscordMessage
 {

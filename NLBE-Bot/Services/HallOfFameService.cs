@@ -14,10 +14,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class HallOfFameService(DiscordClient discordClient, IErrorHandler errorHandler, IConfiguration configuration,
+internal class HallOfFameService(IDiscordClientWrapper discordClient, IErrorHandler errorHandler, IConfiguration configuration,
 		IDiscordMessageUtils discordMessageUtils, IChannelService channelService, IMessageService messageService, IMapService mapService, IReplayService replayService, IUserService userService) : IHallOfFameService
 {
-	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
@@ -501,7 +501,7 @@ internal class HallOfFameService(DiscordClient discordClient, IErrorHandler erro
 		catch (Exception ex)
 		{
 			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
-			await message.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, Constants.MAINTENANCE_REACTION));
+			await message.CreateReactionAsync(DiscordEmoji.FromName(_discordClient.Inner, Constants.MAINTENANCE_REACTION));
 		}
 	}
 	public async Task<DiscordMessage> AddReplayToMessage(WGBattle battle, DiscordMessage message, DiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
@@ -683,11 +683,11 @@ internal class HallOfFameService(DiscordClient discordClient, IErrorHandler erro
 			}
 			if (good)
 			{
-				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, ":thumbsup:"));
+				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient.Inner, ":thumbsup:"));
 			}
 			else
 			{
-				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, ":thumbsdown:"));
+				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient.Inner, ":thumbsdown:"));
 			}
 			//Pas bericht aan
 			string[] splitted = description.Split('\n');

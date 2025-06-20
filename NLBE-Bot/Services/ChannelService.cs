@@ -8,9 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-internal class ChannelService(DiscordClient discordClient, ILogger<ChannelService> logger, IGuildProvider guildProvider) : IChannelService
+internal class ChannelService(IDiscordClientWrapper discordClient, ILogger<ChannelService> logger, IGuildProvider guildProvider) : IChannelService
 {
-	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<ChannelService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IGuildProvider _guildProvider = guildProvider ?? throw new ArgumentNullException(nameof(guildProvider));
 

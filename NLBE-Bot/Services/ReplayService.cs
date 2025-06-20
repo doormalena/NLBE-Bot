@@ -16,11 +16,11 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class ReplayService(IErrorHandler errorHandler, IConfiguration configuration, IWeeklyEventHandler weeklyEventHandler) : IReplayService
+internal class ReplayService(IErrorHandler errorHandler, IConfiguration configuration, IWeeklyEventService weeklyEventHandler) : IReplayService
 {
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-	private readonly IWeeklyEventHandler _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
+	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
 
 	public async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
 	{

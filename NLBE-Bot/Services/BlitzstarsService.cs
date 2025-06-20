@@ -1,7 +1,6 @@
-using NLBE_Bot.Blitzstars;
-
 namespace NLBE_Bot.Services;
 
+using NLBE_Bot.Blitzstars;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using NLBE_Bot.Interfaces;

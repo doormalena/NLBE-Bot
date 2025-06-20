@@ -8,8 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using System;
 using System.Reflection;
@@ -54,15 +56,14 @@ public static class Program
 					return CreateDiscordClient(hostContext.Configuration, provider.GetRequiredService<ILoggerFactory>());
 				});
 
-				services.AddHostedService<Worker>();
+				services.AddHostedService<Bot>();
 				services.AddSingleton<IBotState, BotState>();
-				services.AddSingleton<IBot, Bot>();
 				services.AddSingleton<BotCommands>();
-				services.AddSingleton<IWeeklyEventHandler, WeeklyEventHandler>();
+				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();
 				services.AddSingleton<IErrorHandler, ErrorHandler>();
-				services.AddSingleton<ICommandHandler, CommandHandler>();
-				services.AddSingleton<IGuildMemberHandler, GuildMemberHandler>();
-				services.AddSingleton<IMessageHandler, MessageHandler>();
+				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
+				services.AddSingleton<IGuildMemberEventHandler, GuildMemberEventHandler>();
+				services.AddSingleton<IMessageEventHandler, MessageEventHandler>();
 				services.AddSingleton<IGuildProvider, GuildProvider>();
 				services.AddSingleton<IUserService, UserService>();
 				services.AddSingleton<IChannelService, ChannelService>();
@@ -72,13 +73,14 @@ public static class Program
 				services.AddSingleton<IHallOfFameService, HallOfFameService>();
 				services.AddSingleton<ITournamentService, TournamentService>();
 				services.AddSingleton<IBlitzstarsService, BlitzstarsService>();
+				services.AddSingleton<IClanService, ClanService>();
 				services.AddSingleton<IDiscordMessageUtils, DiscordMessageUtils>();
 				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
 				services.AddHttpClient<IApiRequester, ApiRequester>();
 			});
 	}
 
-	private static DiscordClient CreateDiscordClient(IConfiguration configuration, ILoggerFactory loggerFactory)
+	private static IDiscordClientWrapper CreateDiscordClient(IConfiguration configuration, ILoggerFactory loggerFactory)
 	{
 		DiscordConfiguration config = new()
 		{
@@ -95,7 +97,7 @@ public static class Program
 			Timeout = TimeSpan.FromSeconds(int.TryParse(configuration["NLBEBOT:DiscordTimeOutInSeconds"], out int timeout) ? timeout : 0)
 		});
 
-		return client;
+		return new DiscordClientWrapper(client);
 	}
 }
 

@@ -1,4 +1,4 @@
-namespace NLBE_Bot.Services;
+namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.Entities;
@@ -7,6 +7,7 @@ using FMWOTB.Account;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -15,12 +16,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class GuildMemberHandler(DiscordClient discordClient, IErrorHandler errorHandler, ILogger<GuildMemberHandler> logger, IConfiguration configuration,
-									IBotState botState, IChannelService channelService, IGuildProvider guildProvider, IUserService userService, IMessageService messageService) : IGuildMemberHandler
+internal class GuildMemberEventHandler(IErrorHandler errorHandler, ILogger<GuildMemberEventHandler> logger, IConfiguration configuration,
+									IBotState botState, IChannelService channelService, IGuildProvider guildProvider, IUserService userService, IMessageService messageService) : IGuildMemberEventHandler
 {
-	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly ILogger<GuildMemberHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
@@ -28,7 +28,14 @@ internal class GuildMemberHandler(DiscordClient discordClient, IErrorHandler err
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 
-	public async Task OnMemberAdded(DiscordClient _, GuildMemberAddEventArgs e)
+	public void Register(IDiscordClientWrapper client)
+	{
+		client.GuildMemberAdded += OnMemberAdded;
+		client.GuildMemberUpdated += OnMemberUpdated;
+		client.GuildMemberRemoved += OnMemberRemoved;
+	}
+
+	internal async Task OnMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
 	{
 		if (_botState.IgnoreEvents)
 		{
@@ -53,7 +60,7 @@ internal class GuildMemberHandler(DiscordClient discordClient, IErrorHandler err
 
 					if (guild != null)
 					{
-						DiscordUser user = await _discordClient.GetUserAsync(e.Member.Id);
+						DiscordUser user = await sender.GetUserAsync(e.Member.Id);
 
 						if (user != null)
 						{
@@ -159,7 +166,7 @@ internal class GuildMemberHandler(DiscordClient discordClient, IErrorHandler err
 		}
 	}
 
-	public async Task OnMemberUpdated(DiscordClient _, GuildMemberUpdateEventArgs e)
+	internal async Task OnMemberUpdated(DiscordClient _, GuildMemberUpdateEventArgs e)
 	{
 		if (botState.IgnoreEvents)
 		{
@@ -190,7 +197,7 @@ internal class GuildMemberHandler(DiscordClient discordClient, IErrorHandler err
 		}
 	}
 
-	public async Task OnMemberRemoved(DiscordClient _, GuildMemberRemoveEventArgs e)
+	internal async Task OnMemberRemoved(DiscordClient _, GuildMemberRemoveEventArgs e)
 	{
 		if (_botState.IgnoreEvents)
 		{

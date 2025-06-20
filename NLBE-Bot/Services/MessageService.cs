@@ -15,11 +15,11 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class MessageService(DiscordClient discordClient, ILogger<MessageService> logger, IConfiguration configuration, IErrorHandler errorHandler, IBotState botState,
+internal class MessageService(IDiscordClientWrapper discordClient, ILogger<MessageService> logger, IConfiguration configuration, IErrorHandler errorHandler, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,
 								IMapService mapService) : IMessageService
 {
-	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<MessageService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
@@ -424,7 +424,7 @@ internal class MessageService(DiscordClient discordClient, ILogger<MessageServic
 							}
 							catch
 							{
-								_discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
+								_logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
 							}
 							if (isBanned)
 							{
@@ -440,7 +440,7 @@ internal class MessageService(DiscordClient discordClient, ILogger<MessageServic
 									}
 									catch
 									{
-										_discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
+										_logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
 										DiscordMember thibeastmo = await guild.GetMemberAsync(Constants.THIBEASTMO_ID);
 										if (thibeastmo != null)
 										{
@@ -462,7 +462,7 @@ internal class MessageService(DiscordClient discordClient, ILogger<MessageServic
 		}
 		else
 		{
-			_discordClient.Logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
+			_logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
 			DiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
 			bool roleWasGiven = false;
 			if (noobRole != null)
@@ -476,7 +476,7 @@ internal class MessageService(DiscordClient discordClient, ILogger<MessageServic
 			}
 			if (!roleWasGiven)
 			{
-				_discordClient.Logger.LogWarning("The noob role could not be given to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
+				_logger.LogWarning("The noob role could not be given to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
 			}
 		}
 		return null;

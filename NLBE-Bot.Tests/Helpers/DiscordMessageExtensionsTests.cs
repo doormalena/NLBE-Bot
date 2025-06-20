@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Tests.Helpers;
 
-using DSharpPlus;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
@@ -17,12 +16,7 @@ public class DiscordMessageExtensionsTests
 	public void SortReactionsTest()
 	{
 		// Arrange.
-		DiscordConfiguration discordConfig = new()
-		{
-			Token = "dummy",
-			TokenType = TokenType.Bot
-		};
-		DiscordClient discordClient = new(discordConfig);
+		IDiscordClientWrapper discordClient = Substitute.For<IDiscordClientWrapper>();
 		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
 		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
 		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);
@@ -60,12 +54,7 @@ public class DiscordMessageExtensionsTests
 	public void SortMessagesTest()
 	{
 		// Arrange.		
-		DiscordConfiguration discordConfig = new()
-		{
-			Token = "dummy",
-			TokenType = TokenType.Bot
-		};
-		DiscordClient discordClient = new(discordConfig);
+		IDiscordClientWrapper discordClient = Substitute.For<IDiscordClientWrapper>();
 		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
 		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
 		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);

@@ -23,7 +23,7 @@ public class ErrorHandlerTests
 		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 		loggerMock.Received().Log(
-			LogLevel.Information,
+			LogLevel.Error,
 			Arg.Any<EventId>(),
 			Arg.Is<object>(v => v != null && v.ToString().Contains(message)),
 			null,
@@ -46,7 +46,7 @@ public class ErrorHandlerTests
 		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 		loggerMock.Received().Log(
-			LogLevel.Information,
+			LogLevel.Error,
 			Arg.Any<EventId>(),
 			Arg.Is<object>(v => v != null &&
 							v.ToString().Contains(message) &&
