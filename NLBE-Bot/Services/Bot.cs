@@ -5,17 +5,12 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using DSharpPlus.Interactivity;
-using DSharpPlus.Interactivity.Extensions;
-using DSharpPlus.Net.Models;
 using FMWOTB;
 using FMWOTB.Account;
 using FMWOTB.Clans;
 using FMWOTB.Exceptions;
 using FMWOTB.Tools;
-using FMWOTB.Tools.Replays;
 using FMWOTB.Tournament;
-using FMWOTB.Vehicles;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -25,50 +20,37 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class Bot : IBot
+internal class Bot(DiscordClient discordClient, IServiceProvider serviceProvider, IErrorHandler errorHandler, ILogger<Bot> logger,
+		IConfiguration configuration, ICommandHandler commandHandler, IWeeklyEventHandler weeklyEventHandler,
+		IDiscordMessageUtils discordMessageUtils, IGuildMemberHandler guildMemberService, IBotState botState,
+		IChannelService channelService, IGuildProvider guildProvider, IUserService userService, IMessageService messageService,
+		IMessageHandler messageHandler) : IBot
 {
-	private readonly DiscordClient _discordClient;
-	private readonly IErrorHandler _errorHandler;
-	private readonly ILogger<Bot> _logger;
-	private readonly IConfiguration _configuration;
-	private readonly ICommandHandler _commandHandler;
-	private readonly IWeeklyEventHandler _weeklyEventHandler;
-	private readonly IDiscordMessageUtils _discordMessageUtils;
+	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly ILogger<Bot> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly ICommandHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
+	private readonly IWeeklyEventHandler _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
+	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
+	private readonly IGuildMemberHandler _guildMemberHandler = guildMemberService ?? throw new ArgumentNullException(nameof(guildMemberService));
+	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
+	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
+	private readonly IGuildProvider _guildProvider = guildProvider ?? throw new ArgumentNullException(nameof(guildProvider));
+	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+	private readonly IMessageHandler _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));
+	private readonly IServiceProvider _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
-	public IReadOnlyDictionary<ulong, DiscordGuild> discGuildslist;
-
-	public bool IgnoreCommands { get; set; } = false;
-	public bool IgnoreEvents { get; set; } = false;
-
-	public Tuple<ulong, DateTime> weeklyEventWinner = new(0, DateTime.Now);
-	private DiscordMessage discordMessage;//temp message
 	private DateTime? lasTimeNamesWereUpdated;
 	private short heartBeatCounter = 0;
 
-	public static string WarGamingAppId
+	public virtual async Task RunAsync()
 	{
-		get; private set;
-	}
-
-	public Bot(DiscordClient discordClient, IServiceProvider serviceProvider, IErrorHandler errorHandler, ILogger<Bot> logger, IConfiguration configuration, ICommandHandler commandHandler, IWeeklyEventHandler weeklyEventHandler, IDiscordMessageUtils discordMessageUtils)
-	{
-		_discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
-		_errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-		_logger = logger ?? throw new ArgumentNullException(nameof(logger));
-		_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-		_commandHandler = commandHandler;
-		_weeklyEventHandler = weeklyEventHandler;
-		_discordMessageUtils = discordMessageUtils;
-
-		WarGamingAppId = _configuration["NLBEBOT:WarGamingAppId"];
-
 		// Register Bot commands.
 		CommandsNextConfiguration commandsConfig = new()
 		{
@@ -77,7 +59,7 @@ internal class Bot : IBot
 			EnableMentionPrefix = true,
 			DmHelp = false,
 			EnableDefaultHelp = false,
-			Services = serviceProvider
+			Services = _serviceProvider
 		};
 
 		CommandsNextExtension commands = _discordClient.UseCommandsNext(commandsConfig);
@@ -90,176 +72,26 @@ internal class Bot : IBot
 		_discordClient.Heartbeated += Discord_Heartbeated;
 		_discordClient.Ready += Discord_Ready;
 
-		_discordClient.GuildMemberAdded += Discord_GuildMemberAdded;
-		_discordClient.GuildMemberUpdated += Discord_GuildMemberUpdated;
-		_discordClient.GuildMemberRemoved += Discord_GuildMemberRemoved;
+		_discordClient.GuildMemberAdded += _guildMemberHandler.OnMemberAdded;
+		_discordClient.GuildMemberUpdated += _guildMemberHandler.OnMemberUpdated;
+		_discordClient.GuildMemberRemoved += _guildMemberHandler.OnMemberRemoved;
 
-		_discordClient.MessageCreated += Discord_MessageCreated;
-		_discordClient.MessageDeleted += Discord_MessageDeleted;
-		_discordClient.MessageReactionAdded += Discord_MessageReactionAdded;
-		_discordClient.MessageReactionRemoved += Discord_MessageReactionRemoved;
-	}
+		_discordClient.MessageCreated += _messageHandler.OnMessageCreated;
+		_discordClient.MessageDeleted += _messageHandler.OnMessageDeleted;
+		_discordClient.MessageReactionAdded += _messageHandler.OnMessageReactionAdded;
+		_discordClient.MessageReactionRemoved += _messageHandler.OnMessageReactionRemoved;
 
-	public virtual async Task RunAsync()
-	{
 		DiscordActivity activity = new(Constants.Prefix, ActivityType.ListeningTo);
 		await _discordClient.ConnectAsync(activity, UserStatus.Online);
 
 		await Task.Delay(-1);
 	}
 
-	public async Task<DiscordMessage> SendMessage(DiscordChannel channel, DiscordMember member, string guildName, string message)
-	{
-		try
-		{
-			return await channel.SendMessageAsync(message);
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("[" + guildName + "] (" + channel.Name + ") Could not send message: ", ex);
-
-			if (ex.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
-			{
-				await SayBotNotAuthorized(channel);
-			}
-			else
-			{
-				await SayTooManyCharacters(channel);
-			}
-
-			if (member != null)
-			{
-				await SendPrivateMessage(member, guildName, message);
-			}
-		}
-
-		return null;
-	}
-
-	public async Task<bool> SendPrivateMessage(DiscordMember member, string guildName, string Message)
-	{
-		try
-		{
-			await member.SendMessageAsync(Message);
-			return true;
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("[" + guildName + "] Could not send private message: ", ex);
-		}
-		return false;
-	}
-
-	public async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, EmbedOptions options)
-	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = options.Color,
-			Title = options.Title,
-			Description = options.Description
-		};
-
-		if (!string.IsNullOrEmpty(options.Thumbnail))
-		{
-			try
-			{
-				newDiscEmbedBuilder.WithThumbnail(options.Thumbnail);
-			}
-			catch (Exception ex)
-			{
-				await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", ex);
-			}
-		}
-		if (options.Author != null)
-		{
-			newDiscEmbedBuilder.Author = options.Author;
-		}
-
-		if (!string.IsNullOrEmpty(options.ImageUrl))
-		{
-			try
-			{
-				newDiscEmbedBuilder.ImageUrl = options.ImageUrl;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogDebug(ex, ex.Message);
-
-				try
-				{
-					newDiscEmbedBuilder.WithImageUrl(new Uri(options.ImageUrl.Replace("\\", string.Empty)));
-				}
-				catch (Exception innerEx)
-				{
-					await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", innerEx);
-				}
-			}
-		}
-
-		if (options.Fields != null && options.Fields.Count > 0)
-		{
-			foreach (DEF field in options.Fields)
-			{
-				if (field.Value.Length > 0)
-				{
-					try
-					{
-						newDiscEmbedBuilder.AddField(field.Name, field.Value, field.Inline);
-					}
-					catch (Exception ex)
-					{
-						await _errorHandler.HandleErrorAsync("Something went wrong while trying to add a field to an embedded message:", ex);
-					}
-				}
-			}
-		}
-		if (options.Footer != null && options.Footer.Length > 0)
-		{
-			DiscordEmbedBuilder.EmbedFooter embedFooter = new()
-			{
-				Text = options.Footer
-			};
-			newDiscEmbedBuilder.Footer = embedFooter;
-		}
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
-		try
-		{
-			DiscordMessage theMessage = options.IsForReplay
-				? discordMessage.RespondAsync(options.Content, embed).Result
-				: _discordClient.SendMessageAsync(channel, options.Content, embed).Result;
-
-			try
-			{
-				if (options.Emojis != null)
-				{
-					foreach (DiscordEmoji anEmoji in options.Emojis)
-					{
-						await theMessage.CreateReactionAsync(anEmoji);
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				await _errorHandler.HandleErrorAsync("Error while adding emoji's:", ex);
-			}
-			if (!string.IsNullOrEmpty(options.NextMessage))
-			{
-				await channel.SendMessageAsync(options.NextMessage);
-			}
-			return theMessage;
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("Error in createEmbed:", ex);
-		}
-		return null;
-	}
-
 	#region Events
 
 	private async Task Discord_Heartbeated(DiscordClient sender, HeartbeatEventArgs e)
 	{
-		if (IgnoreEvents)
+		if (_botState.IgnoreEvents)
 		{
 			return;
 		}
@@ -290,20 +122,20 @@ internal class Bot : IBot
 			{
 				try
 				{
-					await UpdateUsers();
+					await _userService.UpdateUsers();
 				}
 				catch (InternalServerErrorException ex)
 				{
 					string message = "\nERROR updating users:\nInternal server exception from api request\n" + ex.Message;
-					await SendThibeastmo(message, string.Empty, string.Empty);
-					DiscordChannel bottestChannel = await GetBottestChannel();
+					await _messageService.SendThibeastmo(message, string.Empty, string.Empty);
+					DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 					await bottestChannel.SendMessageAsync(message);
 				}
 				catch (Exception ex)
 				{
 					string message = "\nERROR updating users:\n" + ex.Message;
-					await SendThibeastmo(message, string.Empty, string.Empty);
-					DiscordChannel bottestChannel = await GetBottestChannel();
+					await _messageService.SendThibeastmo(message, string.Empty, string.Empty);
+					DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 					await bottestChannel.SendMessageAsync(message);
 				}
 			}
@@ -312,7 +144,7 @@ internal class Bot : IBot
 		{
 			//We have a weekly winner
 			string winnerMessage = "Het wekelijkse event is afgelopen.";
-			DiscordChannel bottestChannel = await GetBottestChannel();
+			DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 			try
 			{
 				_discordClient.Logger.LogInformation(winnerMessage);
@@ -324,7 +156,7 @@ internal class Bot : IBot
 					WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventHandler.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
 					if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
 					{
-						foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
+						foreach (KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds)
 						{
 							if (guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
 							{
@@ -335,13 +167,13 @@ internal class Bot : IBot
 					}
 				}
 				await bottestChannel.SendMessageAsync(winnerMessage);
-				await SendThibeastmo(winnerMessage, string.Empty, string.Empty);
+				await _messageService.SendThibeastmo(winnerMessage, string.Empty, string.Empty);
 			}
 			catch (Exception ex)
 			{
 				string message = winnerMessage + "\nERROR:\n" + ex.Message;
 				await bottestChannel.SendMessageAsync(message);
-				await SendThibeastmo(message, string.Empty, string.Empty);
+				await _messageService.SendThibeastmo(message, string.Empty, string.Empty);
 			}
 		}
 	}
@@ -359,7 +191,7 @@ internal class Bot : IBot
 			{
 				if (!member.IsBot)
 				{
-					Tuple<string, string> gebruiker = GetIGNFromMember(member.DisplayName);
+					Tuple<string, string> gebruiker = _userService.GetIGNFromMember(member.DisplayName);
 					string x = gebruiker.Item2
 						.Replace("\\", string.Empty)
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
@@ -369,7 +201,9 @@ internal class Bot : IBot
 							&& guild.Id == Constants.DA_BOIS_ID))
 					{
 						userNotFound = false;
-						weeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
+
+						_botState.WeeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
+
 						try
 						{
 							await member.SendMessageAsync("Hallo " + member.Mention + ",\n\nProficiat! Je hebt het wekelijkse event gewonnen van de **" + tank + "** met **" + weeklyEventItemMostDMG.Value + "** damage.\n" +
@@ -384,7 +218,7 @@ internal class Bot : IBot
 						}
 						try
 						{
-							DiscordChannel algemeenChannel = await GetAlgemeenChannel();
+							DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 							if (algemeenChannel != null)
 							{
 								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').adaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
@@ -405,13 +239,13 @@ internal class Bot : IBot
 		}
 		else
 		{
-			DiscordChannel algemeenChannel = await GetAlgemeenChannel();
+			DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 			if (algemeenChannel != null)
 			{
 				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 			}
 		}
-		DiscordChannel bottestChannel = await GetBottestChannel();
+		DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 		if (userNotFound)
 		{
 			string message = "Weekly event winnaar was niet gevonden! Je zal het zelf moeten regelen met het `weekly` commando.";
@@ -440,8 +274,7 @@ internal class Bot : IBot
 
 	private Task Discord_Ready(DiscordClient sender, ReadyEventArgs e)
 	{
-		discGuildslist = sender.Guilds;
-		foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
+		foreach (KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds)
 		{
 			if (!guild.Key.Equals(Constants.NLBE_SERVER_ID) && !guild.Key.Equals(Constants.DA_BOIS_ID))
 			{
@@ -452,1235 +285,7 @@ internal class Bot : IBot
 
 		return Task.CompletedTask;
 	}
-
-	private async Task Discord_MessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
-	{
-		if (IgnoreEvents)
-		{
-			return;
-		}
-
-		if (!e.User.IsBot && e.Guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
-		{
-			DiscordChannel toernooiAanmeldenChannel = await GetToernooiAanmeldenChannel(e.Guild.Id);
-			if (toernooiAanmeldenChannel != null && e.Channel.Equals(toernooiAanmeldenChannel))
-			{
-				DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-				await GenerateLogMessage(message, toernooiAanmeldenChannel, e.User.Id, _discordMessageUtils.GetDiscordEmoji(e.Emoji.Name).ToString());
-			}
-			else
-			{
-				DiscordChannel regelsChannel = await GetRegelsChannel();
-				if (regelsChannel != null && e.Channel.Equals(regelsChannel))
-				{
-					string rulesReadEmoji = ":ok:";
-					if (e.Emoji.GetDiscordName().Equals(rulesReadEmoji))
-					{
-						IReadOnlyList<DiscordUser> users = await e.Message.GetReactionsAsync(e.Emoji);
-
-						foreach (DiscordUser aUser in users)
-						{
-							if (!aUser.IsBot)
-							{
-								await e.Message.DeleteReactionAsync(e.Emoji, aUser);
-								DiscordMember member = await e.Guild.GetMemberAsync(aUser.Id);
-								if (member != null)
-								{
-									bool hadRulesNotReadrole = false;
-									if (member.Roles != null)
-									{
-										foreach (DiscordRole memberRole in member.Roles)
-										{
-											if (memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE))
-											{
-												hadRulesNotReadrole = true;
-												await member.RevokeRoleAsync(memberRole);//een oorzaak
-												break;
-											}
-										}
-									}
-									if (hadRulesNotReadrole || member.Roles == null || member.Roles.Count() == 0)
-									{
-										if (member.DisplayName.Split(']').Length > 1)
-										{
-											if (member.DisplayName.Split(']').Length > 2)
-											{
-												string[] splitted = member.DisplayName.Split(']');
-												string tempName = splitted[splitted.Length - 1].Trim(' ');
-												await ChangeMemberNickname(member, "[] " + tempName);//een oorzaak
-
-											}
-											else if (member.DisplayName.Contains("[NLBE]"))
-											{
-												await ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE]", string.Empty).Trim(' '));//een oorzaak
-											}
-											else if (member.DisplayName.Contains("[NLBE2]"))
-											{
-												await ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE2]", string.Empty).Trim(' '));//een oorzaak
-											}
-										}
-										else
-										{
-											await ChangeMemberNickname(member, "[] " + member.Username);//een oorzaak
-										}
-										DiscordRole ledenRole = e.Guild.GetRole(Constants.LEDEN_ROLE);
-										if (ledenRole != null)
-										{
-											await member.GrantRoleAsync(ledenRole);//een oorzaak
-										}
-										DiscordChannel algemeenChannel = await GetAlgemeenChannel();//een oorzaak
-										if (algemeenChannel != null)
-										{
-											await algemeenChannel.SendMessageAsync(e.User.Mention + " , welkom op de NLBE discord server. GLHF!");
-										}
-									}
-								}
-							}
-						}
-					}
-					else
-					{
-						IReadOnlyList<DiscordUser> users = await e.Message.GetReactionsAsync(e.Emoji);
-						foreach (DiscordUser user in users)
-						{
-							if (!user.IsBot)
-							{
-								await e.Message.DeleteReactionAsync(e.Emoji, user);
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	private async Task Discord_MessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
-	{
-		if (IgnoreEvents)
-		{
-			return;
-		}
-
-		if (e.Guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
-		{
-			DiscordChannel toernooiAanmeldenChannel = await GetToernooiAanmeldenChannel(e.Guild.Id);
-			if (toernooiAanmeldenChannel != null)
-			{
-				if (e.Channel.Equals(toernooiAanmeldenChannel))
-				{
-					bool removeInLog = true;
-					DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-					if (message.Author != null && !message.Author.Id.Equals(Constants.NLBE_BOT) && !message.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
-					{
-						removeInLog = false;
-					}
-					if (removeInLog)
-					{
-						//check if reaction has to be added by bot (from 0 reactions to 1 reaction)
-						IReadOnlyList<DiscordUser> users = await e.Message.GetReactionsAsync(e.Emoji);
-						if (users == null || users.Count == 0)
-						{
-							await e.Message.CreateReactionAsync(e.Emoji);
-						}
-
-						//remove in log
-						IDiscordChannel logChannel = new DiscordChannelWrapper(await GetLogChannel(e.Guild.Id));
-
-						if (logChannel.Inner != null)
-						{
-							IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-							Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
-							foreach (KeyValuePair<DateTime, List<IDiscordMessage>> messageList in sortedMessages)
-							{
-								try
-								{
-									if (e.Message.CreationTimestamp.LocalDateTime.CompareDateTime(messageList.Key))
-									{
-										foreach (IDiscordMessage aMessage in messageList.Value)
-										{
-											DiscordMember member = await GetDiscordMember(e.Guild, e.User.Id);
-											if (member != null)
-											{
-												string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
-												string theEmoji = _discordMessageUtils.GetEmojiAsString(e.Emoji.Name);
-												if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && _discordMessageUtils.GetEmojiAsString(splitted[3]).Equals(theEmoji))
-												{
-													await aMessage.Inner.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
-												}
-											}
-										}
-									}
-								}
-								catch (Exception ex)
-								{
-									await _errorHandler.HandleErrorAsync("Could not compare TimeStamps in MessageReactionRemoved:", ex);
-								}
-							}
-						}
-						else
-						{
-							await _errorHandler.HandleErrorAsync("Could not find log channel at MessageReactionRemoved!");
-						}
-					}
-				}
-			}
-		}
-	}
-
-	private async Task Discord_MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
-	{
-		if (IgnoreEvents)
-		{
-			return;
-		}
-
-		DiscordChannel toernooiAanmeldenChannel = await GetToernooiAanmeldenChannel(e.Guild.Id);
-		if (e.Channel.Equals(toernooiAanmeldenChannel))
-		{
-			DateTime timeStamp = e.Message.Timestamp.LocalDateTime;
-			DiscordChannel logChannel = await GetLogChannel(e.Guild.Id);
-			if (logChannel != null)
-			{
-				IReadOnlyList<DiscordMessage> messages = await logChannel.GetMessagesAsync(100);
-				foreach (DiscordMessage message in messages)
-				{
-					string[] splitted = message.Content.Split('|');
-
-					if (DateTime.TryParse(splitted[0], new CultureInfo("nl-NL"), out DateTime tempDateTime) && tempDateTime.CompareDateTime(timeStamp))
-					{
-						await message.DeleteAsync();
-						await Task.Delay(875);
-					}
-				}
-			}
-		}
-	}
-
-	private async Task Discord_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
-	{
-		if (IgnoreEvents)
-		{
-			return;
-		}
-
-		if (e.Guild.Id == Constants.NLBE_SERVER_ID)
-		{
-			DiscordRole noobRole = e.Guild.GetRole(Constants.NOOB_ROLE);
-			if (noobRole != null)
-			{
-				e.Member.GrantRoleAsync(noobRole).Wait();
-				DiscordChannel welkomChannel = GetWelkomChannel().Result;
-				if (welkomChannel != null)
-				{
-					DiscordChannel regelsChannel = GetRegelsChannel().Result;
-					welkomChannel.SendMessageAsync(e.Member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.").Wait();
-					DiscordGuild guild = GetGuild(e.Guild.Id).Result;
-					if (guild != null)
-					{
-						DiscordUser user = _discordClient.GetUserAsync(e.Member.Id).Result;
-						if (user != null)
-						{
-							IReadOnlyList<WGAccount> searchResults = [];
-							bool resultFound = false;
-							StringBuilder sbDescription = new();
-							int counter = 0;
-							bool firstTime = true;
-							while (!resultFound)
-							{
-								string question = user.Mention + " Wat is je gebruikersnaam van je wargaming account?";
-								if (firstTime)
-								{
-									firstTime = false;
-								}
-								else
-								{
-									question = "**We konden dit Wargamingaccount niet vinden, probeer opnieuw! (Hoofdlettergevoelig)**\n" + question;
-								}
-								string ign = AskQuestion(await GetWelkomChannel(), user, guild, question).Result;
-								searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, WarGamingAppId, false, true, false);
-								if (searchResults != null && searchResults.Count > 0)
-								{
-									resultFound = true;
-									foreach (WGAccount tempAccount in searchResults)
-									{
-										string tempClanName = string.Empty;
-										if (tempAccount.clan != null)
-										{
-											tempClanName = tempAccount.clan.tag;
-										}
-										try
-										{
-											sbDescription.AppendLine(++counter + ". " + tempAccount.nickname + " " + (tempClanName.Length > 0 ? '`' + tempClanName + '`' : string.Empty));
-										}
-										catch (Exception ex)
-										{
-											_discordClient.Logger.LogWarning(ex, "Error while looking for basicInfo for {Ign}:\n {StackTrace}", ign, ex.StackTrace);
-										}
-									}
-								}
-							}
-
-							int selectedAccount = 0;
-							if (searchResults.Count > 1)
-							{
-								selectedAccount = -1;
-								while (selectedAccount == -1)
-								{
-									selectedAccount = await WaitForReply(welkomChannel, user, sbDescription.ToString(), counter);
-								}
-							}
-
-							WGAccount account = searchResults[selectedAccount];
-
-							string clanName = string.Empty;
-							if (account.clan != null && account.clan.tag != null)
-							{
-								if (account.clan.clan_id.Equals(Constants.NLBE_CLAN_ID) || account.clan.clan_id.Equals(Constants.NLBE2_CLAN_ID))
-								{
-									await e.Member.SendMessageAsync("Indien je echt van **" + account.clan.tag + "** bent dan moet je even vragen of iemand jouw de **" + account.clan.tag + "** rol wilt geven.");
-								}
-								else
-								{
-									clanName = account.clan.tag;
-								}
-							}
-							ChangeMemberNickname(e.Member, "[" + clanName + "] " + account.nickname).Wait();
-							await e.Member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
-							DiscordRole rulesNotReadRole = e.Guild.GetRole(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
-							if (rulesNotReadRole != null)
-							{
-								e.Member.RevokeRoleAsync(noobRole).Wait();
-								e.Member.GrantRoleAsync(rulesNotReadRole).Wait();
-							}
-							IReadOnlyCollection<DiscordMember> allMembers = await e.Guild.GetAllMembersAsync();
-							bool atLeastOneOtherPlayerWithNoobRole = false;
-							foreach (DiscordMember aMember in allMembers)
-							{
-								if (aMember.Roles.Contains(noobRole))
-								{
-									atLeastOneOtherPlayerWithNoobRole = true;
-									break;
-								}
-							}
-							if (atLeastOneOtherPlayerWithNoobRole)
-							{
-								await CleanWelkomChannel(e.Member.Id);
-							}
-							else
-							{
-								await CleanWelkomChannel();
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				await _errorHandler.HandleErrorAsync("Could not grant new member[" + e.Member.DisplayName + " (" + e.Member.Username + "#" + e.Member.Discriminator + ")] the Noob role.");
-			}
-		}
-	}
-
-	private async Task Discord_GuildMemberRemoved(DiscordClient sender, GuildMemberRemoveEventArgs e)
-	{
-		if (IgnoreEvents)
-		{
-			return;
-		}
-
-		if (!e.Member.Id.Equals(Constants.THIBEASTMO_ALT_ID))
-		{
-			if (e.Guild.Id.Equals(Constants.NLBE_SERVER_ID))
-			{
-				DiscordChannel oudLedenChannel = await GetOudLedenChannel();
-				if (oudLedenChannel != null)
-				{
-					IReadOnlyDictionary<ulong, DiscordRole> serverRoles = null;
-					foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
-					{
-						if (guild.Value.Id.Equals(Constants.NLBE_SERVER_ID))
-						{
-							serverRoles = guild.Value.Roles;
-						}
-					}
-					if (serverRoles != null && serverRoles.Count > 0)
-					{
-						IEnumerable<DiscordRole> memberRoles = e.Member.Roles;
-						StringBuilder sbRoles = new();
-						bool firstRole = true;
-						foreach (DiscordRole role in memberRoles)
-						{
-							foreach (KeyValuePair<ulong, DiscordRole> serverRole in serverRoles)
-							{
-								if (serverRole.Key.Equals(role.Id))
-								{
-									if (role.Id.Equals(Constants.NOOB_ROLE))
-									{
-										await CleanWelkomChannel();
-									}
-									if (firstRole)
-									{
-										firstRole = false;
-									}
-									else
-									{
-										sbRoles.Append(", ");
-									}
-									sbRoles.Append(role.Name);
-								}
-							}
-						}
-						List<DEF> defList = [];
-						DEF newDef1 = new()
-						{
-							Inline = true,
-							Name = "Bijnaam:",
-							Value = e.Member.DisplayName
-						};
-						defList.Add(newDef1);
-						DEF newDef2 = new()
-						{
-							Inline = true,
-							Name = "Gebruiker:",
-							Value = e.Member.Username + "#" + e.Member.Discriminator
-						};
-						defList.Add(newDef2);
-						DEF newDef3 = new()
-						{
-							Inline = true,
-							Name = "GebruikersID:",
-							Value = e.Member.Id.ToString()
-						};
-						defList.Add(newDef3);
-						if (sbRoles.Length > 0)
-						{
-							DEF newDef = new()
-							{
-								Inline = true,
-								Name = "Rollen:",
-								Value = sbRoles.ToString()
-							};
-							defList.Add(newDef);
-						}
-
-						EmbedOptions options = new()
-						{
-							Title = e.Member.Username + " heeft de server verlaten",
-							Fields = defList,
-						};
-						await CreateEmbed(oudLedenChannel, options);
-					}
-				}
-			}
-		}
-	}
-
-	private async Task Discord_GuildMemberUpdated(DiscordClient sender, GuildMemberUpdateEventArgs e)
-	{
-		if (!IgnoreEvents)
-		{
-			return;
-		}
-
-		foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist.Where(g => g.Key != Constants.NLBE_SERVER_ID))
-		{
-			DiscordMember member = await GetDiscordMember(guild.Value, e.Member.Id);
-
-			if (member == null)
-			{
-				continue;
-			}
-
-			IEnumerable<DiscordRole> userRoles = member.Roles;
-			bool isNoob = userRoles.Any(role => role.Id.Equals(Constants.NOOB_ROLE));
-			bool hasRoles = userRoles.Any();
-
-			if (!isNoob && hasRoles && (e.RolesAfter != null || !string.IsNullOrEmpty(e.NicknameAfter)))
-			{
-				string editedName = UpdateName(member, member.DisplayName);
-				if (!editedName.Equals(member.DisplayName, StringComparison.Ordinal) && !string.IsNullOrEmpty(editedName))
-				{
-					await ChangeMemberNickname(member, editedName);
-				}
-			}
-		}
-	}
-
-	private async Task Discord_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
-	{
-		if (IgnoreEvents)
-		{
-			return;
-		}
-
-		if (false && e.Message.Content.StartsWith(Constants.Prefix))
-		// VOOR IN HET GEVAL DAT OOIT JE COMMANDS MOET MAKEN OP BASIS VAN DE MESSAGE CREATED EVENT
-		{
-			// Remove the prefix and split the message into command and arguments
-			string content = e.Message.Content[Constants.Prefix.Length..];
-			string[] parts = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-			if (parts.Length == 0)
-			{
-				return;
-			}
-
-			// Extract the command name and arguments
-			string commandName = parts[0];
-			string args = content.Substring(Constants.Prefix.Length, content.Length - Constants.Prefix.Length);
-
-			CommandsNextExtension commandsNext = sender.GetCommandsNext();
-			if (commandsNext == null)
-			{
-				_discordClient.Logger.Log(LogLevel.Information, "CommandsNext is not enabled.");
-				return;
-			}
-
-			Command command = commandsNext.FindCommand(commandName, out string rawArguments);
-			if (command == null)
-			{
-				_discordClient.Logger.Log(LogLevel.Information, "Unknown command.");
-				return;
-			}
-
-			CommandContext ctx = commandsNext.CreateContext(e.Message, Constants.Prefix, command, args);
-
-			try
-			{
-				// Execute the command (this will internally create and manage a CommandContext)
-				await commandsNext.ExecuteCommandAsync(ctx);
-			}
-			catch (Exception ex)
-			{
-				// Log or handle any errors that occur during command execution
-				Console.WriteLine();
-				_discordClient.Logger.Log(LogLevel.Error, ex, "Error executing command: {0}", ex.Message);
-			}
-
-			await commandsNext.ExecuteCommandAsync(ctx);
-
-			// Handle the command
-			return;
-		}
-		if (!e.Author.IsBot && e.Channel.Guild != null)
-		{
-			bool validChannel = false;
-			DiscordChannel masteryChannel = await GetMasteryReplaysChannel(e.Guild.Id);
-			if (masteryChannel != null)
-			{
-				if (masteryChannel.Equals(e.Channel) || e.Channel.Id.Equals(Constants.BOTTEST_ID))
-				{
-					validChannel = true;
-				}
-			}
-			if (!validChannel)
-			{
-				masteryChannel = await GetBottestChannel();
-				if (masteryChannel != null && masteryChannel.Equals(e.Channel))
-				{
-					validChannel = true;
-				}
-				if (!validChannel)
-				{
-					masteryChannel = await GetReplayResultsChannel();
-					if (masteryChannel != null)
-					{
-						if (masteryChannel.Equals(e.Channel))
-						{
-							validChannel = true;
-						}
-					}
-					if (!validChannel)
-					{
-						masteryChannel = await GetReplayResultsChannel();
-						if (masteryChannel != null)
-						{
-							if (masteryChannel.Equals(e.Channel))
-							{
-								validChannel = true;
-							}
-						}
-						if (!validChannel)
-						{
-							masteryChannel = await GetTestChannel();
-							if (masteryChannel != null)
-							{
-								if (masteryChannel.Equals(e.Channel))
-								{
-									validChannel = true;
-								}
-							}
-						}
-					}
-				}
-			}
-			if (validChannel)
-			{
-				discordMessage = e.Message;
-				DiscordMember member = await e.Guild.GetMemberAsync(e.Author.Id);
-				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))))
-				{
-					//MasteryChannel (komt wel in HOF)
-					if (e.Message.Attachments.Count > 0)
-					{
-						foreach (DiscordAttachment attachment in e.Message.Attachments)
-						{
-							if (attachment.FileName.EndsWith(".wotbreplay"))
-							{
-								Tuple<string, DiscordMessage> returnedTuple = await Handle(string.Empty, e.Channel, await e.Guild.GetMemberAsync(e.Author.Id), e.Guild.Name, e.Guild.Id, attachment);
-								await HofAfterUpload(returnedTuple, e.Message);
-								break;
-							}
-						}
-					}
-					else
-					{
-						if (e.Message != null)
-						{
-							if (e.Message.Content.StartsWith("http") && e.Message.Content.Contains("wotinspector"))
-							{
-								string[] splitted = e.Message.Content.Split(' ');
-								string url = splitted[0];
-								Tuple<string, DiscordMessage> returnedTuple = await Handle(string.Empty, e.Channel, await e.Guild.GetMemberAsync(e.Author.Id), e.Guild.Name, e.Guild.Id, url);
-								await HofAfterUpload(returnedTuple, e.Message);
-							}
-						}
-					}
-				}
-				else
-				{
-					//ReplayResults die niet in HOF komen
-					WGBattle replayInfo = new(string.Empty);
-					bool wasReplay = false;
-					if (e.Message.Attachments.Count > 0)
-					{
-						foreach (DiscordAttachment attachment in e.Message.Attachments)
-						{
-							if (attachment.FileName.EndsWith(".wotbreplay"))
-							{
-								await ConfirmCommandExecuting(e.Message);
-								wasReplay = true;
-								replayInfo = await GetReplayInfo(string.Empty, attachment, GetIGNFromMember(member.DisplayName).Item2, null);
-							}
-						}
-					}
-					else
-					{
-						if (e.Message != null)
-						{
-							if (e.Message.Content.StartsWith("http") && e.Message.Content.Contains("wotinspector"))
-							{
-								await ConfirmCommandExecuting(e.Message);
-								wasReplay = true;
-								replayInfo = await GetReplayInfo(string.Empty, null, GetIGNFromMember(member.DisplayName).Item2, e.Message.Content);
-							}
-						}
-					}
-					if (wasReplay && replayInfo != null)
-					{
-						string thumbnail = string.Empty;
-						string eventDescription = string.Empty;
-						try
-						{
-							eventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(replayInfo);
-						}
-						catch (Exception ex)
-						{
-							await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
-						}
-						List<Tuple<string, string>> images = await GetAllMaps(e.Guild.Id);
-						foreach (Tuple<string, string> map in images)
-						{
-							if (replayInfo.map_name.ToLower().Contains(map.Item1.ToLower()))
-							{
-								try
-								{
-									if (map.Item1 != string.Empty)
-									{
-										thumbnail = map.Item2;
-									}
-								}
-								catch (Exception ex)
-								{
-									await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
-								}
-								break;
-							}
-						}
-						EmbedOptions options = new()
-						{
-							Thumbnail = thumbnail,
-							Title = "Resultaat",
-							Description = await GetDescriptionForReplay(replayInfo, -1, eventDescription),
-							IsForReplay = true,
-						};
-						await CreateEmbed(e.Channel, options);
-						await ConfirmCommandExecuted(e.Message);
-					}
-					else if (wasReplay)
-					{
-						await e.Message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
-						await e.Message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION).Inner);
-					}
-				}
-			}
-			discordMessage = null;
-		}
-		else if (e.Channel.IsPrivate)
-		{
-			await HandleWeeklyEventDM(e.Channel, e.Message);
-		}
-	}
-
-	private async Task HandleWeeklyEventDM(DiscordChannel Channel, DiscordMessage lastMessage)
-	{
-		if (!Channel.IsPrivate || weeklyEventWinner == null || weeklyEventWinner.Item1 == 0)
-		{
-			return;
-		}
-
-		if (lastMessage.Author.IsBot || Channel.Guild != null || lastMessage.CreationTimestamp <= weeklyEventWinner.Item2)
-		{
-			return;
-		}
-
-		string vehiclesInString = await WGVehicle.vehiclesToString(WarGamingAppId, ["name"]);
-		Json json = new(vehiclesInString, string.Empty);
-		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
-
-		string chosenTank = tanks.Find(tank => tank == lastMessage.Content);
-
-		if (string.IsNullOrEmpty(chosenTank))
-		{
-			//specifieker vragen
-			IEnumerable<string> containsStringList = tanks.Where(tank => tank.Contains(lastMessage.Content, StringComparison.OrdinalIgnoreCase));
-			if (containsStringList.Count() > 20)
-			{
-				await Channel.SendMessageAsync("Wees iets specifieker want er werden te veel resultaten gevonden!");
-			}
-			else if (!containsStringList.Any())
-			{
-				await Channel.SendMessageAsync("Die tank kon niet gevonden worden! Zoekterm: `" + lastMessage.Content + "`");
-			}
-			else
-			{
-				StringBuilder sb = new("```");
-				sb.Append(Environment.NewLine);
-				foreach (string tank in containsStringList)
-				{
-					sb.Append(tank + Environment.NewLine);
-				}
-				sb.AppendLine("```");
-				await Channel.SendMessageAsync("Deze tanks bevatten je zoekterm. **Kopieer** de naam van de tank en stuur hem naar mij door om zo de juiste te selecteren. (**Hoofdlettergevoelig**):");
-				await Channel.SendMessageAsync(sb.ToString());
-			}
-		}
-		else
-		{
-			//tank was chosen
-			await Channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
-			await _weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await GetWeeklyEventChannel());
-			weeklyEventWinner = new Tuple<ulong, DateTime>(0, DateTime.Now);//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
-		}
-	}
-
 	#endregion
-
-	#region getChannel
-
-	public async Task<DiscordChannel> GetHallOfFameChannel(ulong GuildID)
-	{
-		long ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? 793268894454251570 : 793429499403304960;
-		return await GetChannel(GuildID, (ulong) ChatID);
-	}
-	public async Task<DiscordChannel> GetMasteryReplaysChannel(ulong GuildID)
-	{
-		ulong ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? Constants.MASTERY_REPLAYS_ID : Constants.PRIVE_ID;
-		return await GetChannel(GuildID, ChatID);
-	}
-	public async Task<DiscordChannel> GetReplayResultsChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 583958593129414677;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetWeeklyEventChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 897749692895596565;
-		if (Constants.version.ToLower().Contains("local"))
-		{
-			ServerID = Constants.DA_BOIS_ID;
-			ChatID = 901480697011777538;
-		}
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetAlgemeenChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 507575682046492692;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetOudLedenChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 744462244951228507;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetDeputiesChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 668211371522916389;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetWelkomChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 681960256296976405;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetRegelsChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 679531304882012165;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetLogChannel(ulong GuildID)
-	{
-		return GuildID == Constants.NLBE_SERVER_ID ? await GetChannel(GuildID, 782308602882031660) : await GetChannel(GuildID, 808319637447376899);
-	}
-	public async Task<DiscordChannel> GetToernooiAanmeldenChannel(ulong GuildID)
-	{
-		return GuildID == Constants.NLBE_SERVER_ID
-			? await GetChannel(GuildID, Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID)
-			: await GetChannel(GuildID, Constants.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID);
-	}
-	public async Task<DiscordChannel> GetMappenChannel(ulong GuildID)
-	{
-		long ChatID = GuildID.Equals(Constants.NLBE_SERVER_ID) ? 782240999190953984 : 804856157918855209;
-		return await GetChannel(GuildID, (ulong) ChatID);
-	}
-	public async Task<DiscordChannel> GetBottestChannel()
-	{
-		ulong ServerID = Constants.NLBE_SERVER_ID;
-		ulong ChatID = 781617141069774898;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetTestChannel()
-	{
-		ulong ServerID = Constants.DA_BOIS_ID;
-		ulong ChatID = 804477788676685874;
-		return await GetChannel(ServerID, ChatID);
-	}
-	public async Task<DiscordChannel> GetPollsChannel(bool isDeputyPoll, ulong GuildID)
-	{
-		if (GuildID == Constants.NLBE_SERVER_ID)
-		{
-			long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;
-			return await GetChannel(GuildID, (ulong) ChatID);
-		}
-		else
-		{
-			return await GetTestChannel();
-		}
-	}
-	private async Task<DiscordChannel> GetChannel(ulong serverID, ulong chatID)
-	{
-		try
-		{
-			DiscordGuild guild = await _discordClient.GetGuildAsync(serverID);
-
-			if (guild != null)
-			{
-				return guild.GetChannel(chatID);
-			}
-		}
-		catch (Exception ex)
-		{
-			_logger.LogDebug(ex, ex.Message);
-		}
-
-		return null;
-	}
-
-	private Task<DiscordGuild> GetGuild(ulong serverID)
-	{
-		return _discordClient.GetGuildAsync(serverID);
-	}
-
-	public async Task<DiscordChannel> GetChannelBasedOnString(string guildNameOrTag, ulong guildID)
-	{
-		bool isId = false;
-		if (guildNameOrTag.StartsWith('<'))
-		{
-			isId = true;
-			guildNameOrTag = guildNameOrTag.TrimStart('<');
-			guildNameOrTag = guildNameOrTag.TrimStart('#');
-			guildNameOrTag = guildNameOrTag.TrimEnd('>');
-		}
-		DiscordGuild guild = await GetGuild(guildID);
-		if (guild != null)
-		{
-			foreach (KeyValuePair<ulong, DiscordChannel> channel in guild.Channels)
-			{
-				if (isId)
-				{
-					if (channel.Value.Id.ToString().Equals(guildNameOrTag.ToLower()))
-					{
-						return channel.Value;
-					}
-				}
-				else
-				{
-					if (channel.Value.Name.ToLower().Equals(guildNameOrTag.ToLower()))
-					{
-						return channel.Value;
-					}
-				}
-			}
-		}
-		return null;
-	}
-
-	#endregion
-
-	public async Task UpdateUsers()
-	{
-		DiscordChannel bottestChannel = await GetBottestChannel();
-		if (bottestChannel != null)
-		{
-			bool sjtubbersUserNameIsOk = true;
-			DiscordMember sjtubbersMember = await bottestChannel.Guild.GetMemberAsync(359817512109604874);
-			if (sjtubbersMember.DisplayName != "[NLBE] sjtubbers")
-			{
-				sjtubbersUserNameIsOk = false;
-			}
-
-			if (!sjtubbersUserNameIsOk)
-			{
-				await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van sjtubbers was al incorrect dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.**");
-				return;
-			}
-			const int maxMemberChangesAmount = 7;
-			IReadOnlyCollection<DiscordMember> members = await bottestChannel.Guild.GetAllMembersAsync();
-			Dictionary<DiscordMember, string> memberChanges = [];
-			List<DiscordMember> membersNotFound = [];
-			List<DiscordMember> correctNicknamesOfMembers = [];
-			//test 3x if names are correct
-			for (int i = 0; i < 3; i++)
-			{
-				foreach (DiscordMember member in members)
-				{
-					if (memberChanges.Count + membersNotFound.Count >= maxMemberChangesAmount)
-					{
-						break;
-					}
-
-					if (!member.IsBot && member.Roles != null && member.Roles.Contains(bottestChannel.Guild.GetRole(Constants.LEDEN_ROLE)))
-					{
-						bool accountFound = false;
-						bool goodClanTag = false;
-						Tuple<string, string> gebruiker = GetIGNFromMember(member.DisplayName);
-						IReadOnlyList<WGAccount> wgAccounts = await WGAccount.searchByName(SearchAccuracy.EXACT, gebruiker.Item2, WarGamingAppId, false, true, false);
-						if (wgAccounts != null && wgAccounts.Count > 0)
-						{
-							//Account met exact deze gebruikersnaam gevonden
-							accountFound = true;
-							string clanTag = string.Empty;
-							if (gebruiker.Item1.Length > 1 && gebruiker.Item1.StartsWith('[') && gebruiker.Item1.EndsWith(']'))
-							{
-								goodClanTag = true;
-								string currentClanTag = string.Empty;
-								if (wgAccounts[0].clan != null && wgAccounts[0].clan.tag != null)
-								{
-									currentClanTag = wgAccounts[0].clan.tag;
-								}
-								string goodDisplayName = '[' + currentClanTag + "] " + wgAccounts[0].nickname;
-								if (wgAccounts[0].nickname != null && !member.DisplayName.Equals(goodDisplayName))
-								{
-									memberChanges.TryAdd(member, goodDisplayName);
-								}
-								else if (member.DisplayName.Equals(goodDisplayName))
-								{
-									correctNicknamesOfMembers.Add(member);
-								}
-							}
-							if (!goodClanTag)
-							{
-								if (wgAccounts[0].clan != null && wgAccounts[0].clan.tag != null)
-								{
-									clanTag = wgAccounts[0].clan.tag;
-								}
-								string goodDisplayName = '[' + clanTag + "] " + wgAccounts[0].nickname;
-								memberChanges.TryAdd(member, goodDisplayName);
-							}
-						}
-						if (!accountFound)
-						{
-							membersNotFound.Add(member);
-						}
-					}
-				}
-			}
-			IEnumerable<DiscordMember> correctNicknames = correctNicknamesOfMembers.Distinct();
-			for (int i = 0; i < memberChanges.Count; i++)
-			{
-				DiscordMember currentMember = memberChanges.Keys.ElementAt(i);
-				if (correctNicknames.Contains(currentMember))
-				{
-					memberChanges.Remove(currentMember);
-					i--;
-				}
-			}
-			for (int i = 0; i < membersNotFound.Count; i++)
-			{
-				DiscordMember currentMember = membersNotFound[i];
-				if (correctNicknames.Contains(currentMember))
-				{
-					memberChanges.Remove(currentMember);
-					i--;
-				}
-			}
-			if (memberChanges.Count + membersNotFound.Count == 0)
-			{
-				string bericht = "Bijnamen van gebruikers nagekeken maar geen namen moesten aangepast worden.";
-				await bottestChannel.SendMessageAsync("**" + bericht + "**");
-				_discordClient.Logger.LogInformation(bericht);
-			}
-			else if (memberChanges.Count + membersNotFound.Count < maxMemberChangesAmount)
-			{
-				foreach (KeyValuePair<DiscordMember, string> memberChange in memberChanges)
-				{
-					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van **`" + memberChange.Key.DisplayName + "`** wordt aangepast naar **`" + memberChange.Value + "`");
-					await ChangeMemberNickname(memberChange.Key, memberChange.Value);
-				}
-				foreach (DiscordMember memberNotFound in membersNotFound)
-				{
-					await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**Bijnaam van **`" + memberNotFound.DisplayName + "` (Discord ID: `" + memberNotFound.Id + "`)** komt niet overeen met WoTB account.**");
-					await SendPrivateMessage(memberNotFound, bottestChannel.Guild.Name, "Hallo,\n\nEr werd voor iedere gebruiker in de NLBE discord server gecontroleerd of je bijnaam overeenkomt met je wargaming account.\nHelaas is dit voor jou niet het geval.\nZou je dit zelf even willen aanpassen aub?\nPas je bijnaam aan naargelang de vereisten het #regels kanaal.\n\nAlvast bedankt!\n- [NLBE] sjtubbers#4241");
-				}
-			}
-			else
-			{
-				StringBuilder sb = new("Deze spelers hadden een verkeerde bijnaam:\n```");
-				if (memberChanges.Count > 0)
-				{
-					foreach (KeyValuePair<DiscordMember, string> memberChange in memberChanges)
-					{
-						sb.AppendLine(memberChange.Key.DisplayName + " -> " + memberChange.Value);
-					}
-					sb.Append("```");
-				}
-				if (membersNotFound.Count > 0)
-				{
-					if (sb.Length > 3)
-					{
-						sb.Append("Deze spelers konden niet gevonden worden:\n```");
-					}
-					foreach (DiscordMember memberNotFound in membersNotFound)
-					{
-						sb.AppendLine(memberNotFound.DisplayName);
-					}
-					sb.Append("```");
-				}
-				await SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnamen van 7 of meer spelers waren incorrect of niet gevonden dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.\nHier is een lijstje van aanpassingen die zouden gemaakt zijn:**\n" + sb);
-			}
-		}
-	}
-
-	public async Task GenerateLogMessage(DiscordMessage message, DiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji)
-	{
-		bool addInLog = true;
-		if (message.Author != null)
-		{
-			if (!message.Author.Id.Equals(Constants.NLBE_BOT) && !message.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
-			{
-				addInLog = false;
-			}
-		}
-		if (addInLog)
-		{
-			if (Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(emojiAsEmoji)) > 0)
-			{
-				try
-				{
-					bool botReactedWithThisEmoji = false;
-					IReadOnlyList<DiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji).Inner);
-					foreach (DiscordUser user in userListOfThisEmoji)
-					{
-						if (user.Id.Equals(Constants.NLBE_BOT) || user.Id.Equals(Constants.TESTBEASTV2_BOT))
-						{
-							botReactedWithThisEmoji = true;
-						}
-					}
-					if (botReactedWithThisEmoji)
-					{
-						DiscordMember member = await toernooiAanmeldenChannel.Guild.GetMemberAsync(userID);
-						if (member != null)
-						{
-							string organisator = await GetOrganisator(await toernooiAanmeldenChannel.GetMessageAsync(message.Id));
-							string logMessage = "Teams|" + member.DisplayName.adaptToDiscordChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
-							await WriteInLog(toernooiAanmeldenChannel.Guild.Id, message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
-						}
-					}
-					else
-					{
-						await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji).Inner);
-					}
-				}
-				catch (Exception ex)
-				{
-					await _errorHandler.HandleErrorAsync("While adding to log: ", ex);
-				}
-			}
-		}
-	}
-
-	public async Task<string> AskQuestion(DiscordChannel channel, DiscordUser user, DiscordGuild guild, string question)
-	{
-		if (channel != null)
-		{
-			try
-			{
-				await channel.SendMessageAsync(question);
-				TimeSpan newPlayerWaitTime = TimeSpan.FromDays(int.TryParse(_configuration["NLBEBOT:NewPlayerWaitTimeInDays"], out int newPlayerWaitTimeInt) ? newPlayerWaitTimeInt : 0);
-				InteractivityResult<DiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
-
-				if (!message.TimedOut)
-				{
-					return message.Result.Content;
-				}
-				else
-				{
-					await SayNoResponse(channel);
-					DiscordMember member = await guild.GetMemberAsync(user.Id);
-					if (member != null)
-					{
-						try
-						{
-							await member.RemoveAsync("[New member] No answer");
-						}
-						catch
-						{
-							bool isBanned = false;
-							try
-							{
-								await guild.BanMemberAsync(member);
-								isBanned = true;
-							}
-							catch
-							{
-								_discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
-							}
-							if (isBanned)
-							{
-								try
-								{
-									await guild.UnbanMemberAsync(user);
-								}
-								catch
-								{
-									try
-									{
-										await user.UnbanAsync(guild);
-									}
-									catch
-									{
-										_discordClient.Logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
-										DiscordMember thibeastmo = await guild.GetMemberAsync(Constants.THIBEASTMO_ID);
-										if (thibeastmo != null)
-										{
-											await thibeastmo.SendMessageAsync("**Gebruiker [" + member.DisplayName + "(" + member.Username + "#" + member.Discriminator + ")] kon niet geünbanned worden!**");
-										}
-									}
-								}
-							}
-						}
-					}
-					await CleanChannel(guild.Id, channel.Id);
-				}
-			}
-			catch (Exception e)
-			{
-				Console.WriteLine("goOverAllQuestions:\n" + e.StackTrace);
-			}
-			return null;
-		}
-		else
-		{
-			_discordClient.Logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			DiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
-			bool roleWasGiven = false;
-			if (noobRole != null)
-			{
-				DiscordMember member = guild.GetMemberAsync(user.Id).Result;
-				if (member != null)
-				{
-					await member.GrantRoleAsync(noobRole);
-					roleWasGiven = true;
-				}
-			}
-			if (!roleWasGiven)
-			{
-				_discordClient.Logger.LogWarning("The noob role could not be given to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			}
-		}
-		return null;
-	}
-
-	public async Task ConfirmCommandExecuting(DiscordMessage message)
-	{
-		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
-	}
-	public async Task ConfirmCommandExecuted(DiscordMessage message)
-	{
-		await Task.Delay(875);
-		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
-		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION).Inner);
-	}
-
-	public static string GetProperFileName(string file)
-	{
-		string[] splitted = file.Split('\\');
-		string name = splitted[splitted.Length - 1];
-		return Path.GetFileNameWithoutExtension(name).Replace('_', ' ');
-	}
-
-	public static async Task<DiscordMember> GetDiscordMember(DiscordGuild guild, ulong userID)
-	{
-		return await guild.GetMemberAsync(userID);
-	}
-
-	public static async Task<string> GetOrganisator(DiscordMessage message)
-	{
-		IReadOnlyList<DiscordEmbed> embeds = message.Embeds;
-		if (embeds.Count > 0)
-		{
-			foreach (DiscordEmbed anEmbed in embeds)
-			{
-				foreach (DiscordEmbedField field in anEmbed.Fields)
-				{
-					if (field.Name.ToLower().Equals("organisator"))
-					{
-						return field.Value;
-					}
-				}
-			}
-		}
-		else
-		{
-			if (message.Author != null)
-			{
-				DiscordMember member = await GetDiscordMember(message.Channel.Guild, message.Author.Id);
-				if (member != null)
-				{
-					return member.DisplayName;
-				}
-			}
-		}
-		return string.Empty;
-	}
 
 	public async Task<List<Tier>> ReadTeams(DiscordChannel channel, DiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team)
 	{
@@ -1706,7 +311,7 @@ internal class Bot : IBot
 				{
 					if (hoeveelste > 100)
 					{
-						await SendMessage(channel, member, guildName, "**Het getal mag maximum 100 zijn!**");
+						await _messageService.SendMessage(channel, member, guildName, "**Het getal mag maximum 100 zijn!**");
 						goodNumber = false;
 					}
 					else
@@ -1716,13 +321,13 @@ internal class Bot : IBot
 				}
 				else if (hoeveelste < 1)
 				{
-					await SendMessage(channel, member, guildName, "**Het getal moet groter zijn dan 0!**");
+					await _messageService.SendMessage(channel, member, guildName, "**Het getal moet groter zijn dan 0!**");
 					goodNumber = false;
 				}
 
 				if (goodNumber)
 				{
-					DiscordChannel toernooiAanmeldenChannel = await GetToernooiAanmeldenChannel(channel.Guild.Id);
+					DiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(channel.Guild.Id);
 					if (toernooiAanmeldenChannel != null)
 					{
 						List<DiscordMessage> messages = [];
@@ -1745,7 +350,7 @@ internal class Bot : IBot
 							{
 								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
 								{
-									IDiscordChannel logChannel = new DiscordChannelWrapper(await GetLogChannel(channel.Guild.Id));
+									IDiscordChannel logChannel = new DiscordChannelWrapper(await _channelService.GetLogChannel(channel.Guild.Id));
 
 									if (logChannel.Inner != null)
 									{
@@ -1836,11 +441,11 @@ internal class Bot : IBot
 										}
 										if (aTeam.Organisator.Equals(string.Empty))
 										{
-											foreach (KeyValuePair<ulong, DiscordGuild> aGuild in discGuildslist)
+											foreach (KeyValuePair<ulong, DiscordGuild> aGuild in _guildProvider.Guilds)
 											{
 												if (aGuild.Key.Equals(Constants.NLBE_SERVER_ID))
 												{
-													DiscordMember theMemberAuthor = await GetDiscordMember(aGuild.Value, theMessage.Author.Id);
+													DiscordMember theMemberAuthor = await _userService.GetDiscordMember(aGuild.Value, theMessage.Author.Id);
 													if (theMemberAuthor != null)
 													{
 														aTeam.Organisator = theMemberAuthor.DisplayName;
@@ -1894,34 +499,34 @@ internal class Bot : IBot
 										Description = teams.Count > 0 ? string.Empty : "Geen teams",
 										Fields = deflist,
 									};
-									await CreateEmbed(channel, options);
+									await _messageService.CreateEmbed(channel, options);
 									return [];
 								}
 							}
 							else
 							{
-								await SendMessage(channel, member, guildName, "**Het bericht kon niet gevonden worden!**");
+								await _messageService.SendMessage(channel, member, guildName, "**Het bericht kon niet gevonden worden!**");
 							}
 						}
 						else
 						{
-							await SendMessage(channel, member, guildName, "**Dit bericht kon niet gevonden worden!**");
+							await _messageService.SendMessage(channel, member, guildName, "**Dit bericht kon niet gevonden worden!**");
 						}
 					}
 					else
 					{
-						await SendMessage(channel, member, guildName, "**Het kanaal #Toernooi-aanmelden kon niet gevonden worden!**");
+						await _messageService.SendMessage(channel, member, guildName, "**Het kanaal #Toernooi-aanmelden kon niet gevonden worden!**");
 					}
 				}
 			}
 			else
 			{
-				await SendMessage(channel, member, guildName, "**Je moet cijfer meegeven!**");
+				await _messageService.SendMessage(channel, member, guildName, "**Je moet cijfer meegeven!**");
 			}
 		}
 		else
 		{
-			await SendMessage(channel, member, guildName, "**Je mag maar één cijfer meegeven!**");
+			await _messageService.SendMessage(channel, member, guildName, "**Je mag maar één cijfer meegeven!**");
 		}
 		return null;
 	}
@@ -2062,7 +667,7 @@ internal class Bot : IBot
 
 	public async Task<List<string>> GetMentions(List<Tuple<ulong, string>> memberList, ulong guildID)
 	{
-		DiscordGuild guild = await GetGuild(guildID);
+		DiscordGuild guild = await _guildProvider.GetGuild(guildID);
 		if (guild != null)
 		{
 			List<string> mentionList = [];
@@ -2120,299 +725,6 @@ internal class Bot : IBot
 		return null;
 	}
 
-	public async Task WriteInLog(ulong guildID, string date, string message)
-	{
-		DiscordChannel logChannel = await GetLogChannel(guildID);
-		if (logChannel != null)
-		{
-			await logChannel.SendMessageAsync(date + "|" + message);
-		}
-		else
-		{
-			await _errorHandler.HandleErrorAsync("Could not find log channel, message: " + date + "|" + message);
-		}
-	}
-	public async Task WriteInLog(ulong guildID, string message)
-	{
-		DiscordChannel logChannel = await GetLogChannel(guildID);
-		if (logChannel != null)
-		{
-			await logChannel.SendMessageAsync(message);
-		}
-		else
-		{
-			await _errorHandler.HandleErrorAsync("Could not find log channel, message: " + message);
-		}
-	}
-	public async Task ClearLog(ulong guildID, int amount)
-	{
-		DiscordChannel logChannel = await GetLogChannel(guildID);
-		if (logChannel != null)
-		{
-			IReadOnlyList<DiscordMessage> messages = await logChannel.GetMessagesAsync(amount);
-			foreach (DiscordMessage message in messages)
-			{
-				try
-				{
-					await message.DeleteAsync();
-					await Task.Delay(875);
-				}
-				catch (Exception ex)
-				{
-					await _errorHandler.HandleErrorAsync("Could not delete message:", ex);
-				}
-			}
-		}
-		else
-		{
-			await _errorHandler.HandleErrorAsync("Could not find log channel!");
-		}
-	}
-
-	public async Task ChangeMemberNickname(DiscordMember member, string nickname)
-	{
-		try
-		{
-			void mem(MemberEditModel item)
-			{
-				item.Nickname = nickname;
-				item.AuditLogReason = "Changed by NLBE-Bot";
-			}
-			await member.ModifyAsync(mem);
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("Could not edit displayname for " + member.Username + ":", ex);
-		}
-	}
-	public static string UpdateName(DiscordMember member, string oldName)
-	{
-		string returnString = oldName;
-		IEnumerable<DiscordRole> memberRoles = member.Roles;
-		if (oldName.Contains('[') && oldName.Contains(']'))
-		{
-			string[] splitted = oldName.Split('[');
-			StringBuilder sb = new();
-			if (oldName.StartsWith('['))
-			{
-				for (int i = 1; i < splitted.Length; i++)
-				{
-					sb.Append(splitted[i]);
-				}
-				splitted = sb.ToString().Split(']');
-
-				sb.Clear();
-
-				foreach (DiscordRole role in memberRoles)
-				{
-					if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-					{
-						if (!oldName.StartsWith("[" + role.Name + "]"))
-						{
-							returnString = oldName.Replace("[" + splitted[0] + "]", "[" + role.Name + "]");
-						}
-						if (!returnString.StartsWith("[" + role.Name + "] "))
-						{
-							returnString = returnString.Replace("[" + role.Name + "]", "[" + role.Name + "] ");
-						}
-						break;
-					}
-				}
-			}
-			else
-			{
-				foreach (DiscordRole role in memberRoles)
-				{
-					if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-					{
-						if (oldName.StartsWith(role.Name + "] "))
-						{
-							returnString = "[" + oldName;
-						}
-						else
-						{
-							for (int i = 1; i < splitted.Length; i++)
-							{
-								if (i > 1)
-								{
-									sb.Append('[');
-								}
-								sb.Append(splitted[i]);
-							}
-							splitted = sb.ToString().Split(']');
-							sb = new StringBuilder();
-							for (int i = 1; i < splitted.Length; i++)
-							{
-								if (i > 1)
-								{
-									sb.Append(']');
-								}
-								sb.Append(splitted[i]);
-							}
-							returnString = "[" + role.Name + "] " + sb.ToString();
-						}
-					}
-				}
-			}
-
-		}
-		else if (oldName.Contains('['))
-		{
-			foreach (DiscordRole role in memberRoles)
-			{
-				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-				{
-					if (!oldName.StartsWith("[" + role.Name))
-					{
-						string[] splitted = oldName.Split(' ');
-						if (splitted.Length > 1)
-						{
-							StringBuilder sb = new();
-							for (int i = 1; i < splitted.Length; i++)
-							{
-								if (i > 1)
-								{
-									sb.Append(' ');
-								}
-								sb.Append(splitted[i]);
-							}
-							returnString = "[" + role.Name + "] " + sb.ToString();
-						}
-						else
-						{
-							returnString = "[" + role.Name + "] " + oldName.Replace("[", string.Empty);
-						}
-					}
-					else
-					{
-						string[] splitted = oldName.Split(' ');
-						if (splitted.Length > 1)
-						{
-							StringBuilder sb = new();
-							for (int i = 1; i < splitted.Length; i++)
-							{
-								if (i > 1)
-								{
-									sb.Append(' ');
-								}
-								sb.Append(splitted[i]);
-							}
-							returnString = "[" + role.Name + "] " + sb.ToString();
-						}
-						else
-						{
-							returnString = oldName.Replace("[" + role.Name, "[" + role.Name + "] ") + oldName.Replace("[" + role.Name, string.Empty);
-						}
-					}
-				}
-			}
-		}
-		else if (oldName.Contains(']'))
-		{
-			foreach (DiscordRole role in memberRoles)
-			{
-				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-				{
-					if (!oldName.StartsWith(role.Name + "]"))
-					{
-						string[] splitted = oldName.Split(' ');
-						if (splitted.Length > 1)
-						{
-							StringBuilder sb = new();
-							for (int i = 1; i < splitted.Length; i++)
-							{
-								if (i > 1)
-								{
-									sb.Append(' ');
-								}
-								sb.Append(splitted[i]);
-							}
-							returnString = "[" + role.Name + "] " + sb.ToString().Replace("]", string.Empty);
-						}
-						else
-						{
-							returnString = "[" + role.Name + "] " + oldName.Replace("]", string.Empty);
-						}
-					}
-					else
-					{
-						string[] splitted = oldName.Split(' ');
-						if (splitted.Length > 1)
-						{
-							StringBuilder sb = new();
-							for (int i = 1; i < splitted.Length; i++)
-							{
-								if (i > 1)
-								{
-									sb.Append(' ');
-								}
-								sb.Append(splitted[i]);
-							}
-							returnString = "[" + role.Name + "] " + sb.ToString();
-						}
-						else
-						{
-							returnString = oldName.Replace(role.Name + "]", "[" + role.Name + "] ") + oldName.Replace("]" + role.Name, string.Empty);
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			foreach (DiscordRole role in memberRoles)
-			{
-				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-				{
-					string[] splitted = oldName.Split(' ');
-					if (splitted.Length > 1)
-					{
-						StringBuilder sb = new();
-						for (int i = 0; i < splitted.Length; i++)
-						{
-							if (i > 0)
-							{
-								sb.Append(' ');
-							}
-							if (!splitted[i].Equals(string.Empty) && !splitted[i].Equals(" "))
-							{
-								sb.Append(splitted[i]);
-							}
-						}
-						returnString = "[" + role.Name + "] " + sb.ToString();
-					}
-					else
-					{
-						returnString = "[" + role.Name + "] " + oldName;
-					}
-				}
-			}
-		}
-
-		bool isFromNLBE = false;
-		foreach (DiscordRole role in member.Roles)
-		{
-			if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
-			{
-				isFromNLBE = true;
-			}
-		}
-		if (!isFromNLBE)
-		{
-			if (returnString.StartsWith("[NLBE]") || returnString.StartsWith("[NLBE2]"))
-			{
-				returnString = returnString.Replace("[NLBE2]", "[]").Replace("[NLBE]", "[]");
-			}
-		}
-
-		while (returnString.EndsWith(' '))
-		{
-			returnString = returnString.Remove(returnString.Length - 1);
-		}
-
-		return returnString;
-	}
-
 	public bool CheckIfAllWithinRange(string[] tiers, int min, int max)
 	{
 		bool allWithinRange = true;
@@ -2428,64 +740,9 @@ internal class Bot : IBot
 		return allWithinRange;
 	}
 
-	public async Task CleanChannel(ulong serverID, ulong channelID)
-	{
-		DiscordChannel channel = await GetChannel(serverID, channelID);
-		IReadOnlyList<DiscordMessage> messages = channel.GetMessagesAsync(100).Result;
-		foreach (DiscordMessage message in messages)
-		{
-			if (!message.Pinned)
-			{
-				await channel.DeleteMessageAsync(message);
-				await Task.Delay(875);
-			}
-		}
-	}
-	public async Task CleanWelkomChannel()
-	{
-		DiscordChannel welkomChannel = await GetWelkomChannel();
-		IReadOnlyList<DiscordMessage> messages = welkomChannel.GetMessagesAsync(100).Result;
-		foreach (DiscordMessage message in messages)
-		{
-			if (!message.Pinned)
-			{
-				await welkomChannel.DeleteMessageAsync(message);
-				await Task.Delay(875);
-			}
-		}
-	}
-	public async Task CleanWelkomChannel(ulong userID)
-	{
-		DiscordChannel welkomChannel = await GetWelkomChannel();
-		IReadOnlyList<DiscordMessage> messages = welkomChannel.GetMessagesAsync(100).Result;
-		foreach (DiscordMessage message in messages)
-		{
-			bool deleteMessage = false;
-			if (!message.Pinned)
-			{
-				if (message.Author.Id.Equals(Constants.NLBE_BOT))
-				{
-					if (message.Content.Contains("<@" + userID + ">"))
-					{
-						deleteMessage = true;
-					}
-				}
-				else if (message.Author.Id.Equals(userID))
-				{
-					deleteMessage = true;
-				}
-			}
-			if (deleteMessage)
-			{
-				await welkomChannel.DeleteMessageAsync(message);
-				await Task.Delay(875);
-			}
-		}
-	}
-
 	public DiscordRole GetDiscordRole(ulong serverID, ulong id)
 	{
-		foreach (KeyValuePair<ulong, DiscordGuild> guild in discGuildslist)
+		foreach (KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds)
 		{
 			if (guild.Key.Equals(serverID))
 			{
@@ -2641,7 +898,7 @@ internal class Bot : IBot
 				Fields = deflist,
 				Author = newAuthor,
 			};
-			await CreateEmbed(channel, options);
+			await _messageService.CreateEmbed(channel, options);
 		}
 		else if (gebruiker is WGAccount account)
 		{
@@ -2764,7 +1021,7 @@ internal class Bot : IBot
 					NextMessage = member.blitzstars
 				};
 
-				await CreateEmbed(channel, options);
+				await _messageService.CreateEmbed(channel, options);
 			}
 		}
 		else if (gebruiker is DiscordUser discordUser)
@@ -2981,7 +1238,7 @@ internal class Bot : IBot
 				Fields = deflist,
 				Author = newAuthor,
 			};
-			await CreateEmbed(channel, options);
+			await _messageService.CreateEmbed(channel, options);
 		}
 	}
 
@@ -3052,711 +1309,14 @@ internal class Bot : IBot
 			Title = "Info over " + clan.name.adaptToDiscordChat(),
 			Fields = deflist,
 		};
-		await CreateEmbed(channel, options);
+		await _messageService.CreateEmbed(channel, options);
 	}
-
-	public async Task ShowTournamentInfo(DiscordChannel channel, WGTournament tournament, string titel)
-	{
-		List<DEF> deflist = [];
-		DEF newDef1 = new()
-		{
-			Name = "Titel",
-			Value = tournament.title,
-			Inline = true
-		};
-		deflist.Add(newDef1);
-		DEF newDef2 = new()
-		{
-			Name = "Status",
-			Value = tournament.status.Replace('_', ' '),
-			Inline = true
-		};
-		deflist.Add(newDef2);
-		if (tournament.other_rules != null)
-		{
-			if (tournament.other_rules.Length > 0)
-			{
-				DEF newDef7 = new()
-				{
-					Name = "Prijsbeschrijving",
-					Value = tournament.other_rules,
-					Inline = true
-				};
-				deflist.Add(newDef7);
-			}
-		}
-		if (tournament.start_at.HasValue)
-		{
-			DEF newDef5 = new()
-			{
-				Name = "Start op"
-			};
-			string[] splittedx = tournament.start_at.Value.ConvertToDate().Split(' ');
-			newDef5.Value = splittedx[0] + " " + splittedx[1];
-			newDef5.Inline = true;
-			deflist.Add(newDef5);
-		}
-		if (tournament.registration_start_at.HasValue)
-		{
-			DEF newDef5 = new()
-			{
-				Name = "Registreren"
-			};
-			string[] splittedx = tournament.registration_start_at.Value.ConvertToDate().Split(' ');
-			StringBuilder sb = new("Vanaf\n" + splittedx[0] + " " + splittedx[1]);
-			if (tournament.registration_end_at.HasValue)
-			{
-				string[] splittedb = tournament.registration_end_at.Value.ConvertToDate().Split(' ');
-				sb.Append("\ntot\n" + splittedb[0] + " " + splittedb[1]);
-			}
-			newDef5.Value = sb.ToString();
-			newDef5.Inline = true;
-			deflist.Add(newDef5);
-		}
-		if (tournament.matches_start_at.HasValue)
-		{
-			DEF newDef7 = new()
-			{
-				Name = "Matchen beginnen op"
-			};
-			string[] splittedb = tournament.matches_start_at.Value.ConvertToDate().Split(' ');
-			newDef7.Value = splittedb[0] + " " + splittedb[1];
-			newDef7.Inline = true;
-			deflist.Add(newDef7);
-		}
-		if (tournament.end_at.HasValue)
-		{
-			DEF newDef7 = new()
-			{
-				Name = "Matchen eindigen op"
-			};
-			string[] splittedb = tournament.end_at.Value.ConvertToDate().Split(' ');
-			newDef7.Value = splittedb[0] + " " + splittedb[1];
-			newDef7.Inline = true;
-			deflist.Add(newDef7);
-		}
-		if (tournament.min_players_count > 0)
-		{
-			DEF newDef7 = new()
-			{
-				Name = "Minimum spelers vereist",
-				Value = tournament.min_players_count.ToString(),
-				Inline = true
-			};
-			deflist.Add(newDef7);
-		}
-		if (tournament.prize_description != null)
-		{
-			if (tournament.prize_description.Length > 0)
-			{
-				DEF newDef7 = new()
-				{
-					Name = "Prijsbeschrijving",
-					Value = tournament.prize_description,
-					Inline = true
-				};
-				deflist.Add(newDef7);
-			}
-		}
-		if (tournament.fee != null)
-		{
-			if (tournament.fee.amount > 0)
-			{
-				DEF newDef7 = new()
-				{
-					Name = "Inschrijvingsgeld",
-					Value = tournament.fee.amount.ToString() + (!string.IsNullOrEmpty(tournament.fee.currency) ? " (" + tournament.fee.currency + ")" : string.Empty),
-					Inline = true
-				};
-				deflist.Add(newDef7);
-			}
-		}
-		if (tournament.winner_award != null)
-		{
-			if (tournament.winner_award.amount > 0)
-			{
-				DEF newDef7 = new()
-				{
-					Name = "Winnaarsgeld",
-					Value = tournament.winner_award.amount.ToString() + (!string.IsNullOrEmpty(tournament.winner_award.currency) ? " (" + tournament.winner_award.currency + ")" : string.Empty),
-					Inline = true
-				};
-				deflist.Add(newDef7);
-			}
-		}
-		if (tournament.media_Links != null)
-		{
-			if (tournament.media_Links.url.Length > 0)
-			{
-				DEF newDef7 = new()
-				{
-					Name = "Extra media link",
-					Value = "[" + tournament.media_Links.url.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + tournament.media_Links.url + ")",
-					Inline = true
-				};
-				deflist.Add(newDef7);
-			}
-		}
-
-		if (tournament.stages != null)
-		{
-			int hoogsteTier = 0;
-			int laagsteTier = 0;
-			int bestOff = 0;
-			string type = string.Empty;
-			string state = string.Empty;
-			foreach (Stage stage in tournament.stages)
-			{
-				if (hoogsteTier < stage.max_tier)
-				{
-					hoogsteTier = stage.max_tier;
-					if (laagsteTier == 0)
-					{
-						laagsteTier = hoogsteTier;
-					}
-				}
-				if (laagsteTier < stage.min_tier)
-				{
-					laagsteTier = stage.min_tier;
-				}
-				if (bestOff == 0)
-				{
-					bestOff = stage.battle_limit;
-				}
-				if (stage.type != null)
-				{
-					if (stage.type.Length > 0)
-					{
-						if (type.Length > 0)
-						{
-							switch (stage.type.ToLower())
-							{
-								case "rr":
-									type = "Round robin";
-									break;
-								case "se":
-									type = "Single elimination";
-									break;
-								case "de":
-									type = "Double elimination";
-									break;
-							}
-						}
-					}
-				}
-				if (stage.state != null)
-				{
-					if (stage.state.Length > 0)
-					{
-						if (state.Length > 0)
-						{
-							state = stage.state.Replace("_", string.Empty);
-						}
-					}
-				}
-			}
-			if (hoogsteTier > 0)
-			{
-				string tiers = Emoj.GetName(laagsteTier) + (laagsteTier != hoogsteTier ? " tot " + Emoj.GetName(hoogsteTier) : string.Empty);
-				DEF newDef3 = new()
-				{
-					Name = "Tiers",
-					Value = tiers,
-					Inline = true
-				};
-				deflist.Add(newDef3);
-			}
-			if (type.Length > 0)
-			{
-				DEF newDef3 = new()
-				{
-					Name = "Type",
-					Value = type,
-					Inline = true
-				};
-				deflist.Add(newDef3);
-			}
-			if (state.Length > 0)
-			{
-				DEF newDef3 = new()
-				{
-					Name = "Staat",
-					Value = state,
-					Inline = true
-				};
-				deflist.Add(newDef3);
-			}
-			if (bestOff > 0)
-			{
-				DEF newDef3 = new()
-				{
-					Name = "Best of",
-					Value = bestOff.ToString(),
-					Inline = true
-				};
-				deflist.Add(newDef3);
-			}
-		}
-
-		if (tournament.rules != null)
-		{
-			if (tournament.rules.Length > 0)
-			{
-				bool voegToe = true;
-				if (tournament.description != null)
-				{
-					if (tournament.rules.Equals(tournament.description))
-					{
-						voegToe = false;
-					}
-				}
-				if (voegToe)
-				{
-					string tempRules = tournament.rules.adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
-					if (tempRules.Length > 1024)
-					{
-						StringBuilder sbRules = new();
-						string[] splitted = tournament.description.Split('\n');
-						for (int i = 0; i < splitted.Length; i++)
-						{
-							if (splitted[i].EndsWith(':'))
-							{
-								bool firstLine = true;
-								StringBuilder sbTemp = new();
-								for (int j = i + 1; j < splitted.Length; j++)
-								{
-									if (splitted[j].Length == 0 && !firstLine)
-									{
-										DEF newDefx = new()
-										{
-											Name = splitted[i].adaptToDiscordChat(),
-											Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
-											Inline = true
-										};
-										deflist.Add(newDefx);
-										i = j - 1;
-										break;
-									}
-									else
-									{
-										sbTemp.AppendLine(splitted[j]);
-									}
-									if (firstLine)
-									{
-										firstLine = false;
-									}
-									if (j + 1 == splitted.Length)
-									{
-										DEF newDefx = new()
-										{
-											Name = splitted[i].adaptToDiscordChat(),
-											Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
-											Inline = true
-										};
-										deflist.Add(newDefx);
-										i = j;
-									}
-								}
-							}
-							else
-							{
-								sbRules.AppendLine(splitted[i]);
-							}
-						}
-						tempRules = sbRules.ToString().adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
-
-					}
-					DEF newDef4 = new()
-					{
-						Name = "Regels",
-						Value = tempRules,
-						Inline = true
-					};
-					deflist.Add(newDef4);
-				}
-			}
-		}
-		string tempDescription = tournament.description.adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
-		if (tempDescription.Length > 1024)
-		{
-			StringBuilder sbDescription = new();
-			string[] splitted = tournament.description.Split('\n');
-			for (int i = 0; i < splitted.Length; i++)
-			{
-				if (splitted[i].EndsWith(':'))
-				{
-					bool firstLine = true;
-					StringBuilder sbTemp = new();
-					for (int j = i + 1; j < splitted.Length; j++)
-					{
-						if (splitted[j].Length == 0 && !firstLine)
-						{
-							DEF newDefx = new()
-							{
-								Name = splitted[i].adaptToDiscordChat(),
-								Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
-								Inline = true
-							};
-							deflist.Add(newDefx);
-							i = j - 1;
-							break;
-						}
-						else
-						{
-							sbTemp.AppendLine(splitted[j]);
-						}
-						if (firstLine)
-						{
-							firstLine = false;
-						}
-						if (j + 1 == splitted.Length)
-						{
-							DEF newDefx = new()
-							{
-								Name = splitted[i].adaptToDiscordChat(),
-								Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
-								Inline = true
-							};
-							deflist.Add(newDefx);
-							i = j;
-						}
-					}
-				}
-				else
-				{
-					sbDescription.AppendLine(splitted[i]);
-				}
-			}
-			tempDescription = sbDescription.ToString().adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
-
-		}
-		if (tempDescription.Length <= 1024)
-		{
-			DEF newDef3 = new()
-			{
-				Name = "Toernooi beschrijving",
-				Value = tempDescription,
-				Inline = false
-			};
-			deflist.Add(newDef3);
-		}
-
-		EmbedOptions options = new()
-		{
-			Title = titel,
-			Fields = deflist,
-			ImageUrl = tournament.logo != null ? tournament.logo.original ?? string.Empty : string.Empty,
-		};
-		await CreateEmbed(channel, options);
-	}
-
-	public async Task<DiscordMessage> SayCannotBePlayedAt(DiscordChannel channel, DiscordMember member, string guildName, string roomType)
-	{
-		if (roomType.Length == 0)
-		{
-			return await member.SendMessageAsync("Geef aub even door welk type room dit is want het werd niet herkent door de  Tag gebruiker thibeastmo#9998");
-		}
-
-		return await SendMessage(channel, member, guildName, "**De battle mag niet in een " + roomType + " room gespeeld zijn!**");
-	}
-	public async Task SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName)
-	{
-		await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis, probeer het opnieuw!**");
-	}
-	public async Task<DiscordMessage> SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName, string text)
-	{
-		return await SendMessage(channel, member, guildName, text);
-	}
-	public async Task SayWrongAttachments(DiscordChannel channel, DiscordMember member, string guildName)
-	{
-		await SendMessage(channel, member, guildName, "**Geen bruikbare documenten in de bijlage gevonden!**");
-	}
-	public async Task SayNoAttachments(DiscordChannel channel, DiscordMember member, string guildName)
-	{
-		await SendMessage(channel, member, guildName, "**Geen documenten in de bijlage gevonden!**");
-	}
-	public async Task SayNoResponse(DiscordChannel channel)
-	{
-		await channel.SendMessageAsync("`Time-out: Geen antwoord.`");
-	}
-	public async Task SayNoResponse(DiscordChannel channel, DiscordMember member, string guildName)
-	{
-		await SendMessage(channel, member, guildName, "`Time-out: Geen antwoord.`");
-	}
-	public async Task SayMustBeNumber(DiscordChannel channel)
-	{
-		await channel.SendMessageAsync("**Je moest een cijfer geven!**");
-	}
-	public async Task SayNumberTooSmall(DiscordChannel channel)
-	{
-		await channel.SendMessageAsync("**Dat cijfer was te klein!**");
-	}
-	public async Task SayNumberTooBig(DiscordChannel channel)
-	{
-		await channel.SendMessageAsync("**Dat cijfer was te groot!**");
-	}
-	public async Task SayBeMoreSpecific(DiscordChannel channel)
-	{
-		EmbedOptions options = new()
-		{
-			Title = "Wees specifieker",
-			Description = "Er waren te veel resultaten, probeer iets specifieker te zijn!",
-		};
-		await CreateEmbed(channel, options);
-	}
-	public DiscordMessage SayMultipleResults(DiscordChannel channel, string description)
-	{
-		try
-		{
-			DiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.adaptToDiscordChat(), DiscordColor.Red);
-			return channel.SendMessageAsync(null, embed).Result;
-		}
-		catch (Exception ex)
-		{
-			_errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex).Wait();
-			return null;
-		}
-	}
-	public async Task SayNoResults(DiscordChannel channel, string description)
-	{
-		try
-		{
-			DiscordEmbed embed = CreateStandardEmbed("Geen resultaten gevonden", description.Replace('_', '▁'), DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
-		}
-	}
-	public async Task SayTheUserIsNotAllowed(DiscordChannel channel)
-	{
-		try
-		{
-			DiscordEmbed embed = CreateStandardEmbed("Geen toegang", ":raised_back_of_hand: Je hebt niet voldoende rechten om deze commando uit te voeren!", DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
-		}
-	}
-	public async Task SayBotNotAuthorized(DiscordChannel channel)
-	{
-		try
-		{
-			DiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: De bot heeft voldoende rechten om dit uit te voeren!", DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
-		}
-	}
-	public async Task SayTooManyCharacters(DiscordChannel channel)
-	{
-		try
-		{
-			DiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: Er zaten te veel characters in het bericht dat de bot wilde verzenden!", DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
-		}
-	}
-	public async Task<DiscordMessage> SayReplayNotWorthy(DiscordChannel channel, WGBattle battle)
-	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Helaas..."
-		};
-		string extraDescription = await GetDescriptionForReplay(battle, 0);
-		newDiscEmbedBuilder.Description = "De statistieken van deze replay waren onvoldoende om in de Hall Of Fame te komen te staan!\n\n" + extraDescription;
-		List<Tuple<string, string>> images = await GetAllMaps(channel.Guild.Id);
-		foreach (Tuple<string, string> map in images)
-		{
-			if (map.Item1.ToLower() == battle.map_name.ToLower())
-			{
-				try
-				{
-					if (map.Item1 != string.Empty)
-					{
-						newDiscEmbedBuilder.Thumbnail = new()
-						{
-							Url = map.Item2
-						};
-					}
-				}
-				catch (Exception ex)
-				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
-				}
-				break;
-			}
-		}
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
-		if (discordMessage != null)
-		{
-			try
-			{
-				return await discordMessage.RespondAsync(null, embed);
-			}
-			catch (Exception ex)
-			{
-				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
-			}
-		}
-		else
-		{
-			return await channel.SendMessageAsync(embed: embed);
-		}
-		return null;
-	}
-	public async Task<DiscordMessage> SayReplayIsWorthy(DiscordChannel channel, WGBattle battle, int position)
-	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Hoera! :trophy:"
-		};
-		string extraDescription = await GetDescriptionForReplay(battle, position);
-		newDiscEmbedBuilder.Description = "Je replay heeft een plaatsje gekregen in onze Hall Of Fame!\n\n" + extraDescription;
-		List<Tuple<string, string>> images = await GetAllMaps(channel.Guild.Id);
-		foreach (Tuple<string, string> map in images)
-		{
-			if (map.Item1.ToLower() == battle.map_name.ToLower())
-			{
-				try
-				{
-					if (map.Item1 != string.Empty)
-					{
-						newDiscEmbedBuilder.Thumbnail = new()
-						{
-							Url = map.Item2
-						};
-					}
-				}
-				catch (Exception ex)
-				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
-				}
-				break;
-			}
-		}
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
-		if (discordMessage != null)
-		{
-			try
-			{
-				return await discordMessage.RespondAsync(null, embed);
-			}
-			catch (Exception ex)
-			{
-				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
-			}
-		}
-		{
-			return await channel.SendMessageAsync(embed: embed);
-		}
-	}
-	private async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
-	{
-		StringBuilder sb = new(preDescription);
-		try
-		{
-			string weeklyEventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(battle);
-			if (weeklyEventDescription.Length > 0)
-			{
-				sb.Append(Environment.NewLine + weeklyEventDescription);
-			}
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
-		}
-		sb.Append(GetSomeReplayInfoAsText(battle, position).Replace(Constants.REPLACEABLE_UNDERSCORE_CHAR, '_'));
-		return sb.ToString();
-	}
-
-	private static string GetSomeReplayInfoAsText(WGBattle battle, int position)
-	{
-		StringBuilder sb = new();
-		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.adaptToDiscordChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.adaptToDiscordChat() + ")", false));
-		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.adaptToDiscordChat()));
-		sb.AppendLine(GetInfoInFormat("Clan", battle.details.clan_tag));
-		sb.AppendLine(GetInfoInFormat("Tank", battle.vehicle));
-		sb.AppendLine(GetInfoInFormat("Tier", Emoj.GetName(battle.vehicle_tier), false));
-		sb.AppendLine(GetInfoInFormat("Damage", battle.details.damage_made.ToString()));
-		sb.AppendLine(GetInfoInFormat("Damage bounced", battle.details.damage_blocked.ToString()));
-		sb.AppendLine(GetInfoInFormat("Assist damage", (battle.details.damage_assisted + battle.details.damage_assisted_track).ToString()));
-		sb.AppendLine(GetInfoInFormat("exp", battle.details.exp.ToString()));
-		sb.AppendLine(GetInfoInFormat("Hits", battle.details.shots_pen.ToString()));
-		sb.AppendLine(GetInfoInFormat("Tanks vernietigd", battle.details.enemies_destroyed.ToString()));
-		sb.AppendLine(GetInfoInFormat("Map", battle.map_name));
-		string resultaat = "Gewonnen";
-		if (battle.protagonist_team != battle.winner_team)
-		{
-			resultaat = battle.winner_team is not 2 and not 1 ? "Gelijk gespeeld" : "Verloren";
-		}
-		sb.AppendLine(GetInfoInFormat("Resultaat", resultaat));
-		if (battle.battle_start_time.HasValue)
-		{
-			sb.AppendLine(GetInfoInFormat("Datum", (battle.battle_start_time.Value.Day < 10 ? "0" : string.Empty) + battle.battle_start_time.Value.Day + "-" + battle.battle_start_time.Value.Month + "-" + battle.battle_start_time.Value.Year + " " + battle.battle_start_time.Value.Hour + ":" + (battle.battle_start_time.Value.Minute < 10 ? "0" : string.Empty) + battle.battle_start_time.Value.Minute + ":" + (battle.battle_start_time.Value.Second < 10 ? "0" : string.Empty) + battle.battle_start_time.Value.Second));
-		}
-		sb.AppendLine(GetInfoInFormat("Type", WGBattle.getBattleType(battle.battle_type)));
-		sb.AppendLine(GetInfoInFormat("Mode", WGBattle.getBattleRoom(battle.room_type)));
-		if (position > 0)
-		{
-			sb.AppendLine(GetInfoInFormat("Positie in HOF", position.ToString()));
-		}
-		if (battle.details.achievements != null && battle.details.achievements.Count > 0)
-		{
-			List<FMWOTB.Achievement> achievementList = [];
-			for (int i = 0; i < battle.details.achievements.Count; i++)
-			{
-				FMWOTB.Achievement tempAchievement = FMWOTB.Achievement.getAchievement(WarGamingAppId, battle.details.achievements.ElementAt(i).t).Result;
-				if (tempAchievement != null)
-				{
-					achievementList.Add(tempAchievement);
-				}
-			}
-			if (achievementList.Count > 0)
-			{
-				achievementList = achievementList.OrderBy(x => x.order).ToList();
-				sb.AppendLine("Achievements:");
-				sb.Append("```");
-				foreach (FMWOTB.Achievement tempAchievement in achievementList)
-				{
-					sb.AppendLine(tempAchievement.name.Replace("\n", string.Empty).Replace("(" + tempAchievement.achievement_id + ")", string.Empty));
-				}
-				sb.Append("```");
-			}
-		}
-		return sb.ToString();
-	}
-	private static string GetInfoInFormat(string key, string value, bool bold = true)
-	{
-		if (value != null)
-		{
-			if (bold)
-			{
-				if (value != string.Empty)
-				{
-					value = "**" + value + "**";
-				}
-			}
-		}
-		return key + ": " + (value ?? string.Empty);
-	}
-
 
 	public async Task<WGClan> SearchForClan(DiscordChannel channel, DiscordMember member, string guildName, string clan_naam, bool loadMembers, DiscordUser user, Command command)
 	{
 		try
 		{
-			IReadOnlyList<WGClan> clans = await WGClan.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, clan_naam, WarGamingAppId, loadMembers);
+			IReadOnlyList<WGClan> clans = await WGClan.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, clan_naam, _configuration["NLBEBOT:WarGamingAppId"], loadMembers);
 			int aantalClans = clans.Count;
 			List<WGClan> clanList = [];
 			foreach (WGClan clan in clans)
@@ -3776,7 +1336,7 @@ internal class Bot : IBot
 				}
 				if (sbFound.Length < 1024)
 				{
-					int index = await WaitForReply(channel, user, clan_naam, clanList.Count);
+					int index = await _messageService.WaitForReply(channel, user, clan_naam, clanList.Count);
 					if (index >= 0)
 					{
 						return clanList[index];
@@ -3784,7 +1344,7 @@ internal class Bot : IBot
 				}
 				else
 				{
-					await SayBeMoreSpecific(channel);
+					await _messageService.SayBeMoreSpecific(channel);
 				}
 			}
 			else if (clanList.Count == 1)
@@ -3793,100 +1353,15 @@ internal class Bot : IBot
 			}
 			else if (clanList.Count == 0)
 			{
-				await SendMessage(channel, member, guildName, "**Clan(" + clan_naam + ") is niet gevonden! (In een lijst van " + aantalClans + " clans)**");
+				await _messageService.SendMessage(channel, member, guildName, "**Clan(" + clan_naam + ") is niet gevonden! (In een lijst van " + aantalClans + " clans)**");
 			}
 		}
 		catch (TooManyResultsException ex)
 		{
 			_discordClient.Logger.LogWarning("({Command}) {Message}", command.Name, ex.Message);
-			await SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
+			await _messageService.SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
 		}
 		return null;
-	}
-
-	public async Task<int> WaitForReply(DiscordChannel channel, DiscordUser user, string description, int count)
-	{
-		DiscordMessage discMessage = SayMultipleResults(channel, description);
-		InteractivityExtension interactivity = _discordClient.GetInteractivity();
-		InteractivityResult<DiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == channel && x.Author == user);
-		if (!message.TimedOut)
-		{
-			bool isInt = false;
-			int number = -1;
-			try
-			{
-				number = Convert.ToInt32(message.Result.Content);
-				isInt = true;
-			}
-			catch
-			{
-				isInt = false;
-			}
-			if (isInt)
-			{
-				if (number > 0 && number <= count)
-				{
-					return number - 1;
-				}
-				else if (number > count)
-				{
-					await SayNumberTooBig(channel);
-				}
-				else if (1 > number)
-				{
-					await SayNumberTooSmall(channel);
-				}
-			}
-			else
-			{
-				await SayMustBeNumber(channel);
-			}
-		}
-		else if (discMessage != null)
-		{
-			List<DiscordEmoji> reacted = [];
-			for (int i = 1; i <= 10; i++)
-			{
-				IDiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
-				if (emoji != null)
-				{
-					IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji.Inner).Result;
-					foreach (DiscordUser tempUser in users)
-					{
-						if (tempUser.Id.Equals(user.Id))
-						{
-							reacted.Add(emoji.Inner);
-						}
-					}
-				}
-			}
-
-			if (reacted.Count == 1)
-			{
-				int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(reacted[0].Name));
-				if (index > 0 && index <= count)
-				{
-					return index - 1;
-				}
-				else
-				{
-					await channel.SendMessageAsync("**Dat was geen van de optionele emoji's!**");
-				}
-			}
-			else if (reacted.Count > 1)
-			{
-				await channel.SendMessageAsync("**Je mocht maar 1 reactie geven!**");
-			}
-			else
-			{
-				await SayNoResponse(channel);
-			}
-		}
-		else
-		{
-			await SayNoResponse(channel);
-		}
-		return -1;
 	}
 
 	public List<DEF> ListInMemberEmbed(int columns, List<DiscordMember> memberList, string searchTerm)
@@ -3997,7 +1472,7 @@ internal class Bot : IBot
 
 		if (searchTerm.Contains('d'))
 		{
-			List<WGAccount> wgAccountList = memberList.Select(member => new WGAccount(WarGamingAppId, member.account_id, false, false, false))
+			List<WGAccount> wgAccountList = memberList.Select(member => new WGAccount(_configuration["NLBEBOT:WarGamingAppId"], member.account_id, false, false, false))
 													  .OrderBy(p => p.last_battle_time).Reverse().ToList();
 
 			nameList = wgAccountList.Select(member => member.nickname).ToList();
@@ -4163,60 +1638,11 @@ internal class Bot : IBot
 		return temp;
 	}
 
-	public async Task<List<Tuple<string, string>>> GetAllMaps(ulong GuildID)
-	{
-		DiscordChannel mapChannel = await GetMappenChannel(GuildID);
-		if (mapChannel != null)
-		{
-			List<Tuple<string, string>> images = [];
-			try
-			{
-				IReadOnlyList<DiscordMessage> xMessages = mapChannel.GetMessagesAsync(100).Result;
-				foreach (DiscordMessage message in xMessages)
-				{
-					IReadOnlyList<DiscordAttachment> attachments = message.Attachments;
-					foreach (DiscordAttachment item in attachments)
-					{
-						images.Add(new Tuple<string, string>(GetProperFileName(item.Url), item.Url));
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				await _errorHandler.HandleErrorAsync("Could not load messages from " + mapChannel.Name + ":", ex);
-			}
-			images.Sort((x, y) => y.Item1.CompareTo(x.Item1));
-			images.Reverse();
-			return images;
-		}
-		return null;
-	}
-
-	public static Tuple<string, string> GetIGNFromMember(string displayName)
-	{
-		string[] splitted = displayName.Split(']');
-		StringBuilder sb = new();
-		for (int i = 1; i < splitted.Length; i++)
-		{
-			if (i > 1)
-			{
-				sb.Append(' ');
-			}
-			sb.Append(splitted[i]);
-		}
-		string clan = string.Empty;
-		if (splitted.Length > 1)
-		{
-			clan = splitted[0] + ']';
-		}
-		return new Tuple<string, string>(clan, sb.ToString().Trim(' '));
-	}
-
 	public async Task<WGAccount> SearchPlayer(DiscordChannel channel, DiscordMember member, DiscordUser user, string guildName, string naam)
 	{
 		try
 		{
-			IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, naam, WarGamingAppId, false, false, true);
+			IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, naam, _configuration["NLBEBOT:WarGamingAppId"], false, false, true);
 			StringBuilder sb = new();
 			int index = 0;
 			if (searchResults != null)
@@ -4229,889 +1655,29 @@ internal class Bot : IBot
 						counter++;
 						sb.AppendLine(counter + ". " + account.nickname.adaptToDiscordChat());
 					}
-					index = await WaitForReply(channel, user, sb.ToString(), searchResults.Count);
+					index = await _messageService.WaitForReply(channel, user, sb.ToString(), searchResults.Count);
 				}
 				if (index >= 0 && searchResults.Count >= 1)
 				{
-					WGAccount account = new(WarGamingAppId, searchResults[index].account_id, false, true, true);
+					WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], searchResults[index].account_id, false, true, true);
 					await ShowMemberInfo(channel, account);
 					return account;
 				}
 				else
 				{
-					await SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam + "`**) kon niet gevonden worden!**");
+					await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam + "`**) kon niet gevonden worden!**");
 				}
 			}
 			else
 			{
-				await SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam.adaptToDiscordChat() + "`**) kon niet gevonden worden!**");
+				await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam.adaptToDiscordChat() + "`**) kon niet gevonden worden!**");
 			}
 		}
 		catch (TooManyResultsException ex)
 		{
 			_discordClient.Logger.LogWarning("While searching for player by name: {Message}", ex.Message);
-			await SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
+			await _messageService.SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
 		}
 		return null;
-	}
-
-	public static async Task<List<WGTournament>> InitialiseTournaments(bool all)
-	{
-		string tournamentJson = await Tournaments.tournamentsToString(WarGamingAppId);
-		Json json = new(tournamentJson, "Tournaments");
-		List<WGTournament> tournamentsList = [];
-
-		if (json.subJsons != null)
-		{
-			foreach (Json subjson in json.subJsons)
-			{
-				if (subjson.head.ToLower().Equals("data"))
-				{
-					foreach (Json subsubjson in subjson.subJsons)
-					{
-						Tournaments tournaments = new(subsubjson);
-						if (tournaments.start_at.HasValue)
-						{
-							if (tournaments.start_at.Value > DateTime.Now || all)
-							{
-								string wgTournamentJsonString = await WGTournament.tournamentsToString(WarGamingAppId, tournaments.tournament_id);
-								Json wgTournamentJson = new(wgTournamentJsonString, "WGTournament");
-								WGTournament eenToernooi = new(wgTournamentJson, WarGamingAppId);
-								tournamentsList.Add(eenToernooi);
-							}
-						}
-					}
-				}
-			}
-		}
-		tournamentsList.Reverse();
-		return tournamentsList;
-	}
-
-	#region Hall Of Fame
-
-	//Methods are set chronological
-	public async Task<Tuple<string, DiscordMessage>> Handle(string titel, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID, string url)
-	{
-		return await Handle(titel, null, channel, guildName, guildID, url, member);
-	}
-	public async Task<Tuple<string, DiscordMessage>> Handle(string titel, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID, DiscordAttachment attachment)
-	{
-		return await Handle(titel, attachment, channel, guildName, guildID, null, member);
-	}
-	private async Task<Tuple<string, DiscordMessage>> Handle(string titel, object discAttach, DiscordChannel channel, string guildName, ulong guildID, string iets, DiscordMember member)
-	{
-		if (discAttach is DiscordAttachment attachment)
-		{
-			discAttach = attachment;
-		}
-		WGBattle replayInfo = await GetReplayInfo(titel, discAttach, GetIGNFromMember(member.DisplayName).Item2, iets);
-		try
-		{
-			if (replayInfo != null)
-			{
-				bool validChannel = false;
-				if (guildID.Equals(Constants.DA_BOIS_ID))
-				{
-					validChannel = true;
-				}
-				else
-				{
-					DiscordChannel goodChannel = await GetMasteryReplaysChannel(guildID);
-					if (goodChannel != null && goodChannel.Id.Equals(channel.Id))
-					{
-						validChannel = true;
-					}
-					if (!validChannel)
-					{
-						goodChannel = await GetBottestChannel();
-						if (goodChannel.Id.Equals(channel.Id))
-						{
-							validChannel = true;
-						}
-					}
-				}
-				return validChannel
-					? await GoHOFDetails(replayInfo, channel, member, guildName, guildID)
-					: new Tuple<string, DiscordMessage>("Kanaal is niet geschikt voor HOF.", null);
-			}
-			else
-			{
-				return new Tuple<string, DiscordMessage>("Replayobject was null.", null);
-			}
-		}
-		catch
-		{
-			return new Tuple<string, DiscordMessage>("Er ging iets mis.", null);
-		}
-	}
-	private async Task<Tuple<string, DiscordMessage>> GoHOFDetails(WGBattle replayInfo, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID)
-	{
-		_ = (await channel.GetMessagesAsync(1))[0];
-		DiscordMessage tempMessage;
-
-		if (replayInfo.battle_type is 0 or 1) // 0 = encounter, 1 = supremacy
-		{
-			if (replayInfo.room_type is 1 or 4 or 5 or 7) // 1 = normal, 4 = tournament, 5 = tournament, 7 = rating 
-			{
-				try
-				{
-					return replayInfo.details != null
-						? await ReplayHOF(replayInfo, guildID, channel, member, guildName)
-						: new Tuple<string, DiscordMessage>("Replay bevatte geen details.", null);
-				}
-				catch (JsonNotFoundException ex)
-				{
-					_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
-					await _errorHandler.HandleErrorAsync("While reading json from a replay:\n", ex);
-				}
-				catch (Exception ex)
-				{
-					_ = await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis bij het controleren van de HOF!**");
-					await _errorHandler.HandleErrorAsync("While checking HOF with a replay:\n", ex);
-				}
-				tempMessage = await SendMessage(channel, member, guildName, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
-				return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
-			}
-			else
-			{
-				string roomTypeName = replayInfo.room_type switch
-				{
-					2 => "training",
-					8 => "mad games",
-					22 => "realistic",
-					23 => "uprising",
-					24 => "gravity force",
-					25 => "skirmish",
-					26 => "burning",
-					_ => string.Empty
-				};
-
-				tempMessage = await SayCannotBePlayedAt(channel, member, guildName, roomTypeName);
-			}
-		}
-		else
-		{
-			tempMessage = await SaySomethingWentWrong(channel, member, guildName, "**Je mag enkel de standaardbattles gebruiken! (Geen speciale gamemodes)**");
-		}
-		string thumbnail = string.Empty;
-		List<Tuple<string, string>> images = await GetAllMaps(channel.Guild.Id);
-		foreach (Tuple<string, string> map in images)
-		{
-			if (map.Item1.ToLower() == replayInfo.map_name.ToLower())
-			{
-				try
-				{
-					if (map.Item1 != string.Empty)
-					{
-						thumbnail = map.Item2;
-					}
-				}
-				catch (Exception ex)
-				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
-				}
-				break;
-			}
-		}
-
-		EmbedOptions options = new()
-		{
-			Thumbnail = thumbnail,
-			Title = "Resultaat",
-			Description = await GetDescriptionForReplay(replayInfo, -1),
-		};
-		await CreateEmbed(channel, options);
-		return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
-	}
-	public async Task<WGBattle> GetReplayInfo(string titel, object attachment, string ign, string url)
-	{
-		string json = string.Empty;
-		bool playerIDFound = false;
-		IReadOnlyList<WGAccount> accountInfo = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, WarGamingAppId, false, true, false);
-		if (accountInfo != null)
-		{
-			if (accountInfo.Count > 0)
-			{
-				playerIDFound = true;
-				if (attachment != null)
-				{
-					DiscordAttachment attach = (DiscordAttachment) attachment;
-					url = attach.Url;
-				}
-				json = await ReplayToString(url, titel, accountInfo[0].account_id);
-			}
-		}
-		if (!playerIDFound)
-		{
-			if (attachment != null)
-			{
-				DiscordAttachment attach = (DiscordAttachment) attachment;
-				url = attach.Url;
-			}
-			json = await ReplayToString(url, titel, null);
-		}
-		try
-		{
-			return new WGBattle(json);
-		}
-		catch (Exception ex)
-		{
-			string attachUrl = "Nothing";
-			if (attachment != null)
-			{
-				DiscordAttachment attach = (DiscordAttachment) attachment;
-				attachUrl = attach.Url;
-			}
-
-			await _errorHandler.HandleErrorAsync("Initializing WGBattle object from (" + (!string.IsNullOrEmpty(url) ? url : attachUrl) + "):\n", ex);
-		}
-		return null;
-	}
-	public static async Task<string> ReplayToString(string pathOrKey, string title, long? wg_id)
-	{
-		string url = @"https://wotinspector.com/api/replay/upload?url=";
-		HttpClient httpClient = new();
-		MultipartFormDataContent form1 = [];
-		string AsBase64String = null;
-		if (pathOrKey.StartsWith("http"))
-		{
-			if (pathOrKey.Contains("wotinspector"))
-			{
-				//return een json in deze else
-				HttpResponseMessage iets = await httpClient.GetAsync("https://api.wotinspector.com/replay/upload?details=full&key=" + Path.GetFileName(pathOrKey));
-				if (iets != null && iets.Content != null)
-				{
-					return await iets.Content.ReadAsStringAsync();
-				}
-				return null;
-			}
-			else
-			{
-				AsBase64String = Convert.ToBase64String(await httpClient.GetByteArrayAsync(pathOrKey));
-			}
-		}
-		else if (pathOrKey.Contains('\\') || pathOrKey.Contains('/'))
-		{
-			AsBase64String = Convert.ToBase64String(await File.ReadAllBytesAsync(pathOrKey));
-		}
-
-		form1.Add(new StringContent(Path.GetFileName(pathOrKey)), "filename");
-		form1.Add(new StringContent(AsBase64String), "file");
-		if (!string.IsNullOrEmpty(title))
-		{
-			form1.Add(new StringContent(title), "title");
-		}
-		if (wg_id != null)
-		{
-			form1.Add(new StringContent(wg_id.ToString()), "loaded_by");
-		}
-
-		HttpResponseMessage response = await httpClient.PostAsync(url, form1);
-		return await response.Content.ReadAsStringAsync();
-	}
-	public async Task<Tuple<string, DiscordMessage>> ReplayHOF(WGBattle battle, ulong guildID, DiscordChannel channel, DiscordMember member, string guildName)
-	{
-		if (battle.details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.details.clanid.Equals(Constants.NLBE2_CLAN_ID))
-		{
-			DiscordMessage message = await GetHOFMessage(guildID, battle.vehicle_tier, battle.vehicle);
-			if (message != null)
-			{
-				List<Tuple<string, List<TankHof>>> tierHOF = ConvertHOFMessageToTupleListAsync(message, battle.vehicle_tier);
-				bool alreadyAdded = false;
-				if (tierHOF != null)
-				{
-					foreach (Tuple<string, List<TankHof>> tank in tierHOF)
-					{
-						foreach (TankHof hof in tank.Item2)
-						{
-							if (Path.GetFileName(hof.Link).Equals(battle.hexKey))
-							{
-								alreadyAdded = true;
-								break;
-							}
-						}
-					}
-					if (!alreadyAdded)
-					{
-						foreach (Tuple<string, List<TankHof>> tank in tierHOF)
-						{
-							if (tank.Item1.ToLower().Equals(battle.vehicle.ToLower()))
-							{
-								if (tank.Item2.Count == Constants.HOF_AMOUNT_PER_TANK)
-								{
-									if (tank.Item2[Constants.HOF_AMOUNT_PER_TANK - 1].Damage < battle.details.damage_made)
-									{
-										tank.Item2.Add(InitializeTankHof(battle));
-										List<TankHof> sortedTankHofList = tank.Item2.OrderBy(x => x.Damage).Reverse().ToList();
-										sortedTankHofList.RemoveAt(sortedTankHofList.Count - 1);
-										tank.Item2.Clear();
-										int counter = 1;
-										int position = 0;
-										foreach (TankHof item in sortedTankHofList)
-										{
-											tank.Item2.Add(item);
-											if (item.Link.Equals(battle.view_url))
-											{
-												position = counter;
-											}
-											else
-											{
-												counter++;
-											}
-											item.Place = (short) position;
-										}
-										await EditHOFMessage(message, tierHOF);
-										DiscordMessage tempMessage = await SayReplayIsWorthy(channel, battle, position);
-										return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
-									}
-									else
-									{
-										DiscordMessage tempMessage = await SayReplayNotWorthy(channel, battle);
-										return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
-									}
-								}
-								else
-								{
-									DiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, tierHOF);
-									return new Tuple<string, DiscordMessage>(tempMessage != null ? tempMessage.Content : string.Empty, tempMessage);
-								}
-							}
-						}
-					}
-					else
-					{
-						string thumbnail = string.Empty;
-						List<Tuple<string, string>> images = await GetAllMaps(channel.Guild.Id);
-						foreach (Tuple<string, string> map in images)
-						{
-							if (map.Item1.ToLower() == battle.map_name.ToLower())
-							{
-								try
-								{
-									if (map.Item1 != string.Empty)
-									{
-										thumbnail = map.Item2;
-									}
-								}
-								catch (Exception ex)
-								{
-									await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
-								}
-								break;
-							}
-						}
-
-						EmbedOptions options = new()
-						{
-							Thumbnail = thumbnail,
-							Title = "Helaas... Deze replay staat er al in.",
-							Description = await GetDescriptionForReplay(battle, 0),
-						};
-						DiscordMessage tempMessage = await CreateEmbed(channel, options);
-						return new Tuple<string, DiscordMessage>(string.Empty, tempMessage);//string empty omdat dan hofafterupload het niet verkeerd opvat
-					}
-				}
-				else
-				{
-					DiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, []);
-					return new Tuple<string, DiscordMessage>(tempMessage != null ? tempMessage.Content : string.Empty, tempMessage);
-				}
-			}
-			else
-			{
-				DiscordMessage tempMessage = await SaySomethingWentWrong(channel, member, guildName, "**Het bericht van de tier van de replay kon niet gevonden worden!**");
-				return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
-			}
-		}
-		else
-		{
-			DiscordMessage tempMessage = await SaySomethingWentWrong(channel, member, guildName, "**Enkel replays van NLBE-clanleden mogen gebruikt worden!**");
-			return new Tuple<string, DiscordMessage>(tempMessage.Content, tempMessage);
-		}
-		return null;
-	}
-	public async Task<DiscordMessage> GetHOFMessage(ulong GuildID, int tier, string vehicle)
-	{
-		DiscordChannel channel = await GetHallOfFameChannel(GuildID);
-		if (channel != null)
-		{
-			IReadOnlyList<DiscordMessage> messages = await channel.GetMessagesAsync(100);
-			if (messages != null)
-			{
-				List<DiscordMessage> tierMessages = GetTierMessages(tier, messages);
-				foreach (DiscordMessage tierMessage in tierMessages)
-				{
-					if (tierMessage.Embeds[0].Fields != null)
-					{
-						if (tierMessage.Embeds[0].Fields.Count > 0)
-						{
-							foreach (DiscordEmbedField field in tierMessage.Embeds[0].Fields)
-							{
-								if (field.Name.Equals(vehicle))
-								{
-									return tierMessage;
-								}
-							}
-						}
-					}
-				}
-				foreach (DiscordMessage tierMessage in tierMessages)
-				{
-					if (tierMessage.Embeds[0].Fields != null)
-					{
-						if (tierMessage.Embeds[0].Fields.Count > 0)
-						{
-							if (tierMessage.Embeds[0].Fields.Count < 15)//15 fields in embed
-							{
-								return tierMessage;
-							}
-						}
-						else
-						{
-							return tierMessage;
-						}
-					}
-					else
-					{
-						return tierMessage;
-					}
-				}
-				//Tier exists but message is must be created (move all the lower tiers to the front)
-				//Get messages that should be moved
-				List<DiscordMessage> LTmessages = [];
-				foreach (DiscordMessage tierMessage in messages)
-				{
-					if (tierMessage.Embeds != null)
-					{
-						if (tierMessage.Embeds.Count > 0)
-						{
-							string emojiAsString = tierMessage.Embeds[0].Title.Replace("Tier ", string.Empty);
-							int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(emojiAsString));
-							if (index < tier)
-							{
-								LTmessages.Add(tierMessage);
-							}
-							else
-							{
-								break;
-							}
-						}
-					}
-				}
-				LTmessages.Reverse();
-				ulong messageToReturnID = 0;
-				//Move them
-				for (int i = 0; i <= LTmessages.Count; i++)
-				{
-					if (i == 0)
-					{
-						//set new message for the tier
-						await LTmessages[i].ModifyAsync(CreateHOFResetEmbed(tier));
-						messageToReturnID = LTmessages[i].Id;
-					}
-					else if (i == LTmessages.Count)
-					{
-						//Create new message for tier 1
-						await channel.SendMessageAsync(null, LTmessages[i - 1].Embeds[0]);
-					}
-					else
-					{
-						//modify
-						await LTmessages[i].ModifyAsync(null, LTmessages[i - 1].Embeds[0]);
-					}
-				}
-				return await channel.GetMessageAsync(messageToReturnID);
-			}
-			return null;
-		}
-		else
-		{
-			return null;
-		}
-	}
-	public List<DiscordMessage> GetTierMessages(int tier, IReadOnlyList<DiscordMessage> messages)
-	{
-		messages = messages.Reverse().ToList();
-		List<DiscordMessage> tierMessages = [];
-		foreach (DiscordMessage message in messages)
-		{
-			if (message.Embeds != null)
-			{
-				if (message.Embeds.Count > 0)
-				{
-					if (message.Embeds[0].Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier)).ToString()))
-					{
-						tierMessages.Add(message);
-					}
-				}
-			}
-		}
-		return tierMessages;
-	}
-	public List<Tuple<string, List<TankHof>>> ConvertHOFMessageToTupleListAsync(DiscordMessage message, int TIER)
-	{
-		if (message.Embeds != null)
-		{
-			if (message.Embeds.Count > 0)
-			{
-				foreach (DiscordEmbed embed in message.Embeds)
-				{
-					if (embed.Fields != null)
-					{
-						if (embed.Fields.Count > 0)
-						{
-							List<Tuple<string, List<TankHof>>> generatedTupleListFromMessage = [];
-							foreach (DiscordEmbedField field in embed.Fields)
-							{
-								List<TankHof> hofList = [];
-								string[] lines = field.Value.Split('\n');
-								short counter = -1;
-								foreach (string line in lines)
-								{
-									counter++;
-									string speler = string.Empty;
-									string link = string.Empty;
-									string damage = string.Empty;
-									bool firstTime = true;
-									string[] splitted = line.Split(" `");
-
-									foreach (string item in splitted)
-									{
-										if (firstTime)
-										{
-											firstTime = false;
-											string[] split = item.Split(']');
-											StringBuilder sb = new();
-											string[] firstPartSplitted = split[0].Split(' ');
-											for (int i = 1; i < firstPartSplitted.Length; i++)
-											{
-												if (i > 1)
-												{
-													sb.Append(' ');
-												}
-												sb.Append(firstPartSplitted[i]);
-											}
-											speler = sb.ToString().Trim('[').Trim(']');
-											link = split[1].Trim('(').Trim(')');
-										}
-										else
-										{
-											damage = item.Replace(" dmg`", string.Empty).Trim('`');
-										}
-									}
-									string fieldName = field.Name.Replace("\\_", "_");
-									hofList.Add(new TankHof(link, speler.Replace("\\", string.Empty), fieldName, Convert.ToInt32(damage), TIER));
-									hofList[counter].Place = (short) (counter + 1);
-								}
-								generatedTupleListFromMessage.Add(new Tuple<string, List<TankHof>>(field.Name, hofList));
-							}
-							return generatedTupleListFromMessage;
-						}
-					}
-				}
-			}
-		}
-		return null;
-	}
-	public async Task EditHOFMessage(DiscordMessage message, List<Tuple<string, List<TankHof>>> tierHOF)
-	{
-		try
-		{
-			DiscordEmbedBuilder newDiscEmbedBuilder = new()
-			{
-				Color = Constants.HOF_COLOR,
-				Description = string.Empty
-			};
-
-			int tier = 0;
-			foreach (Tuple<string, List<TankHof>> item in tierHOF)
-			{
-				if (item.Item2.Count > 0)
-				{
-					List<TankHof> sortedTankHofList = item.Item2.OrderBy(x => x.Damage).Reverse().ToList();
-					StringBuilder sb = new();
-					for (int i = 0; i < sortedTankHofList.Count; i++)
-					{
-						if (tier == 0)
-						{
-							tier = sortedTankHofList[i].Tier;
-						}
-						// ˍ
-						// ＿
-						// ̲
-						// _ --> underscore
-						// ▁
-						sb.AppendLine(i + 1 + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
-					}
-					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().adaptToDiscordChat());
-				}
-			}
-
-			newDiscEmbedBuilder.Title = "Tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier));
-
-			DiscordEmbed embed = newDiscEmbedBuilder.Build();
-			await message.ModifyAsync(embed);
-		}
-		catch (Exception ex)
-		{
-			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
-			await discordMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, Constants.MAINTENANCE_REACTION));
-		}
-	}
-	public async Task<DiscordMessage> AddReplayToMessage(WGBattle battle, DiscordMessage message, DiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
-	{
-		bool foundItem = false;
-		int position = 1;
-		foreach (Tuple<string, List<TankHof>> item in tierHOF)
-		{
-			if (item.Item1.Equals(battle.vehicle))
-			{
-				item.Item2.Add(InitializeTankHof(battle));
-				foundItem = true;
-				break;
-			}
-		}
-		if (!foundItem)
-		{
-			List<TankHof> list = [InitializeTankHof(battle)];
-			tierHOF.Add(new Tuple<string, List<TankHof>>(battle.vehicle, list));
-		}
-		else
-		{
-			foreach (Tuple<string, List<TankHof>> item in tierHOF)
-			{
-				if (item.Item1.Equals(battle.vehicle))
-				{
-					List<TankHof> sortedTankHofList = item.Item2.OrderBy(x => x.Damage).Reverse().ToList();
-					for (int i = 0; i < sortedTankHofList.Count; i++)
-					{
-						sortedTankHofList[i].Place = (short) (i + 1);
-						if (sortedTankHofList[i].Link.Equals(battle.view_url))
-						{
-							position = i + 1;
-							break;
-						}
-					}
-					break;
-				}
-			}
-		}
-		await EditHOFMessage(message, tierHOF);
-		return await SayReplayIsWorthy(channel, battle, position);
-	}
-	public async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID)
-	{
-		List<Tuple<string, List<TankHof>>> players = [];
-		DiscordChannel channel = await GetHallOfFameChannel(guildID);
-		if (channel != null)
-		{
-			IReadOnlyList<DiscordMessage> messages = await channel.GetMessagesAsync(100);
-			if (messages != null && messages.Count > 0)
-			{
-				List<Tuple<DiscordMessage, int>> allTierMessages = [];
-				for (int i = 1; i <= 10; i++)
-				{
-					List<DiscordMessage> tierMessages = GetTierMessages(i, messages);
-					foreach (DiscordMessage tempMessage in tierMessages)
-					{
-						allTierMessages.Add(new Tuple<DiscordMessage, int>(tempMessage, i));
-					}
-				}
-
-				//Has all HOF messages
-				foreach (Tuple<DiscordMessage, int> message in allTierMessages)
-				{
-					List<Tuple<string, List<TankHof>>> tempTanks = ConvertHOFMessageToTupleListAsync(message.Item1, message.Item2);
-					if (tempTanks != null)
-					{
-						foreach (Tuple<string, List<TankHof>> tank in tempTanks)
-						{
-							foreach (TankHof th in tank.Item2)
-							{
-								bool found = false;
-								for (int i = 0; i < players.Count; i++)
-								{
-									if (players[i].Item1.Equals(th.Speler))
-									{
-										found = true;
-										players[i].Item2.Add(th);
-									}
-								}
-								if (!found)
-								{
-									players.Add(new Tuple<string, List<TankHof>>(th.Speler, []));
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		return players;
-	}
-
-	public async Task<bool> CreateOrCleanHOFMessages(DiscordChannel HOFchannel, List<Tuple<int, DiscordMessage>> tiersFound)
-	{
-		tiersFound.Reverse();
-		for (int i = 10; i >= 1; i--)
-		{
-			bool made = false;
-			for (int j = 0; j < tiersFound.Count; j++)
-			{
-				if (tiersFound[j].Item1.Equals(i))
-				{
-					if (!made)
-					{
-						await tiersFound[j].Item2.ModifyAsync(CreateHOFResetEmbed(i));
-						tiersFound[j] = new Tuple<int, DiscordMessage>(i, tiersFound[j].Item2);
-						made = true;
-					}
-					else
-					{
-						await tiersFound[j].Item2.DeleteAsync();
-						tiersFound[j] = new Tuple<int, DiscordMessage>(i, null);
-					}
-				}
-				else if (!made && tiersFound[j].Item1 < i)
-				{
-					await tiersFound[j].Item2.ModifyAsync(CreateHOFResetEmbed(i));
-					tiersFound[j] = new Tuple<int, DiscordMessage>(i, tiersFound[j].Item2);
-					made = true;
-					break;
-				}
-			}
-			if (!made)
-			{
-				await HOFchannel.SendMessageAsync(null, CreateHOFResetEmbed(i));
-			}
-		}
-		return true;
-	}
-	private DiscordEmbed CreateHOFResetEmbed(int tier)
-	{
-		return CreateStandardEmbed("Tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier)), "Nog geen replays aan deze tier toegevoegd.", Constants.HOF_COLOR);
-	}
-	public static TankHof InitializeTankHof(WGBattle battle)
-	{
-		return new TankHof(battle.view_url, battle.player_name, battle.vehicle, battle.details.damage_made, battle.vehicle_tier);
-	}
-	private async Task HofAfterUpload(Tuple<string, DiscordMessage> returnedTuple, DiscordMessage uploadMessage)
-	{
-		bool good = false;
-		if (returnedTuple.Item1.Equals(string.Empty))
-		{
-			TimeSpan hofWaitTime = TimeSpan.FromSeconds(int.TryParse(_configuration["NLBEBOT:HofWaitTimeInSeconds"], out int hofWaitTimeInt) ? hofWaitTimeInt : 0);
-			await Task.Delay(hofWaitTime);
-			string description = string.Empty;
-			string thumbnail = string.Empty;
-			if (returnedTuple.Item2 != null)
-			{
-				if (returnedTuple.Item2.Embeds != null)
-				{
-					if (returnedTuple.Item2.Embeds.Count > 0)
-					{
-						foreach (DiscordEmbed embed in returnedTuple.Item2.Embeds)
-						{
-							if (embed.Description != null)
-							{
-								description = embed.Description;
-								if (embed.Thumbnail != null)
-								{
-									if (embed.Thumbnail.Url.ToString().Length > 0)
-									{
-										thumbnail = embed.Thumbnail.Url.ToString();
-									}
-								}
-							}
-							if (embed.Title.ToLower().Contains("hoera"))
-							{
-								good = true;
-								break;
-							}
-						}
-					}
-				}
-			}
-			if (good)
-			{
-				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, ":thumbsup:"));
-			}
-			else
-			{
-				await uploadMessage.CreateReactionAsync(DiscordEmoji.FromName(_discordClient, ":thumbsdown:"));
-			}
-			//Pas bericht aan
-			string[] splitted = description.Split('\n');
-			StringBuilder sb = new();
-			bool emptyLineFound = false;
-			if (!splitted.Contains(string.Empty))
-			{
-				emptyLineFound = true;
-			}
-			foreach (string line in splitted)
-			{
-				if (emptyLineFound)
-				{
-					sb.AppendLine(line.Replace("\n", string.Empty).Replace("\r", string.Empty));
-				}
-				else if (line.Length == 0)
-				{
-					emptyLineFound = true;
-				}
-			}
-			try
-			{
-				DiscordEmbed embed = new DiscordEmbedBuilder()
-				{
-					Title = "Resultaat",
-					Description = sb.ToString(),
-					Color = Constants.BOT_COLOR,
-					Thumbnail = new()
-					{
-						Url = thumbnail
-					}
-				}.Build();
-				await returnedTuple.Item2.ModifyAsync(embed);
-			}
-			catch (Exception ex)
-			{
-				await _errorHandler.HandleErrorAsync("While editing Resultaat message: ", ex);
-			}
-		}
-	}
-
-	#endregion
-
-	//no longer sends to thibeastmo. This used to be a method to send towards thibeastmo but since thibeastmo is no longer hosting this it's moved towards the test channel
-	public async Task SendThibeastmo(string message, string exceptionMessage = "", string stackTrace = "")
-	{
-		DiscordChannel bottestChannel = await GetBottestChannel();
-		if (bottestChannel != null)
-		{
-			StringBuilder sb = new();
-			if (!string.IsNullOrEmpty(exceptionMessage) && !string.IsNullOrEmpty(stackTrace))
-			{
-				for (int i = 0; i < message.Length / 2; i++)
-				{
-					sb.Append('━');
-				}
-			}
-			StringBuilder firstMessage = new((sb.Length > 0 ? "**" + sb.ToString() + "**\n" : string.Empty) + message);
-			if (!string.IsNullOrEmpty(exceptionMessage))
-			{
-				firstMessage.Append("\n" + "`" + exceptionMessage + "`");
-			}
-			await bottestChannel.SendMessageAsync(firstMessage.ToString());
-		}
-	}
-	private static DiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color)
-	{
-		return new DiscordEmbedBuilder
-		{
-			Title = title,
-			Description = description,
-			Color = color
-		}.Build();
 	}
 }

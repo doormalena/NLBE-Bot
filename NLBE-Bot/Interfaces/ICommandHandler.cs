@@ -1,6 +1,7 @@
 namespace NLBE_Bot.Interfaces;
 
 using DSharpPlus.CommandsNext;
+using DSharpPlus.Entities;
 using System.Threading.Tasks;
 
 internal interface ICommandHandler

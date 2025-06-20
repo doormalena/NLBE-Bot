@@ -3,11 +3,9 @@ namespace NLBE_Bot.Tests.Helpers;
 using DSharpPlus;
 using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Moq;
-using Newtonsoft.Json.Linq;
+using NSubstitute;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
-using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -25,37 +23,37 @@ public class DiscordMessageExtensionsTests
 			TokenType = TokenType.Bot
 		};
 		DiscordClient discordClient = new(discordConfig);
-		Mock<IErrorHandler> errorHandlerMock = new();
-		Mock<ILogger<Worker>> loggerMock = new();
-		DiscordMessageUtils utils = new(discordClient, errorHandlerMock.Object, loggerMock.Object);
+		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
+		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
+		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);
 
-		Mock<IDiscordEmoji> emoji1Mock = new();
-		Mock<IDiscordEmoji> emoji2Mock = new();
-		Mock<IDiscordUser> user1Mock = new();
-		Mock<IDiscordReaction> reaction1Mock = new();
-		reaction1Mock.Setup(r => r.Emoji).Returns(emoji1Mock.Object);
-		Mock<IDiscordUser> user2Mock = new();
-		Mock<IDiscordReaction> reaction2Mock = new();
-		reaction2Mock.Setup(r => r.Emoji).Returns(emoji2Mock.Object);
+		IDiscordEmoji emoji1Mock = Substitute.For<IDiscordEmoji>();
+		IDiscordEmoji emoji2Mock = Substitute.For<IDiscordEmoji>();
+		IDiscordUser user1Mock = Substitute.For<IDiscordUser>();
+		IDiscordReaction reaction1Mock = Substitute.For<IDiscordReaction>();
+		reaction1Mock.Emoji.Returns(emoji1Mock);
+		IDiscordUser user2Mock = Substitute.For<IDiscordUser>();
+		IDiscordReaction reaction2Mock = Substitute.For<IDiscordReaction>();
+		reaction2Mock.Emoji.Returns(emoji2Mock);
 
 		List<IDiscordReaction> reactionsList =
-			[
-				reaction1Mock.Object,
-				reaction2Mock.Object
-			];
+		[
+			reaction1Mock,
+			reaction2Mock
+		];
 
-		Mock<IDiscordMessage> messageMock = new();
-		messageMock.Setup(r => r.Reactions).Returns(reactionsList);
-		messageMock.Setup(r => r.GetReactionsAsync(emoji1Mock.Object)).ReturnsAsync([user1Mock.Object]);
-		messageMock.Setup(r => r.GetReactionsAsync(emoji2Mock.Object)).ReturnsAsync([user2Mock.Object]);
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		messageMock.Reactions.Returns(reactionsList);
+		messageMock.GetReactionsAsync(emoji1Mock).Returns([user1Mock]);
+		messageMock.GetReactionsAsync(emoji2Mock).Returns([user2Mock]);
 
 		// Act.
-		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = utils.SortReactions(messageMock.Object);
+		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = utils.SortReactions(messageMock);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);
-		Assert.IsTrue(result[emoji1Mock.Object].Contains(user1Mock.Object));
-		Assert.IsTrue(result[emoji2Mock.Object].Contains(user2Mock.Object));
+		Assert.IsTrue(result[emoji1Mock].Contains(user1Mock));
+		Assert.IsTrue(result[emoji2Mock].Contains(user2Mock));
 	}
 
 	[TestMethod]
@@ -66,32 +64,31 @@ public class DiscordMessageExtensionsTests
 		{
 			Token = "dummy",
 			TokenType = TokenType.Bot
-		}
-		;
+		};
 		DiscordClient discordClient = new(discordConfig);
-		Mock<IErrorHandler> errorHandlerMock = new();
-		Mock<ILogger<Worker>> loggerMock = new();
-		DiscordMessageUtils utils = new(discordClient, errorHandlerMock.Object, loggerMock.Object);
+		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
+		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
+		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);
 
 		// Example log format: "01-06-2024 12:34:56|rest"
 		string content1 = "01-06-2024 12:34:56|something";
 		string content2 = "01-06-2024 12:34:56|another";
 		string content3 = "02-06-2024 13:00:00|different";
-		Mock<IDiscordMessage> msg1 = new();
-		msg1.SetupGet(m => m.Content).Returns(content1);
-		Mock<IDiscordMessage> msg2 = new();
-		msg2.SetupGet(m => m.Content).Returns(content2);
-		Mock<IDiscordMessage> msg3 = new();
-		msg3.SetupGet(m => m.Content).Returns(content3);
+		IDiscordMessage msg1 = Substitute.For<IDiscordMessage>();
+		msg1.Content.Returns(content1);
+		IDiscordMessage msg2 = Substitute.For<IDiscordMessage>();
+		msg2.Content.Returns(content2);
+		IDiscordMessage msg3 = Substitute.For<IDiscordMessage>();
+		msg3.Content.Returns(content3);
 
-		List<IDiscordMessage> messages = [msg1.Object, msg2.Object, msg3.Object];
+		List<IDiscordMessage> messages = [msg1, msg2, msg3];
 
 		// Act.
 		Dictionary<DateTime, List<IDiscordMessage>> result = utils.SortMessages(messages);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);
-		Assert.IsTrue(result.Values.Any(list => list.Contains(msg1.Object) && list.Contains(msg2.Object)));
-		Assert.IsTrue(result.Values.Any(list => list.Contains(msg3.Object)));
+		Assert.IsTrue(result.Values.Any(list => list.Contains(msg1) && list.Contains(msg2)));
+		Assert.IsTrue(result.Values.Any(list => list.Contains(msg3)));
 	}
 }

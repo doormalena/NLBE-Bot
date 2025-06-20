@@ -1,15 +1,18 @@
-namespace NLBE_Bot.Blitzstars;
+using NLBE_Bot.Blitzstars;
 
+namespace NLBE_Bot.Services;
+
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using NLBE_Bot.Interfaces;
-using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-internal class Handler(IApiRequester apiRequester) : IHandler
+internal class BlitzstarsService(IConfiguration configuration, IApiRequester apiRequester) : IBlitzstarsService
 {
+	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IApiRequester _apiRequester = apiRequester ?? throw new ArgumentNullException(nameof(apiRequester));
 
 	public List<Tank> Filter90DaysStats(List<Tank> tankHistories)
@@ -114,7 +117,7 @@ internal class Handler(IApiRequester apiRequester) : IHandler
 			dateTime1 = dateTime1.AddDays(1.0);
 		}
 		dateTime1 = dateTimeList1[dateTimeList1.Count - 1];
-		DateTime dateTime2 = new DateTime(aDatetime.Year, 3, 1);
+		DateTime dateTime2 = new(aDatetime.Year, 3, 1);
 		List<DateTime> dateTimeList2 = [];
 		for (int index = 0; index < 31; ++index)
 		{
@@ -216,7 +219,7 @@ internal class Handler(IApiRequester apiRequester) : IHandler
 	{
 		var response = _apiRequester.GetRequest("https://www.blitzstars.com/api/tankhistories/for/" + accountId);
 		var tankHistories = JsonConvert.DeserializeObject<List<TankHistory>>(response);
-		var responseVehicles = _apiRequester.GetRequest("https://api.wotblitz.eu/wotb/tanks/stats/?application_id=" + Bot.WarGamingAppId + "&account_id=" + accountId);
+		var responseVehicles = _apiRequester.GetRequest("https://api.wotblitz.eu/wotb/tanks/stats/?application_id=" + _configuration["NLBEBOT:WarGamingAppId"] + "&account_id=" + accountId);
 		responseVehicles = Regex.Replace(responseVehicles, "\"data\":{\"([0-9]*)\"", "\"data\":{\"Vehicles\"", RegexOptions.NonBacktracking);
 		var playerVehicleData = JsonConvert.DeserializeObject<PlayerVehicle>(responseVehicles);
 		var combined = Combine(playerVehicleData.data.Vehicles.ToList(), tankHistories);
@@ -227,7 +230,7 @@ internal class Handler(IApiRequester apiRequester) : IHandler
 		while (combined.Count > 0)
 		{
 			var firstValue = combined.First().Value;
-			var fullArray = new List<TankHistory>();
+			List<TankHistory> fullArray = [];
 			fullArray.Add(new TankHistory(firstValue.PlayerTank));
 			for (var i = 0; i < firstValue.TnkHistoryList.Count; i++)
 			{
@@ -239,7 +242,7 @@ internal class Handler(IApiRequester apiRequester) : IHandler
 			combined.Remove(firstValue.PlayerTank.tank_id);
 		}
 
-		var v = Handler.V(dict);
+		var v = V(dict);
 		v = v.OrderBy(x => x.Key).ToDictionary((keyItem) => keyItem.Key, (valueItem) => valueItem.Value);
 		var battles30d = 0;
 		var battles60d = 0;

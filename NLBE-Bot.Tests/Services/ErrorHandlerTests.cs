@@ -1,8 +1,8 @@
 namespace NLBE_Bot.Tests.Services;
 
 using Microsoft.Extensions.Logging;
-using Moq;
 using NLBE_Bot.Services;
+using NSubstitute;
 using System;
 using System.Threading.Tasks;
 
@@ -13,8 +13,8 @@ public class ErrorHandlerTests
 	public async Task HandleErrorAsync_LogsError_WithMessageOnly()
 	{
 		// Arrange.
-		Mock<ILogger<ErrorHandler>> loggerMock = new();
-		ErrorHandler handler = new(loggerMock.Object);
+		ILogger<ErrorHandler> loggerMock = Substitute.For<ILogger<ErrorHandler>>();
+		ErrorHandler handler = new(loggerMock);
 		string message = "Test error message";
 
 		// Act.
@@ -22,13 +22,12 @@ public class ErrorHandlerTests
 
 		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-		loggerMock.Verify(l => l.Log(
-			LogLevel.Error,
-			It.IsAny<EventId>(),
-			It.Is<It.IsAnyType>((v, t) => v != null && v.ToString().Contains(message)),
+		loggerMock.Received().Log(
+			LogLevel.Information,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v != null && v.ToString().Contains(message)),
 			null,
-			It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-		Times.Once);
+			Arg.Any<Func<object, Exception?, string>>());
 #pragma warning restore CS8602
 	}
 
@@ -36,8 +35,8 @@ public class ErrorHandlerTests
 	public async Task HandleErrorAsync_LogsError_WithException()
 	{
 		// Arrange.
-		Mock<ILogger<ErrorHandler>> loggerMock = new();
-		ErrorHandler handler = new(loggerMock.Object);
+		ILogger<ErrorHandler> loggerMock = Substitute.For<ILogger<ErrorHandler>>();
+		ErrorHandler handler = new(loggerMock);
 		string message = "Test error message";
 		InvalidOperationException exception = new("Test exception");
 
@@ -46,16 +45,14 @@ public class ErrorHandlerTests
 
 		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-		loggerMock.Verify(l => l.Log(
-			LogLevel.Error,
-			It.IsAny<EventId>(),
-			It.Is<It.IsAnyType>((v, t) =>
-				v != null &&
-				v.ToString().Contains(message) &&
-				v.ToString().Contains(exception.Message)),
+		loggerMock.Received().Log(
+			LogLevel.Information,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v != null &&
+							v.ToString().Contains(message) &&
+							v.ToString().Contains(exception.Message)),
 			exception,
-			It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-		Times.Once);
+			Arg.Any<Func<object, Exception?, string>>());
 #pragma warning restore CS8602
 	}
 

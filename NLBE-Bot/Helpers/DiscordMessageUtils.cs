@@ -5,16 +5,15 @@ using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
-using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler errorHandler, ILogger<Worker> logger) : IDiscordMessageUtils
+internal class DiscordMessageUtils(DiscordClient discordClient, IErrorHandler errorHandler, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
 {
 	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly ILogger<Worker> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly ILogger<DiscordMessageUtils> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 	public Dictionary<IDiscordEmoji, List<IDiscordUser>> SortReactions(IDiscordMessage message)
 	{

@@ -8,10 +8,10 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class WeeklyEventHandler(IErrorHandler errorHandler, IBot bot) : IWeeklyEventHandler
+internal class WeeklyEventHandler(IErrorHandler errorHandler, IChannelService channelService) : IWeeklyEventHandler
 {
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly IBot _bot = bot ?? throw new ArgumentNullException(nameof(bot));
+	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 
 	public DiscordMessage DiscordMessage
 	{
@@ -104,7 +104,7 @@ internal class WeeklyEventHandler(IErrorHandler errorHandler, IBot bot) : IWeekl
 	{
 		try
 		{
-			DiscordChannel weeklyEventChannel = await _bot.GetWeeklyEventChannel();
+			DiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannel();
 			if (weeklyEventChannel != null)
 			{
 				IReadOnlyList<DiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
@@ -117,9 +117,9 @@ internal class WeeklyEventHandler(IErrorHandler errorHandler, IBot bot) : IWeekl
 						DiscordMessage = message;
 						WeeklyEvent = new WeeklyEvent(message);
 					}
-					else if (!_bot.IgnoreEvents)
+					else
 					{
-						await _bot.SendThibeastmo("Last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method!", string.Empty, string.Empty);
+						await _errorHandler.HandleErrorAsync("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
 					}
 				}
 			}

@@ -2,7 +2,6 @@ namespace NLBE_Bot.Tests.Helpers;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NLBE_Bot.Helpers;
-using NLBE_Bot.Interfaces;
 using RichardSzalay.MockHttp;
 
 [TestClass()]
