@@ -60,7 +60,6 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 
 			DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 			await bottestChannel.SendMessageAsync(winnerMessage.ToString());
-			_botState.LastWeeklyWinnerAnnouncement = now;
 		}
 		catch (Exception ex)
 		{

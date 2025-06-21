@@ -15,7 +15,7 @@ public interface IDiscordClient
 	{
 		get;
 	}
-	public IReadOnlyDictionary<ulong, DiscordGuild> Guilds
+	public IReadOnlyDictionary<ulong, IDiscordGuild> Guilds
 	{
 		get;
 	}
@@ -118,4 +118,27 @@ public interface ICommandContext
 	public Task DeleteInProgressReactionAsync(IDiscordEmoji emoji);
 
 	public Task AddErrorReactionAsync(IDiscordEmoji emoji);
+}
+
+public interface IDiscordGuild
+{
+	public ulong Id
+	{
+		get;
+	}
+	public DiscordGuild Inner
+	{
+		get;
+	}
+	public IReadOnlyDictionary<ulong, DiscordChannel> Channels
+	{
+		get;
+	}
+	public IReadOnlyDictionary<ulong, DiscordRole> Roles
+	{
+		get;
+	}
+	public Task<IReadOnlyCollection<DiscordMember>> GetAllMembersAsync();
+	public Task<DiscordMember> GetMemberAsync(ulong userId);
+	public Task LeaveAsync();
 }

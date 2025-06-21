@@ -699,11 +699,11 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 										}
 										if (aTeam.Organisator.Equals(string.Empty))
 										{
-											foreach (KeyValuePair<ulong, DiscordGuild> aGuild in _guildProvider.Guilds)
+											foreach (KeyValuePair<ulong, IDiscordGuild> aGuild in _guildProvider.Guilds)
 											{
 												if (aGuild.Key.Equals(Constants.NLBE_SERVER_ID))
 												{
-													DiscordMember theMemberAuthor = await _userService.GetDiscordMember(aGuild.Value, theMessage.Author.Id);
+													DiscordMember theMemberAuthor = await _userService.GetDiscordMember(aGuild.Value.Inner, theMessage.Author.Id);
 													if (theMemberAuthor != null)
 													{
 														aTeam.Organisator = theMemberAuthor.DisplayName;
@@ -916,7 +916,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 	}
 	public async Task<List<string>> GetMentions(List<Tuple<ulong, string>> memberList, ulong guildID)
 	{
-		DiscordGuild guild = await _guildProvider.GetGuild(guildID);
+		IDiscordGuild guild = await _guildProvider.GetGuild(guildID);
 		if (guild != null)
 		{
 			List<string> mentionList = [];

@@ -1,8 +1,8 @@
 namespace NLBE_Bot.Helpers;
 
-using DSharpPlus;
 using DSharpPlus.Entities;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -10,10 +10,11 @@ internal class GuildProvider(IDiscordClient discordClient) : IGuildProvider
 {
 	private readonly IDiscordClient _discordClient = discordClient;
 
-	public IReadOnlyDictionary<ulong, DiscordGuild> Guilds => _discordClient.Guilds;
+	public IReadOnlyDictionary<ulong, IDiscordGuild> Guilds => _discordClient.Guilds;
 
-	public Task<DiscordGuild> GetGuild(ulong serverID)
+	public async Task<IDiscordGuild> GetGuild(ulong serverID)
 	{
-		return _discordClient.GetGuildAsync(serverID);
+		DiscordGuild guild = await _discordClient.GetGuildAsync(serverID);
+		return new DiscordGuildWrapper(guild);
 	}
 }

@@ -99,7 +99,7 @@ public class BotTests
 	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
 	{
-		// Assert.
+		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() => new Bot(null, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock));
 		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, null, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock));
 		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, null, _publicIpMock, _serviceProviderMock, _botStateMock));

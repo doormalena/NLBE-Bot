@@ -17,7 +17,10 @@ public class DiscordClientWrapper(DiscordClient client) : IDiscordClient
 	private readonly DiscordClient _inner = client;
 
 	public DiscordClient Inner => _inner;
-	public IReadOnlyDictionary<ulong, DiscordGuild> Guilds => _inner.Guilds;
+	public IReadOnlyDictionary<ulong, IDiscordGuild> Guilds => _inner.Guilds.ToDictionary(
+		kvp => kvp.Key,
+		kvp => (IDiscordGuild) new DiscordGuildWrapper(kvp.Value)
+	);
 
 	public Task ConnectAsync(DiscordActivity activity, UserStatus status)
 	{
@@ -206,5 +209,33 @@ public class CommandContextWrapper(CommandContext context) : ICommandContext
 	public Task AddErrorReactionAsync(IDiscordEmoji emoji)
 	{
 		return _context.Message.CreateReactionAsync(emoji.Inner);
+	}
+}
+
+public class DiscordGuildWrapper(DiscordGuild guild) : IDiscordGuild
+{
+	private readonly DiscordGuild _guild = guild;
+
+	public ulong Id => _guild.Id;
+
+	public DiscordGuild Inner => _guild;
+
+	public IReadOnlyDictionary<ulong, DiscordChannel> Channels => _guild.Channels;
+
+	public IReadOnlyDictionary<ulong, DiscordRole> Roles => _guild.Roles;
+
+	public Task<IReadOnlyCollection<DiscordMember>> GetAllMembersAsync()
+	{
+		return _guild.GetAllMembersAsync();
+	}
+
+	public Task<DiscordMember> GetMemberAsync(ulong userId)
+	{
+		return _guild.GetMemberAsync(userId);
+	}
+
+	public Task LeaveAsync()
+	{
+		return _guild.LeaveAsync();
 	}
 }

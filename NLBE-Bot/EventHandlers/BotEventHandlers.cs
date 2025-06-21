@@ -6,6 +6,7 @@ using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -15,20 +16,21 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 								IUserService userService, IWeeklyEventService weeklyEventService, ILogger<BotEventHandlers> logger,
 								IErrorHandler errorHandler) : IBotEventHandlers
 {
-	private readonly ICommandEventHandler _commandHandler = commandHandler;
-	private readonly IGuildMemberEventHandler _guildMemberHandler = guildMemberHandler;
-	private readonly IMessageEventHandler _messageHandler = messageHandler;
-	private readonly IUserService _userService = userService;
-	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService;
-	private readonly ILogger<BotEventHandlers> _logger = logger;
-	private readonly IErrorHandler _errorHandler = errorHandler;
+	private readonly ICommandEventHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
+	private readonly IGuildMemberEventHandler _guildMemberHandler = guildMemberHandler ?? throw new ArgumentNullException(nameof(guildMemberHandler));
+	private readonly IMessageEventHandler _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));
+	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService ?? throw new ArgumentNullException(nameof(weeklyEventService));
+	private readonly ILogger<BotEventHandlers> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 
 	private IBotState _botState;
 	private int _heartBeatCounter;
 
 	public void Register(IDiscordClient client, IBotState botState)
 	{
-		_botState = botState;
+		_ = client ?? throw new ArgumentNullException(nameof(client));
+		_botState = botState ?? throw new ArgumentNullException(nameof(botState));
 
 		// Commands
 		ICommandsNextExtension commands = client.GetCommandsNext();
@@ -45,9 +47,14 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		client.Ready += OnReady;
 	}
 
-	internal Task OnReady(DiscordClient discordClient, ReadyEventArgs __)
+	private Task OnReady(DiscordClient discordClient, ReadyEventArgs _)
 	{
-		foreach (KeyValuePair<ulong, DiscordGuild> guild in discordClient.Guilds)
+		return HandleReady(new DiscordClientWrapper(discordClient));
+	}
+
+	internal Task HandleReady(IDiscordClient discordClient)
+	{
+		foreach (KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds)
 		{
 			if (!guild.Key.Equals(Constants.NLBE_SERVER_ID) && !guild.Key.Equals(Constants.DA_BOIS_ID)) // TODO: move to config.
 			{
@@ -60,7 +67,12 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		return Task.CompletedTask;
 	}
 
-	internal async Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs e)
+	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs __)
+	{
+		return HandleHeartbeated(DateTime.Now);
+	}
+
+	internal async Task HandleHeartbeated(DateTime now)
 	{
 		_heartBeatCounter++;
 
@@ -74,8 +86,6 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 			return;
 		}
 
-		DateTime now = DateTime.Now;
-
 		if (ShouldUpdateUsernames(now, _botState.LasTimeNamesWereUpdated))
 		{
 			await UpdateUsernames();
@@ -84,6 +94,7 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		if (ShouldAnnounceWeeklyWinner(now, _botState.LastWeeklyWinnerAnnouncement))
 		{
 			await _weeklyEventService.AnnounceWeeklyWinner();
+			_botState.LastWeeklyWinnerAnnouncement = now;
 		}
 	}
 
@@ -114,17 +125,17 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 			if (_botState.LasTimeNamesWereUpdated.Value.DayOfYear != now.DayOfYear)
 			{
 				update = true;
-				_botState.LasTimeNamesWereUpdated = now;
 			}
 		}
 		else
 		{
 			update = true;
-			_botState.LasTimeNamesWereUpdated = now;
 		}
 
 		if (update)
 		{
+			_botState.LasTimeNamesWereUpdated = now;
+
 			try
 			{
 				await _userService.UpdateUsers();

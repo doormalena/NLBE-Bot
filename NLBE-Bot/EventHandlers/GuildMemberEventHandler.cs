@@ -56,7 +56,7 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler, ILogger<Guild
 					DiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
 
 					welkomChannel.SendMessageAsync(e.Member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.").Wait();
-					DiscordGuild guild = _guildProvider.GetGuild(e.Guild.Id).Result;
+					IDiscordGuild guild = _guildProvider.GetGuild(e.Guild.Id).Result;
 
 					if (guild != null)
 					{
@@ -81,7 +81,7 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler, ILogger<Guild
 								{
 									question = "**We konden dit Wargamingaccount niet vinden, probeer opnieuw! (Hoofdlettergevoelig)**\n" + question;
 								}
-								string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
+								string ign = await _messageService.AskQuestion(welkomChannel, user, guild.Inner, question);
 								searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, _configuration["NLBEBOT:WarGamingAppId"], false, true, false);
 								if (searchResults != null && searchResults.Count > 0)
 								{
@@ -173,9 +173,9 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler, ILogger<Guild
 			return;
 		}
 
-		foreach (KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds.Where(g => g.Key != Constants.NLBE_SERVER_ID))
+		foreach (KeyValuePair<ulong, IDiscordGuild> guild in _guildProvider.Guilds.Where(g => g.Key != Constants.NLBE_SERVER_ID))
 		{
-			DiscordMember member = await _userService.GetDiscordMember(guild.Value, e.Member.Id);
+			DiscordMember member = await _userService.GetDiscordMember(guild.Value.Inner, e.Member.Id);
 
 			if (member == null)
 			{
@@ -213,7 +213,7 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler, ILogger<Guild
 		if (oudLedenChannel != null)
 		{
 			IReadOnlyDictionary<ulong, DiscordRole> serverRoles = null;
-			foreach (KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds)
+			foreach (KeyValuePair<ulong, IDiscordGuild> guild in _guildProvider.Guilds)
 			{
 				if (guild.Value.Id.Equals(Constants.NLBE_SERVER_ID))
 				{

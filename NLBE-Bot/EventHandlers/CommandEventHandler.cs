@@ -20,13 +20,13 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger, IErrorHa
 		commands.CommandErrored += OnCommandErrored;
 	}
 
-	internal Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
+	private Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
 	{
 		ICommand commandInfo = e.Command != null ? new CommandWrapper(e.Command) : null;
 		return HandleCommandExecuted(commandInfo);
 	}
 
-	internal Task OnCommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
+	private Task OnCommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
 	{
 		CommandContextWrapper contextInfo = new(e.Context);
 		ICommand commandInfo = e.Command != null ? new CommandWrapper(e.Command) : null;

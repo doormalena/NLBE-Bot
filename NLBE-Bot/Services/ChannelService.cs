@@ -139,7 +139,7 @@ internal class ChannelService(IDiscordClient discordClient, ILogger<ChannelServi
 			guildNameOrTag = guildNameOrTag.TrimEnd('>');
 		}
 
-		DiscordGuild guild = await _guildProvider.GetGuild(guildID);
+		IDiscordGuild guild = await _guildProvider.GetGuild(guildID);
 
 		if (guild != null)
 		{
