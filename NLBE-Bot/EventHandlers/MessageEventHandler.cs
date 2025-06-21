@@ -38,7 +38,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly ILogger<MessageEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public void Register(IDiscordClientWrapper client)
+	public void Register(IDiscordClient client)
 	{
 		client.MessageCreated += OnMessageCreated;
 		client.MessageDeleted += OnMessageDeleted;
@@ -156,7 +156,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			}
 			if (validChannel)
 			{
-				_botState.LastCreatedDiscordMessage = e.Message;
+				_botState.LastCreatedDiscordMessage = new DiscordMessageWrapper(e.Message);
 				DiscordMember member = await e.Guild.GetMemberAsync(e.Author.Id);
 
 				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))))

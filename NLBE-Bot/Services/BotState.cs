@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Services;
 
-using DSharpPlus.Entities;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Threading;
@@ -66,8 +65,8 @@ internal class BotState : IBotState
 		}
 	}
 
-	private DiscordMessage _lastCreatedDiscordMessage;
-	public DiscordMessage LastCreatedDiscordMessage
+	private IDiscordMessage _lastCreatedDiscordMessage;
+	public IDiscordMessage LastCreatedDiscordMessage
 	{
 		get
 		{

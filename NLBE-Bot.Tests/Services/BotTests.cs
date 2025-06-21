@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 public class BotTests
 {
 	private ILogger<Bot>? _loggerMock;
-	private IDiscordClientWrapper? _discordClientMock;
+	private IDiscordClient? _discordClientMock;
 	private ICommandEventHandler? _commandHandlerMock;
 	private IWeeklyEventService? _weeklyEventHandlerMock;
 	private IGuildMemberEventHandler? _guildMemberHandlerMock;
@@ -44,7 +44,7 @@ public class BotTests
 		_serviceProviderMock = Substitute.For<IServiceProvider>();
 		_weeklyEventServiceMock = Substitute.For<IWeeklyEventService>();
 		_publicIpMock = Substitute.For<IPublicIpAddress>();
-		_discordClientMock = Substitute.For<IDiscordClientWrapper>();
+		_discordClientMock = Substitute.For<IDiscordClient>();
 
 		_publicIpMock!.GetPublicIpAddressAsync().Returns("1.2.3.4");
 

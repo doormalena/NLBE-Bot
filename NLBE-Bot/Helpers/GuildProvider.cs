@@ -6,9 +6,9 @@ using NLBE_Bot.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-internal class GuildProvider(IDiscordClientWrapper discordClient) : IGuildProvider
+internal class GuildProvider(IDiscordClient discordClient) : IGuildProvider
 {
-	private readonly IDiscordClientWrapper _discordClient = discordClient;
+	private readonly IDiscordClient _discordClient = discordClient;
 
 	public IReadOnlyDictionary<ulong, DiscordGuild> Guilds => _discordClient.Guilds;
 

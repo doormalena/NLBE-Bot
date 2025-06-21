@@ -5,7 +5,6 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.EventHandlers;
@@ -80,7 +79,7 @@ public static class Program
 			});
 	}
 
-	private static IDiscordClientWrapper CreateDiscordClient(IConfiguration configuration, ILoggerFactory loggerFactory)
+	private static IDiscordClient CreateDiscordClient(IConfiguration configuration, ILoggerFactory loggerFactory)
 	{
 		DiscordConfiguration config = new()
 		{

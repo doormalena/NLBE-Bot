@@ -12,7 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-public class DiscordClientWrapper(DiscordClient client) : IDiscordClientWrapper
+public class DiscordClientWrapper(DiscordClient client) : IDiscordClient
 {
 	private readonly DiscordClient _inner = client;
 
@@ -120,6 +120,14 @@ public class DiscordMessageWrapper(DiscordMessage message) : IDiscordMessage
 	public string Content => _message.Content;
 
 	public DiscordMessage Inner => _message;
+}
+
+public static class DiscordMessageExtensions
+{
+	public static Task<DiscordMessage> RespondAsync(this IDiscordMessage message, string content, DiscordEmbed embed)
+	{
+		return message.Inner.RespondAsync(content, embed: embed);
+	}
 }
 
 public class DiscordReactionWrapper(DiscordReaction reaction) : IDiscordReaction

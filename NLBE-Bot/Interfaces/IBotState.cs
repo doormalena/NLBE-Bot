@@ -20,7 +20,7 @@ internal interface IBotState
 		get; set;
 	}
 
-	public DiscordMessage LastCreatedDiscordMessage
+	public IDiscordMessage LastCreatedDiscordMessage
 	{
 		get; set;
 	}

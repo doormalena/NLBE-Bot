@@ -14,10 +14,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class HallOfFameService(IDiscordClientWrapper discordClient, IErrorHandler errorHandler, IConfiguration configuration,
+internal class HallOfFameService(IDiscordClient discordClient, IErrorHandler errorHandler, IConfiguration configuration,
 		IDiscordMessageUtils discordMessageUtils, IChannelService channelService, IMessageService messageService, IMapService mapService, IReplayService replayService, IUserService userService) : IHallOfFameService
 {
-	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));

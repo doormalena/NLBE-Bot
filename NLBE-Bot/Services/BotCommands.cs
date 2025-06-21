@@ -23,14 +23,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class BotCommands(IDiscordClientWrapper discordClient, IErrorHandler errorHandler, ILogger<BotCommands> logger, IConfiguration configuration, IClanService clanService,
+internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHandler, ILogger<BotCommands> logger, IConfiguration configuration, IClanService clanService,
 							IBlitzstarsService handler, IDiscordMessageUtils discordMessageUtils, IBotState botState, IChannelService channelService, IUserService userService,
 							IMessageService messageService, IMapService mapService, ITournamentService tournamentService, IHallOfFameService hallOfFameService, IWeeklyEventService weeklyEventHandler) : BaseCommandModule
 {
 	private const int MAX_NAME_LENGTH_IN_WOTB = 25;
 	private const int MAX_TANK_NAME_LENGTH_IN_WOTB = 14;
 
-	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<BotCommands> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));

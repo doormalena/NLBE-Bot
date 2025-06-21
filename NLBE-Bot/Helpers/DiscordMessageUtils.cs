@@ -8,9 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-internal class DiscordMessageUtils(IDiscordClientWrapper discordClient, IErrorHandler errorHandler, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
+internal class DiscordMessageUtils(IDiscordClient discordClient, IErrorHandler errorHandler, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
 {
-	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<DiscordMessageUtils> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 

@@ -9,7 +9,7 @@ using DSharpPlus.Interactivity;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-public interface IDiscordClientWrapper
+public interface IDiscordClient
 {
 	public DiscordClient Inner
 	{

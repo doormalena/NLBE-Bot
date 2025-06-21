@@ -16,7 +16,7 @@ public class DiscordMessageExtensionsTests
 	public void SortReactionsTest()
 	{
 		// Arrange.
-		IDiscordClientWrapper discordClient = Substitute.For<IDiscordClientWrapper>();
+		IDiscordClient discordClient = Substitute.For<IDiscordClient>();
 		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
 		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
 		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);
@@ -54,7 +54,7 @@ public class DiscordMessageExtensionsTests
 	public void SortMessagesTest()
 	{
 		// Arrange.		
-		IDiscordClientWrapper discordClient = Substitute.For<IDiscordClientWrapper>();
+		IDiscordClient discordClient = Substitute.For<IDiscordClient>();
 		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
 		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
 		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);

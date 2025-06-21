@@ -15,11 +15,11 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class MessageService(IDiscordClientWrapper discordClient, ILogger<MessageService> logger, IConfiguration configuration, IErrorHandler errorHandler, IBotState botState,
+internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IConfiguration configuration, IErrorHandler errorHandler, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,
 								IMapService mapService) : IMessageService
 {
-	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<MessageService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));

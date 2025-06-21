@@ -28,7 +28,7 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler, ILogger<Guild
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 
-	public void Register(IDiscordClientWrapper client)
+	public void Register(IDiscordClient client)
 	{
 		client.GuildMemberAdded += OnMemberAdded;
 		client.GuildMemberUpdated += OnMemberUpdated;

@@ -13,13 +13,13 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-internal class Bot(IDiscordClientWrapper discordClient, IServiceProvider serviceProvider,
+internal class Bot(IDiscordClient discordClient, IServiceProvider serviceProvider,
 		ICommandEventHandler commandHandler, IWeeklyEventService weeklyEventHandler,
 		IGuildMemberEventHandler guildMemberService, IBotState botState,
 		IChannelService channelService, IGuildProvider guildProvider, IUserService userService, IMessageService messageService,
 		IMessageEventHandler messageHandler, IWeeklyEventService weeklyEventService, ILogger<Bot> logger, IPublicIpAddress publicIpAddress) : BackgroundService
 {
-	private readonly IDiscordClientWrapper _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
+	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ICommandEventHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
 	private readonly IGuildMemberEventHandler _guildMemberHandler = guildMemberService ?? throw new ArgumentNullException(nameof(guildMemberService));
