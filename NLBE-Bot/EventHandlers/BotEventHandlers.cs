@@ -1,4 +1,4 @@
-namespace NLBE_Bot.Services;
+namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.Entities;
@@ -9,35 +9,27 @@ using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Threading.Tasks;
 
-internal class BotEventHandlers(
-	ICommandEventHandler commandHandler,
-	IGuildMemberEventHandler guildMemberHandler,
-	IMessageEventHandler messageHandler,
-	IBotState botState,
-	IGuildProvider guildProvider,
-	IUserService userService,
-	IChannelService channelService,
-	IWeeklyEventService weeklyEventService,
-	ILogger<BotEventHandlers> logger,
-	IErrorHandler errorHandler) : IBotEventHandlers
+internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMemberEventHandler guildMemberHandler, IMessageEventHandler messageHandler,
+								IUserService userService, IWeeklyEventService weeklyEventService, ILogger<BotEventHandlers> logger,
+								IErrorHandler errorHandler) : IBotEventHandlers
 {
 	private readonly ICommandEventHandler _commandHandler = commandHandler;
 	private readonly IGuildMemberEventHandler _guildMemberHandler = guildMemberHandler;
 	private readonly IMessageEventHandler _messageHandler = messageHandler;
-	private readonly IBotState _botState = botState;
-	private readonly IGuildProvider _guildProvider = guildProvider;
 	private readonly IUserService _userService = userService;
-	private readonly IChannelService _channelService = channelService;
 	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService;
 	private readonly ILogger<BotEventHandlers> _logger = logger;
 	private readonly IErrorHandler _errorHandler = errorHandler;
+
+	private IBotState _botState;
 	private int _heartBeatCounter;
 
-	public void Register(IDiscordClient client)
+	public void Register(IDiscordClient client, IBotState botState)
 	{
+		_botState = botState;
+
 		// Commands
 		ICommandsNextExtension commands = client.GetCommandsNext();
 		_commandHandler.Register(commands);
@@ -53,11 +45,11 @@ internal class BotEventHandlers(
 		client.Ready += OnReady;
 	}
 
-	internal Task OnReady(DiscordClient _, ReadyEventArgs __)
+	internal Task OnReady(DiscordClient discordClient, ReadyEventArgs __)
 	{
-		foreach (KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds)
+		foreach (KeyValuePair<ulong, DiscordGuild> guild in discordClient.Guilds)
 		{
-			if (!guild.Key.Equals(Constants.NLBE_SERVER_ID) && !guild.Key.Equals(Constants.DA_BOIS_ID))
+			if (!guild.Key.Equals(Constants.NLBE_SERVER_ID) && !guild.Key.Equals(Constants.DA_BOIS_ID)) // TODO: move to config.
 			{
 				guild.Value.LeaveAsync();
 			}
@@ -86,12 +78,12 @@ internal class BotEventHandlers(
 
 		if (ShouldUpdateUsernames(now, _botState.LasTimeNamesWereUpdated))
 		{
-			await TryUpdateUsernames();
+			await UpdateUsernames();
 		}
 
 		if (ShouldAnnounceWeeklyWinner(now, _botState.LastWeeklyWinnerAnnouncement))
 		{
-			await TryAnnounceWeeklyWinner();
+			await _weeklyEventService.AnnounceWeeklyWinner();
 		}
 	}
 
@@ -112,7 +104,7 @@ internal class BotEventHandlers(
 		return isMondayAtOrAfter14 && notAlreadyAnnouncedThisWeek;
 	}
 
-	private async Task TryUpdateUsernames()
+	private async Task UpdateUsernames()
 	{
 		bool update = false;
 		DateTime now = DateTime.Now;
@@ -142,44 +134,6 @@ internal class BotEventHandlers(
 				string message = "\nERROR updating users:\n" + ex.Message;
 				await _errorHandler.HandleErrorAsync(message, ex);
 			}
-		}
-	}
-
-	private async Task TryAnnounceWeeklyWinner()
-	{
-		DateTime now = DateTime.Now;
-		string winnerMessage = "Het wekelijkse event is afgelopen.";
-		DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
-
-		try
-		{
-			_logger.LogInformation(winnerMessage);
-
-			await _weeklyEventService.ReadWeeklyEvent();
-
-			if (_weeklyEventService.WeeklyEvent.StartDate.DayOfYear == now.DayOfYear - 7)
-			{
-				winnerMessage += "\nNa 1 week...";
-				WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventService.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
-
-				if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
-				{
-					foreach (KeyValuePair<ulong, DiscordGuild> guild in from KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds
-																		where guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID
-																		select guild)
-					{
-						await _weeklyEventService.WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, _weeklyEventService.WeeklyEvent.Tank);
-					}
-				}
-			}
-
-			await bottestChannel.SendMessageAsync(winnerMessage);
-			_botState.LastWeeklyWinnerAnnouncement = now;
-		}
-		catch (Exception ex)
-		{
-			string message = winnerMessage + "\nERROR:\n" + ex.Message;
-			await _errorHandler.HandleErrorAsync(message, ex);
 		}
 	}
 }

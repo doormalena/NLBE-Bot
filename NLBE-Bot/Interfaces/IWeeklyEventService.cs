@@ -11,6 +11,8 @@ internal interface IWeeklyEventService
 		get; set;
 	}
 
+	public Task AnnounceWeeklyWinner();
+
 	public Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank);
 
 	public Task ReadWeeklyEvent();

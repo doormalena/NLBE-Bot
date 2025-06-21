@@ -1,6 +1,5 @@
 namespace NLBE_Bot.EventHandlers;
 
-using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot;

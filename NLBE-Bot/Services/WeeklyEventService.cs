@@ -1,21 +1,25 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
+using Microsoft.Extensions.Logging;
+using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
-using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class WeeklyEventService(IErrorHandler errorHandler, IChannelService channelService, IUserService userService, IBotState botState) : IWeeklyEventService
+internal class WeeklyEventService(IChannelService channelService, IUserService userService, IGuildProvider guildProvider, IBotState botState, ILogger<BotEventHandlers> logger, IErrorHandler errorHandler) : IWeeklyEventService
 {
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+	private readonly IGuildProvider _guildProvider = guildProvider;
+	private readonly ILogger<BotEventHandlers> _logger = logger;
 
 	public DiscordMessage DiscordMessage
 	{
@@ -27,6 +31,43 @@ internal class WeeklyEventService(IErrorHandler errorHandler, IChannelService ch
 		get; set;
 	}
 
+	public async Task AnnounceWeeklyWinner()
+	{
+		DateTime now = DateTime.Now;
+		StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
+
+		try
+		{
+			_logger.LogInformation(winnerMessage.ToString());
+
+			await ReadWeeklyEvent();
+
+			if (WeeklyEvent.StartDate.DayOfYear == now.DayOfYear - 7)
+			{
+				winnerMessage.AppendLine("Na 1 week...");
+				WeeklyEventItem weeklyEventItemMostDMG = WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
+
+				if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
+				{
+					foreach (KeyValuePair<ulong, DiscordGuild> guild in from KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds
+																		where guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID
+																		select guild)
+					{
+						await WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, WeeklyEvent.Tank);
+					}
+				}
+			}
+
+			DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+			await bottestChannel.SendMessageAsync(winnerMessage.ToString());
+			_botState.LastWeeklyWinnerAnnouncement = now;
+		}
+		catch (Exception ex)
+		{
+			string message = winnerMessage + "\nERROR:\n" + ex.Message;
+			await _errorHandler.HandleErrorAsync(message, ex);
+		}
+	}
 	public async Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
 		bool userNotFound = true;

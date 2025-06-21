@@ -9,13 +9,14 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-internal class Bot(IDiscordClient discordClient, IBotEventHandlers eventHandlers, ILogger<Bot> logger, IPublicIpAddress publicIpAddress, IServiceProvider provider) : BackgroundService
+internal class Bot(IDiscordClient discordClient, IBotEventHandlers eventHandlers, ILogger<Bot> logger, IPublicIpAddress publicIpAddress, IServiceProvider provider, IBotState botState) : BackgroundService
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IBotEventHandlers _eventHandlers = eventHandlers ?? throw new ArgumentNullException(nameof(eventHandlers));
 	private readonly ILogger<Bot> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IPublicIpAddress _publicIpAddress = publicIpAddress ?? throw new ArgumentNullException(nameof(publicIpAddress));
 	private readonly IServiceProvider _provider = provider ?? throw new ArgumentNullException(nameof(provider));
+	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 	{
@@ -37,7 +38,7 @@ internal class Bot(IDiscordClient discordClient, IBotEventHandlers eventHandlers
 			};
 
 			_discordClient.UseCommandsNext(commandsConfig).RegisterCommands<BotCommands>();
-			_eventHandlers.Register(_discordClient);
+			_eventHandlers.Register(_discordClient, _botState);
 
 			DiscordActivity activity = new(Constants.Prefix, ActivityType.ListeningTo);
 			await _discordClient.ConnectAsync(activity, UserStatus.Online);
