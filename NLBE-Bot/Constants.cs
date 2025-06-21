@@ -1,6 +1,7 @@
 namespace NLBE_Bot;
 
 using DSharpPlus.Entities;
+using System.Reflection;
 
 public static class Constants
 {
@@ -37,9 +38,13 @@ public static class Constants
 	public const long NLBE2_CLAN_ID = 48814;
 	public const char UNDERSCORE_REPLACEMENT_CHAR = 'ˍ';
 	public const char REPLACEABLE_UNDERSCORE_CHAR = '＿';
-	public static readonly string version = "2.12";
 
 	public static readonly DiscordColor WEEKLY_EVENT_COLOR = DiscordColor.Gold;
 	public static readonly DiscordColor HOF_COLOR = DiscordColor.Blurple;
 	public static readonly DiscordColor BOT_COLOR = DiscordColor.Red;
+
+	public static string Version =>
+			Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+			?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
+			?? "Unknown";
 }

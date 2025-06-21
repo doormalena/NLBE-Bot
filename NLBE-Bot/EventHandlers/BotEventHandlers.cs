@@ -1,7 +1,6 @@
 namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
-using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot;
@@ -62,7 +61,7 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 			}
 		}
 
-		_logger.LogInformation("Client (v{Version}) is ready to process events.", Constants.version);
+		_logger.LogInformation("Client (v{Version}) is ready to process events.", Constants.Version);
 
 		return Task.CompletedTask;
 	}

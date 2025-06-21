@@ -1150,7 +1150,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 				EmbedOptions options = new()
 				{
 					Title = "Help",
-					Description = "Versie: `" + Constants.version + "`",
+					Description = "Versie: `" + Constants.Version + "`",
 					Fields = deflist
 				};
 				await _messageService.CreateEmbed(ctx.Channel, options);
@@ -1307,20 +1307,20 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 				{
 					_botState.IgnoreCommands = !_botState.IgnoreCommands;
 					_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (_botState.IgnoreCommands ? "" : " niet meer") + "! <<<");
-					await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (_botState.IgnoreCommands ? "" : " niet meer") + "!**");
+					await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.Version + "`) negeert nu de commando's" + (_botState.IgnoreCommands ? "" : " niet meer") + "!**");
 				}
 				else
 				{
 					_botState.IgnoreEvents = !_botState.IgnoreEvents;
 					_logger.LogWarning(">>> NLBE-Bot negeert nu de events" + (_botState.IgnoreEvents ? "" : " niet meer") + "! <<<");
-					await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de events" + (_botState.IgnoreEvents ? "" : " niet meer") + "!**");
+					await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.Version + "`) negeert nu de events" + (_botState.IgnoreEvents ? "" : " niet meer") + "!**");
 				}
 			}
 			else
 			{
 				_botState.IgnoreCommands = !_botState.IgnoreCommands;
 				_logger.LogWarning(">>> NLBE-Bot negeert nu de commando's" + (_botState.IgnoreCommands ? "" : " niet meer") + "! <<<");
-				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.version + "`) negeert nu de commando's" + (_botState.IgnoreCommands ? "" : " niet meer") + "!**");
+				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**NLBE-Bot (`v " + Constants.Version + "`) negeert nu de commando's" + (_botState.IgnoreCommands ? "" : " niet meer") + "!**");
 			}
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		}

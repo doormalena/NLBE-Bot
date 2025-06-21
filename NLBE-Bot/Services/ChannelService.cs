@@ -34,7 +34,7 @@ internal class ChannelService(IDiscordClient discordClient, ILogger<ChannelServi
 	{
 		ulong ServerID = Constants.NLBE_SERVER_ID;
 		ulong ChatID = 897749692895596565;
-		if (Constants.version.ToLower().Contains("local"))
+		if (Constants.Version.ToLower().Contains("local"))
 		{
 			ServerID = Constants.DA_BOIS_ID;
 			ChatID = 901480697011777538;
