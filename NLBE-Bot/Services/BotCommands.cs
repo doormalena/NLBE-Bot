@@ -1849,14 +1849,15 @@ internal class BotCommands(IDiscordClientWrapper discordClient, IErrorHandler er
 			{
 				if (long.TryParse(conditie, out long id))
 				{
-					WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], id, false, true, true);
-					if (account != null)
+					try
 					{
+						WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], id, false, true, true);
 						await _userService.ShowMemberInfo(ctx.Channel, account);
 					}
-					else
+					catch (Exception ex)
 					{
 						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**GebruikersID (`" + id + "`) kon niet gevonden worden!**");
+						await _errorHandler.HandleErrorAsync($"User `{id}` could not be found (or loaded).", ex);
 					}
 				}
 				else
