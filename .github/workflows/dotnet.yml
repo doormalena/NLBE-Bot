@@ -32,7 +32,7 @@ jobs:
       run: dotnet nuget add source ${GITHUB_WORKSPACE}/.packages
 
     - name: "Configure SonarCloud"
-      run: dotnet sonarscanner begin -d:sonar.verbose=true /d:project.settings=${GITHUB_WORKSPACE}/sonar-project.properties /d:sonar.token=${{ secrets.SONAR_TOKEN }}                         
+      run: dotnet sonarscanner begin -k:"NLBE-Bot" -d:sonar.verbose=true /d:project.settings=${GITHUB_WORKSPACE}/sonar-project.properties /d:sonar.token=${{ secrets.SONAR_TOKEN }}                         
 
     - name: "Restore dependencies"
       run: dotnet restore
