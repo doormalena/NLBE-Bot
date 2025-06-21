@@ -223,8 +223,6 @@ internal class BlitzstarsService(IConfiguration configuration, IApiRequester api
 		var playerVehicleData = JsonConvert.DeserializeObject<PlayerVehicle>(responseVehicles);
 		var combined = Combine(playerVehicleData.data.Vehicles.ToList(), tankHistories);
 		var dict = new Dictionary<int, TankHistory[]>();
-		const int amountOfDaysToFilerOn = 90;
-		var totalBattles90 = 0;
 
 		while (combined.Count > 0)
 		{

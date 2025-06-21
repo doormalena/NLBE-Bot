@@ -52,11 +52,12 @@ public static class Program
 			{
 				services.AddSingleton(provider =>
 				{
-					return CreateDiscordClient(hostContext.Configuration, provider.GetRequiredService<ILoggerFactory>());
+					return CreateDiscordClient(provider, hostContext.Configuration) as IDiscordClient;
 				});
 
 				services.AddHostedService<Bot>();
 				services.AddSingleton<IBotState, BotState>();
+				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
 				services.AddSingleton<BotCommands>();
 				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();
 				services.AddSingleton<IErrorHandler, ErrorHandler>();
@@ -79,7 +80,7 @@ public static class Program
 			});
 	}
 
-	private static IDiscordClient CreateDiscordClient(IConfiguration configuration, ILoggerFactory loggerFactory)
+	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider, IConfiguration configuration)
 	{
 		DiscordConfiguration config = new()
 		{
@@ -87,7 +88,7 @@ public static class Program
 			TokenType = TokenType.Bot,
 			AutoReconnect = true,
 			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
-			LoggerFactory = loggerFactory
+			LoggerFactory = provider.GetRequiredService<ILoggerFactory>()
 		};
 
 		DiscordClient client = new(config);

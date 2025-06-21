@@ -13,38 +13,20 @@ using System.Threading.Tasks;
 [TestClass]
 public class BotTests
 {
-	private ILogger<Bot>? _loggerMock;
 	private IDiscordClient? _discordClientMock;
-	private ICommandEventHandler? _commandHandlerMock;
-	private IWeeklyEventService? _weeklyEventHandlerMock;
-	private IGuildMemberEventHandler? _guildMemberHandlerMock;
-	private IBotState? _botStateMock;
-	private IChannelService? _channelServiceMock;
-	private IGuildProvider? _guildProviderMock;
-	private IUserService? _userServiceMock;
-	private IMessageService? _messageServiceMock;
-	private IMessageEventHandler? _messageHandlerMock;
-	private IServiceProvider? _serviceProviderMock;
-	private IWeeklyEventService? _weeklyEventServiceMock;
+	private IBotEventHandlers? _eventHandlersMock;
+	private ILogger<Bot>? _loggerMock;
 	private IPublicIpAddress? _publicIpMock;
+	private IServiceProvider? _serviceProviderMock;
 
 	[TestInitialize]
 	public void Setup()
 	{
-		_loggerMock = Substitute.For<ILogger<Bot>>();
-		_commandHandlerMock = Substitute.For<ICommandEventHandler>();
-		_weeklyEventHandlerMock = Substitute.For<IWeeklyEventService>();
-		_guildMemberHandlerMock = Substitute.For<IGuildMemberEventHandler>();
-		_botStateMock = Substitute.For<IBotState>();
-		_channelServiceMock = Substitute.For<IChannelService>();
-		_guildProviderMock = Substitute.For<IGuildProvider>();
-		_userServiceMock = Substitute.For<IUserService>();
-		_messageServiceMock = Substitute.For<IMessageService>();
-		_messageHandlerMock = Substitute.For<IMessageEventHandler>();
-		_serviceProviderMock = Substitute.For<IServiceProvider>();
-		_weeklyEventServiceMock = Substitute.For<IWeeklyEventService>();
-		_publicIpMock = Substitute.For<IPublicIpAddress>();
 		_discordClientMock = Substitute.For<IDiscordClient>();
+		_eventHandlersMock = Substitute.For<IBotEventHandlers>();
+		_loggerMock = Substitute.For<ILogger<Bot>>();
+		_publicIpMock = Substitute.For<IPublicIpAddress>();
+		_serviceProviderMock = Substitute.For<IServiceProvider>();
 
 		_publicIpMock!.GetPublicIpAddressAsync().Returns("1.2.3.4");
 
@@ -56,34 +38,25 @@ public class BotTests
 	[TestMethod]
 	public async Task ExecuteAsync_LogsStartupAndShutdown()
 	{
-		// Arrange
+		// Arrange.
 		_discordClientMock!.ConnectAsync(Arg.Any<DiscordActivity>(), Arg.Any<UserStatus>())
 								.Returns(Task.CompletedTask);
 
 		Bot bot = new(
 			_discordClientMock,
-			_serviceProviderMock,
-			_commandHandlerMock,
-			_weeklyEventHandlerMock,
-			_guildMemberHandlerMock,
-			_botStateMock,
-			_channelServiceMock,
-			_guildProviderMock,
-			_userServiceMock,
-			_messageServiceMock,
-			_messageHandlerMock,
-			_weeklyEventServiceMock,
+			_eventHandlersMock,
 			_loggerMock,
-			_publicIpMock);
+			_publicIpMock,
+			_serviceProviderMock);
 
 		using CancellationTokenSource cts = new();
 		cts.CancelAfter(10); // Cancel quickly to complete task.
 
-		// Act
+		// Act.
 		await bot.StartAsync(cts.Token);
 		await Task.Delay(200); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
-		// Assert
+		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
@@ -106,30 +79,21 @@ public class BotTests
 	[TestMethod]
 	public async Task ExecuteAsync_HandlesOperationCanceledException()
 	{
-		// Arrange
+		// Arrange.
 		_discordClientMock!.ConnectAsync(Arg.Any<DiscordActivity>(), Arg.Any<UserStatus>())
 						.Returns(x => throw new OperationCanceledException());
 
 		Bot bot = new(
 			_discordClientMock,
-			_serviceProviderMock,
-			_commandHandlerMock,
-			_weeklyEventHandlerMock,
-			_guildMemberHandlerMock,
-			_botStateMock,
-			_channelServiceMock,
-			_guildProviderMock,
-			_userServiceMock,
-			_messageServiceMock,
-			_messageHandlerMock,
-			_weeklyEventServiceMock,
+			_eventHandlersMock,
 			_loggerMock,
-			_publicIpMock);
+			_publicIpMock,
+			_serviceProviderMock);
 
-		// Act
+		// Act.
 		await bot.StartAsync(CancellationToken.None);
 
-		// Assert
+		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 		_loggerMock.Received().Log(
 			LogLevel.Information,
@@ -143,48 +107,11 @@ public class BotTests
 	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
 	{
-		// Test each dependency for null
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			null, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, null, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, null, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, null, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, null, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, null,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			null, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, null, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, null, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, null, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, null, _weeklyEventServiceMock, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, null, _loggerMock, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, null, _publicIpMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(
-			_discordClientMock, _serviceProviderMock, _commandHandlerMock, _weeklyEventHandlerMock, _guildMemberHandlerMock, _botStateMock,
-			_channelServiceMock, _guildProviderMock, _userServiceMock, _messageServiceMock, _messageHandlerMock, _weeklyEventServiceMock, _loggerMock, null));
+		// Assert.
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(null, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, null, _loggerMock, _publicIpMock, _serviceProviderMock));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, null, _publicIpMock, _serviceProviderMock));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, null, _serviceProviderMock));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, null));
 	}
 }

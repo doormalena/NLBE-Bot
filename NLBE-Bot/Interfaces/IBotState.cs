@@ -30,7 +30,7 @@ internal interface IBotState
 		get; set;
 	}
 
-	public short HeartBeatCounter
+	public DateTime? LastWeeklyWinnerAnnouncement
 	{
 		get; set;
 	}

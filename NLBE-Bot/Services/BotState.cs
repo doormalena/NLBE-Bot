@@ -104,21 +104,21 @@ internal class BotState : IBotState
 		}
 	}
 
-	private short _heartBeatCounter = 0;
-	public short HeartBeatCounter
+	private DateTime? _lastWeeklyWinnerAnnouncement;
+	public DateTime? LastWeeklyWinnerAnnouncement
 	{
 		get
 		{
 			lock (_lock)
 			{
-				return _heartBeatCounter;
+				return _lastWeeklyWinnerAnnouncement;
 			}
 		}
 		set
 		{
 			lock (_lock)
 			{
-				_heartBeatCounter = value;
+				_lastWeeklyWinnerAnnouncement = value;
 			}
 		}
 	}

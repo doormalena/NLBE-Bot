@@ -1,7 +1,6 @@
 namespace NLBE_Bot.Tests.Services;
 
 using NLBE_Bot.Interfaces;
-using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using NSubstitute;
 
@@ -69,13 +68,17 @@ public class BotStateTests
 	}
 
 	[TestMethod]
-	public void HeartBeatCounter_GetSet_Works()
+	public void LastWeeklyWinnerAnnouncement_GetSet_Works()
 	{
+		DateTime now = DateTime.UtcNow;
 		BotState state = new()
 		{
-			HeartBeatCounter = 42
+			LastWeeklyWinnerAnnouncement = now
 		};
-		Assert.AreEqual((short) 42, state.HeartBeatCounter);
+		Assert.AreEqual(now, state.LastWeeklyWinnerAnnouncement);
+
+		state.LastWeeklyWinnerAnnouncement = null;
+		Assert.IsNull(state.LastWeeklyWinnerAnnouncement);
 	}
 
 	[TestMethod]
