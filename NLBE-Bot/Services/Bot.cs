@@ -43,7 +43,6 @@ internal class Bot(IDiscordClientWrapper discordClient, IServiceProvider service
 
 		try
 		{
-			// Register Bot commands.
 			CommandsNextConfiguration commandsConfig = new()
 			{
 				StringPrefixes = [Constants.Prefix],

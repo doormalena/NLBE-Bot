@@ -16,20 +16,32 @@ jobs:
     steps:
     - uses: actions/checkout@v4
   
-    - name: Setup .NET
+    - name: "Install .NET"
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 9.0.x
 
+    - name: "Install SonarScanner"
+      run: dotnet tool install --global dotnet-sonarscanner
+
+    - name: "Install dotnet-coverage" 
+      run: dotnet tool install --global dotnet-coverage
+
     # The below step is temporary until the other repo's publish the output as NuGet packages on a feed.
-    - name: "Setup internal packages"
+    - name: "Configure internal packages"
       run: dotnet nuget add source ${GITHUB_WORKSPACE}/.packages
 
-    - name: Restore dependencies
+    - name: "Configure SonarCloud"
+      run: dotnet sonarscanner begin /d:sonar.token=${{ secrets.SONAR_TOKEN }} /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml                         
+
+    - name: "Restore dependencies"
       run: dotnet restore
 
-    - name: Build
-      run: dotnet build --no-restore
+    - name: "Build"
+      run: dotnet build --no-restore --no-incremental
 
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+    - name: "Test"
+      run: dotnet-coverage collect "dotnet test --no-build" -f xml -o "coverage.xml"
+
+    - name: "Publish SonarCloud results"
+      run: dotnet sonarscanner end /d:sonar.token=${{ secrets.SONAR_TOKEN }}
