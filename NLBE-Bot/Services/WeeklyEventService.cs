@@ -1,6 +1,7 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
+using DSharpPlus;
 using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
@@ -12,16 +13,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class WeeklyEventService(IChannelService channelService, IUserService userService, IGuildProvider guildProvider, IBotState botState, ILogger<BotEventHandlers> logger, IErrorHandler errorHandler) : IWeeklyEventService
+internal class WeeklyEventService(IDiscordClient discordClient, IChannelService channelService, IUserService userService, IBotState botState, ILogger<BotEventHandlers> logger, IErrorHandler errorHandler) : IWeeklyEventService
 {
+	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly IGuildProvider _guildProvider = guildProvider;
 	private readonly ILogger<BotEventHandlers> _logger = logger;
 
-	public DiscordMessage DiscordMessage
+	public IDiscordMessage DiscordMessage
 	{
 		get; set;
 	} //The last message in Weekly events
@@ -49,16 +50,16 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 
 				if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
 				{
-					foreach (KeyValuePair<ulong, DiscordGuild> guild in from KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds
-																		where guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID
-																		select guild)
+					foreach (KeyValuePair<ulong, IDiscordGuild> guild in from KeyValuePair<ulong, IDiscordGuild> guild in _discordClient.Guilds
+																		 where guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID
+																		 select guild)
 					{
 						await WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, WeeklyEvent.Tank);
 					}
 				}
 			}
 
-			DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+			IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 			await bottestChannel.SendMessageAsync(winnerMessage.ToString());
 		}
 		catch (Exception ex)
@@ -67,17 +68,17 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 			await _errorHandler.HandleErrorAsync(message, ex);
 		}
 	}
-	public async Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
+	public async Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
 		bool userNotFound = true;
-		IReadOnlyCollection<DiscordMember> members = await guild.GetAllMembersAsync();
+		IReadOnlyCollection<IDiscordMember> members = await guild.GetAllMembersAsync();
 		if (weeklyEventItemMostDMG.Player != null)
 		{
 			string weeklyEventItemMostDMGPlayer = weeklyEventItemMostDMG.Player
 				.Replace("\\", string.Empty)
 				.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 				.ToLower();
-			foreach (DiscordMember member in members)
+			foreach (IDiscordMember member in members)
 			{
 				if (!member.IsBot)
 				{
@@ -108,7 +109,7 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 						}
 						try
 						{
-							DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 							if (algemeenChannel != null)
 							{
 								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').adaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
@@ -129,13 +130,13 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 		}
 		else
 		{
-			DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+			IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 			if (algemeenChannel != null)
 			{
 				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 			}
 		}
-		DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+		IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 		if (userNotFound)
 		{
 			string message = "Weekly event winnaar was niet gevonden! Je zal het zelf moeten regelen met het `weekly` commando.";
@@ -245,14 +246,14 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 	{
 		try
 		{
-			DiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannel();
+			IDiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannel();
 			if (weeklyEventChannel != null)
 			{
-				IReadOnlyList<DiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
+				IReadOnlyList<IDiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
 				if (msgs.Count > 0)
 				{
 					//hier lastmessage bij dm
-					DiscordMessage message = msgs[0];
+					IDiscordMessage message = msgs[0];
 					if (message != null)
 					{
 						DiscordMessage = message;
@@ -286,7 +287,7 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 		}
 	}
 
-	public async Task CreateNewWeeklyEvent(string tank, DiscordChannel weeklyEventChannel)
+	public async Task CreateNewWeeklyEvent(string tank, IDiscordChannel weeklyEventChannel)
 	{
 		List<WeeklyEventItem> weeklyEventItems = [];
 
@@ -299,7 +300,7 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 
 		try
 		{
-			await weeklyEventChannel.SendMessageAsync(embed: weeklyEvent.GenerateEmbed());
+			await weeklyEventChannel.SendMessageAsync(weeklyEvent.GenerateEmbed());
 		}
 		catch (Exception ex)
 		{

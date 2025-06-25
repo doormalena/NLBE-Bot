@@ -49,7 +49,7 @@ public class BotEventHandlersTests
 
 		// Assert.
 		_commandHandler!.Received(1).Register(_commandsNext);
-		_guildMemberHandler!.Received(1).Register(_client);
+		_guildMemberHandler!.Received(1).Register(_client, _botState);
 		_messageHandler!.Received(1).Register(_client);
 	}
 
