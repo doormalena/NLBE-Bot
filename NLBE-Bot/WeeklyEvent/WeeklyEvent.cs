@@ -1,11 +1,12 @@
 namespace NLBE_Bot;
 
 using DSharpPlus.Entities;
+using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 
-public class WeeklyEvent
+internal class WeeklyEvent
 {
 	public string Tank
 	{
@@ -30,7 +31,7 @@ public class WeeklyEvent
 		StartDate = StartOfWeek(DateTime.Now);
 	}
 
-	public WeeklyEvent(DiscordMessage message)
+	public WeeklyEvent(IDiscordMessage message)
 	{
 		Tank = message.Embeds[0].Title;
 		WeeklyEventItems = [];
@@ -41,7 +42,7 @@ public class WeeklyEvent
 		StartDate = StartOfWeek(message.CreationTimestamp.DateTime);
 	}
 
-	public DiscordEmbed GenerateEmbed()
+	public IDiscordEmbed GenerateEmbed()
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -58,7 +59,7 @@ public class WeeklyEvent
 
 		newDiscEmbedBuilder.Title = Tank.Replace("\\", string.Empty);
 
-		return newDiscEmbedBuilder.Build();
+		return new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
 	}
 
 	public DateTime GetEndDate()

@@ -22,7 +22,7 @@ internal class ClanService(IConfiguration configuration, IMessageService message
 	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly ILogger<ClanService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	public async Task ShowClanInfo(DiscordChannel channel, WGClan clan)
+	public async Task ShowClanInfo(IDiscordChannel channel, WGClan clan)
 	{
 		List<DEF> deflist = [];
 		DEF newDef1 = new()
@@ -87,7 +87,7 @@ internal class ClanService(IConfiguration configuration, IMessageService message
 		await _messageService.CreateEmbed(channel, options);
 	}
 
-	public async Task<WGClan> SearchForClan(DiscordChannel channel, DiscordMember member, string guildName, string clan_naam, bool loadMembers, DiscordUser user, Command command)
+	public async Task<WGClan> SearchForClan(IDiscordChannel channel, IDiscordMember member, string guildName, string clan_naam, bool loadMembers, IDiscordUser user, IDiscordCommand command)
 	{
 		try
 		{

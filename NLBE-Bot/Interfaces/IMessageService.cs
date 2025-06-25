@@ -7,47 +7,47 @@ using System.Threading.Tasks;
 
 internal interface IMessageService
 {
-	public Task<DiscordMessage> SendMessage(DiscordChannel channel, DiscordMember member, string guildName, string message);
+	public Task<IDiscordMessage> SendMessage(IDiscordChannel channel, IDiscordMember member, string guildName, string message);
 
-	public Task<bool> SendPrivateMessage(DiscordMember member, string guildName, string Message);
+	public Task<bool> SendPrivateMessage(IDiscordMember member, string guildName, string Message);
 
-	public Task SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName);
+	public Task SayTheUserIsNotAllowed(IDiscordChannel channel);
 
-	public Task SayTheUserIsNotAllowed(DiscordChannel channel);
+	public Task SayNumberTooSmall(IDiscordChannel channel);
 
-	public Task SayNumberTooSmall(DiscordChannel channel);
+	public Task SayNumberTooBig(IDiscordChannel channel);
 
-	public Task SayNumberTooBig(DiscordChannel channel);
+	public Task SayMustBeNumber(IDiscordChannel channel);
 
-	public Task SayMustBeNumber(DiscordChannel channel);
+	public Task SayBeMoreSpecific(IDiscordChannel channel);
 
-	public Task SayBeMoreSpecific(DiscordChannel channel);
+	public Task SayNoResults(IDiscordChannel channel, string description);
 
-	public Task SayNoResults(DiscordChannel channel, string description);
+	public Task SayNoResponse(IDiscordChannel channel);
 
-	public Task SayNoResponse(DiscordChannel channel);
+	public IDiscordMessage SayMultipleResults(IDiscordChannel channel, string description);
 
-	public DiscordMessage SayMultipleResults(DiscordChannel channel, string description);
+	public Task SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName);
 
-	public Task<DiscordMessage> SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName, string text);
+	public Task<IDiscordMessage> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text);
 
-	public Task<DiscordMessage> SayCannotBePlayedAt(DiscordChannel channel, DiscordMember member, string guildName, string roomType);
+	public Task<IDiscordMessage> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType);
 
-	public Task<DiscordMessage> SayReplayNotWorthy(DiscordChannel channel, WGBattle battle, string extraDescription);
+	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription);
 
-	public Task<DiscordMessage> SayReplayIsWorthy(DiscordChannel channel, WGBattle battle, string extraDescription, int position);
+	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position);
 
 	public Task SendThibeastmo(string message, string exceptionMessage = "", string stackTrace = "");
 
-	public Task<int> WaitForReply(DiscordChannel channel, DiscordUser user, string description, int count);
+	public Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count);
 
-	public Task<string> AskQuestion(DiscordChannel channel, DiscordUser user, DiscordGuild guild, string question);
+	public Task<string> AskQuestion(IDiscordChannel channel, IDiscordUser user, IDiscordGuild guild, string question);
 
-	public Task ConfirmCommandExecuted(DiscordMessage message);
+	public Task ConfirmCommandExecuted(IDiscordMessage message);
 
-	public Task ConfirmCommandExecuting(DiscordMessage message);
+	public Task ConfirmCommandExecuting(IDiscordMessage message);
 
-	public DiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color);
+	public IDiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color);
 
-	public Task<DiscordMessage> CreateEmbed(DiscordChannel channel, EmbedOptions options);
+	public Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options);
 }

@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
 using NLBE_Bot.Models;
 using System;
@@ -9,20 +8,20 @@ using System.Threading.Tasks;
 
 internal interface IHallOfFameService
 {
-	public Task<Tuple<string, DiscordMessage>> Handle(string titel, object discAttach, DiscordChannel channel, string guildName, ulong guildID, string iets, DiscordMember member);
+	public Task<Tuple<string, IDiscordMessage>> Handle(string titel, object discAttach, IDiscordChannel channel, string guildName, ulong guildID, string iets, IDiscordMember member);
 
-	public Task<Tuple<string, DiscordMessage>> GoHOFDetails(WGBattle replayInfo, DiscordChannel channel, DiscordMember member, string guildName, ulong guildID);
+	public Task<Tuple<string, IDiscordMessage>> GoHOFDetails(WGBattle replayInfo, IDiscordChannel channel, IDiscordMember member, string guildName, ulong guildID);
 
-	public Task<bool> CreateOrCleanHOFMessages(DiscordChannel HOFchannel, List<Tuple<int, DiscordMessage>> tiersFound);
+	public Task<bool> CreateOrCleanHOFMessages(IDiscordChannel HOFchannel, List<Tuple<int, IDiscordMessage>> tiersFound);
 
-	public Task EditHOFMessage(DiscordMessage message, List<Tuple<string, List<TankHof>>> tierHOF);
+	public Task EditHOFMessage(IDiscordMessage message, List<Tuple<string, List<TankHof>>> tierHOF);
 
 	public Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID);
 
-	public List<Tuple<string, List<TankHof>>> ConvertHOFMessageToTupleListAsync(DiscordMessage message, int TIER);
+	public List<Tuple<string, List<TankHof>>> ConvertHOFMessageToTupleListAsync(IDiscordMessage message, int TIER);
 
-	public List<DiscordMessage> GetTierMessages(int tier, IReadOnlyList<DiscordMessage> messages);
+	public List<IDiscordMessage> GetTierMessages(int tier, IReadOnlyList<IDiscordMessage> messages);
 
-	public Task HofAfterUpload(Tuple<string, DiscordMessage> returnedTuple, DiscordMessage uploadMessage);
+	public Task HofAfterUpload(Tuple<string, IDiscordMessage> returnedTuple, IDiscordMessage uploadMessage);
 
 }

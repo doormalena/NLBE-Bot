@@ -28,12 +28,12 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 
-	public async Task<DiscordMember> GetDiscordMember(DiscordGuild guild, ulong userID)
+	public async Task<IDiscordMember> GetDiscordMember(IDiscordGuild guild, ulong userID)
 	{
 		return await guild.GetMemberAsync(userID);
 	}
 
-	public async Task ChangeMemberNickname(DiscordMember member, string nickname)
+	public async Task ChangeMemberNickname(IDiscordMember member, string nickname)
 	{
 		try
 		{
@@ -50,10 +50,10 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		}
 	}
 
-	public string UpdateName(DiscordMember member, string oldName)
+	public string UpdateName(IDiscordMember member, string oldName)
 	{
 		string returnString = oldName;
-		IEnumerable<DiscordRole> memberRoles = member.Roles;
+		IEnumerable<IDiscordRole> memberRoles = member.Roles;
 		if (oldName.Contains('[') && oldName.Contains(']'))
 		{
 			string[] splitted = oldName.Split('[');
@@ -255,7 +255,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		}
 
 		bool isFromNLBE = false;
-		foreach (DiscordRole role in member.Roles)
+		foreach (IDiscordRole role in member.Roles)
 		{
 			if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 			{
@@ -280,11 +280,11 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 
 	public async Task UpdateUsers()
 	{
-		DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+		IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
 		if (bottestChannel != null)
 		{
 			bool sjtubbersUserNameIsOk = true;
-			DiscordMember sjtubbersMember = await bottestChannel.Guild.GetMemberAsync(359817512109604874);
+			IDiscordMember sjtubbersMember = await bottestChannel.Guild.GetMemberAsync(359817512109604874);
 			if (sjtubbersMember.DisplayName != "[NLBE] sjtubbers")
 			{
 				sjtubbersUserNameIsOk = false;
@@ -296,14 +296,14 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 				return;
 			}
 			const int maxMemberChangesAmount = 7;
-			IReadOnlyCollection<DiscordMember> members = await bottestChannel.Guild.GetAllMembersAsync();
-			Dictionary<DiscordMember, string> memberChanges = [];
-			List<DiscordMember> membersNotFound = [];
-			List<DiscordMember> correctNicknamesOfMembers = [];
+			IReadOnlyCollection<IDiscordMember> members = await bottestChannel.Guild.GetAllMembersAsync();
+			Dictionary<IDiscordMember, string> memberChanges = [];
+			List<IDiscordMember> membersNotFound = [];
+			List<IDiscordMember> correctNicknamesOfMembers = [];
 			//test 3x if names are correct
 			for (int i = 0; i < 3; i++)
 			{
-				foreach (DiscordMember member in members)
+				foreach (IDiscordMember member in members)
 				{
 					if (memberChanges.Count + membersNotFound.Count >= maxMemberChangesAmount)
 					{
@@ -356,10 +356,10 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 					}
 				}
 			}
-			IEnumerable<DiscordMember> correctNicknames = correctNicknamesOfMembers.Distinct();
+			IEnumerable<IDiscordMember> correctNicknames = correctNicknamesOfMembers.Distinct();
 			for (int i = 0; i < memberChanges.Count; i++)
 			{
-				DiscordMember currentMember = memberChanges.Keys.ElementAt(i);
+				IDiscordMember currentMember = memberChanges.Keys.ElementAt(i);
 				if (correctNicknames.Contains(currentMember))
 				{
 					memberChanges.Remove(currentMember);
@@ -368,7 +368,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 			}
 			for (int i = 0; i < membersNotFound.Count; i++)
 			{
-				DiscordMember currentMember = membersNotFound[i];
+				IDiscordMember currentMember = membersNotFound[i];
 				if (correctNicknames.Contains(currentMember))
 				{
 					memberChanges.Remove(currentMember);
@@ -383,12 +383,12 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 			}
 			else if (memberChanges.Count + membersNotFound.Count < maxMemberChangesAmount)
 			{
-				foreach (KeyValuePair<DiscordMember, string> memberChange in memberChanges)
+				foreach (KeyValuePair<IDiscordMember, string> memberChange in memberChanges)
 				{
 					await _messageService.SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van **`" + memberChange.Key.DisplayName + "`** wordt aangepast naar **`" + memberChange.Value + "`");
 					await ChangeMemberNickname(memberChange.Key, memberChange.Value);
 				}
-				foreach (DiscordMember memberNotFound in membersNotFound)
+				foreach (IDiscordMember memberNotFound in membersNotFound)
 				{
 					await _messageService.SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**Bijnaam van **`" + memberNotFound.DisplayName + "` (Discord ID: `" + memberNotFound.Id + "`)** komt niet overeen met WoTB account.**");
 					await _messageService.SendPrivateMessage(memberNotFound, bottestChannel.Guild.Name, "Hallo,\n\nEr werd voor iedere gebruiker in de NLBE discord server gecontroleerd of je bijnaam overeenkomt met je wargaming account.\nHelaas is dit voor jou niet het geval.\nZou je dit zelf even willen aanpassen aub?\nPas je bijnaam aan naargelang de vereisten het #regels kanaal.\n\nAlvast bedankt!\n- [NLBE] sjtubbers#4241");
@@ -399,7 +399,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 				StringBuilder sb = new("Deze spelers hadden een verkeerde bijnaam:\n```");
 				if (memberChanges.Count > 0)
 				{
-					foreach (KeyValuePair<DiscordMember, string> memberChange in memberChanges)
+					foreach (KeyValuePair<IDiscordMember, string> memberChange in memberChanges)
 					{
 						sb.AppendLine(memberChange.Key.DisplayName + " -> " + memberChange.Value);
 					}
@@ -411,7 +411,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 					{
 						sb.Append("Deze spelers konden niet gevonden worden:\n```");
 					}
-					foreach (DiscordMember memberNotFound in membersNotFound)
+					foreach (IDiscordMember memberNotFound in membersNotFound)
 					{
 						sb.AppendLine(memberNotFound.DisplayName);
 					}
@@ -441,9 +441,9 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		return new Tuple<string, string>(clan, sb.ToString().Trim(' '));
 	}
 
-	public async Task ShowMemberInfo(DiscordChannel channel, object gebruiker)
+	public async Task ShowMemberInfo(IDiscordChannel channel, object gebruiker)
 	{
-		if (gebruiker is DiscordMember discordMember)
+		if (gebruiker is IDiscordMember discordMember)
 		{
 			DiscordEmbedBuilder.EmbedAuthor newAuthor = new()
 			{
@@ -891,9 +891,9 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 			await _messageService.CreateEmbed(channel, options);
 		}
 	}
-	public List<DEF> ListInMemberEmbed(int columns, List<DiscordMember> memberList, string searchTerm)
+	public List<DEF> ListInMemberEmbed(int columns, List<IDiscordMember> memberList, string searchTerm)
 	{
-		List<DiscordMember> backupMemberList = [];
+		List<IDiscordMember> backupMemberList = [];
 		backupMemberList.AddRange(memberList);
 		List<StringBuilder> sbs = [];
 		for (int i = 0; i < columns; i++)
@@ -988,7 +988,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		return [];
 	}
 
-	public List<DEF> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, DiscordGuild guild)
+	public async Task<List<DEF>> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, IDiscordGuild guild)
 	{
 		if (memberList.Count == 0)
 		{
@@ -1020,10 +1020,10 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		int rest = nameList.Count % columns;
 		int membersPerColumn = (nameList.Count - rest) / columns;
 
-		IReadOnlyCollection<DiscordMember> members = [];
+		IReadOnlyCollection<IDiscordMember> members = [];
 		if (searchTerm.Contains('s'))
 		{
-			members = guild.GetAllMembersAsync().Result;
+			members = await guild.GetAllMembersAsync();
 		}
 		while (nameList.Count > 0)
 		{
@@ -1032,7 +1032,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 				if (searchTerm.Contains('s'))
 				{
 					bool found = false;
-					foreach (DiscordMember memberx in members)
+					foreach (IDiscordMember memberx in members)
 					{
 						string[] splittedName = memberx.DisplayName.Split(']');
 						if (splittedName.Length > 1)
@@ -1122,7 +1122,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		}
 		return deflist;
 	}
-	public async Task<WGAccount> SearchPlayer(DiscordChannel channel, DiscordMember member, DiscordUser user, string guildName, string naam)
+	public async Task<WGAccount> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
 	{
 		try
 		{
@@ -1165,7 +1165,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		return null;
 	}
 
-	public bool HasPermission(DiscordMember member, Command command)
+	public bool HasPermission(IDiscordMember member, IDiscordCommand command)
 	{
 		if (member.Guild.Id.Equals(Constants.DA_BOIS_ID))
 		{
@@ -1191,7 +1191,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 			_ => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
 		};
 	}
-	private static bool HasAnyRole(DiscordMember member, params ulong[] roleIds)
+	private static bool HasAnyRole(IDiscordMember member, params ulong[] roleIds)
 	{
 		return member.Roles.Any(role => roleIds.Contains(role.Id));
 	}

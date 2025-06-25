@@ -64,7 +64,6 @@ public static class Program
 				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
 				services.AddSingleton<IGuildMemberEventHandler, GuildMemberEventHandler>();
 				services.AddSingleton<IMessageEventHandler, MessageEventHandler>();
-				services.AddSingleton<IGuildProvider, GuildProvider>();
 				services.AddSingleton<IUserService, UserService>();
 				services.AddSingleton<IChannelService, ChannelService>();
 				services.AddSingleton<IMessageService, MessageService>();

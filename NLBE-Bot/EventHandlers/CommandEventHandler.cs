@@ -22,24 +22,24 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger, IErrorHa
 
 	private Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
 	{
-		ICommand commandInfo = e.Command != null ? new CommandWrapper(e.Command) : null;
+		IDiscordCommand commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
 		return HandleCommandExecuted(commandInfo);
 	}
 
 	private Task OnCommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
 	{
 		CommandContextWrapper contextInfo = new(e.Context);
-		ICommand commandInfo = e.Command != null ? new CommandWrapper(e.Command) : null;
+		IDiscordCommand commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
 		return HandleCommandError(contextInfo, commandInfo, e.Exception);
 	}
 
-	internal Task HandleCommandExecuted(ICommand command)
+	internal Task HandleCommandExecuted(IDiscordCommand command)
 	{
 		_logger.LogInformation("Command executed: {CommandName}", command.Name);
 		return Task.CompletedTask;
 	}
 
-	internal async Task HandleCommandError(ICommandContext context, ICommand command, Exception exception)
+	internal async Task HandleCommandError(IDiscordCommandContext context, IDiscordCommand command, Exception exception)
 	{
 		if (!context.GuildId.Equals(Constants.NLBE_SERVER_ID) && !context.GuildId.Equals(Constants.DA_BOIS_ID))
 		{
