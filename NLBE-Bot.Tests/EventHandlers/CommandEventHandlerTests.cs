@@ -29,7 +29,7 @@ public class CommandEventHandlerTests
 	public async Task OnCommandExecuted_LogsCommandName()
 	{
 		// Arrange.
-		ICommand commandInfoMock = Substitute.For<ICommand>();
+		IDiscordCommand commandInfoMock = Substitute.For<IDiscordCommand>();
 		commandInfoMock.Name.Returns("testcmd");
 
 		// Act.
@@ -50,7 +50,7 @@ public class CommandEventHandlerTests
 	public async Task OnCommandErrored_IgnoresIfNotInAllowedGuilds()
 	{
 		// Arrange.
-		ICommandContext contextMock = Substitute.For<ICommandContext>();
+		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
 		contextMock.GuildId.Returns(123UL); // Not a valid guild ID
 
 		// Act.
@@ -64,7 +64,7 @@ public class CommandEventHandlerTests
 	public async Task OnCommandErrored_SendsUnauthorizedMessage()
 	{
 		// Arrange.
-		ICommandContext contextMock = Substitute.For<ICommandContext>();
+		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
 		contextMock.GuildId.Returns(Constants.NLBE_SERVER_ID);
 		contextMock.SendUnauthorizedMessageAsync().Returns(Task.CompletedTask);
 
@@ -79,7 +79,7 @@ public class CommandEventHandlerTests
 	public async Task OnCommandErrored_HandlesCommandError()
 	{
 		// Arrange.
-		ICommandContext contextMock = Substitute.For<ICommandContext>();
+		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
 		contextMock.GuildId.Returns(Constants.NLBE_SERVER_ID);
 
 		IDiscordEmoji emojiInProgress = Substitute.For<IDiscordEmoji>();
@@ -91,7 +91,7 @@ public class CommandEventHandlerTests
 		contextMock.DeleteInProgressReactionAsync(emojiInProgress).Returns(Task.CompletedTask);
 		contextMock.AddErrorReactionAsync(emojiError).Returns(Task.CompletedTask);
 
-		ICommand commandMock = Substitute.For<ICommand>();
+		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
 		commandMock.Name.Returns("testcmd");
 
 		_errorHandlerMock!.HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>()).Returns(Task.CompletedTask);

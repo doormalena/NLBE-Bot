@@ -36,7 +36,7 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		_commandHandler.Register(commands);
 
 		// Guild member events
-		_guildMemberHandler.Register(client);
+		_guildMemberHandler.Register(client, botState);
 
 		// Message events
 		_messageHandler.Register(client);
@@ -44,6 +44,7 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		// Generic events
 		client.Heartbeated += OnHeartbeated;
 		client.Ready += OnReady;
+		// client.Inner.ClientErrored, Zombied, SocketError -> TODO: Handle to discover bot not functioning?
 	}
 
 	private Task OnReady(DiscordClient discordClient, ReadyEventArgs _)
@@ -66,8 +67,9 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		return Task.CompletedTask;
 	}
 
-	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs __)
+	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs e)
 	{
+		_logger.LogInformation("Received heartbeat. Ping: {Ping} Timestamp: {Timestamp}.", e.Ping, e.Timestamp);
 		return HandleHeartbeated(DateTime.Now);
 	}
 
