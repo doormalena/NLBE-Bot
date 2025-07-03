@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "NLBE-Bot": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

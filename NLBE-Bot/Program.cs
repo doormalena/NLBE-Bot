@@ -31,7 +31,7 @@ public static class Program
 			{
 				config.Sources.Clear();
 				config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-				config.AddJsonFile($"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json", optional: true);
+				config.AddJsonFile($"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 				config.AddUserSecrets(Assembly.GetExecutingAssembly());
 			})
 			.ConfigureLogging(logging =>
@@ -64,6 +64,7 @@ public static class Program
 				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
 				services.AddSingleton<IGuildMemberEventHandler, GuildMemberEventHandler>();
 				services.AddSingleton<IMessageEventHandler, MessageEventHandler>();
+				services.AddSingleton<ITimedEventHandler, TimedEventHandler>();
 				services.AddSingleton<IUserService, UserService>();
 				services.AddSingleton<IChannelService, ChannelService>();
 				services.AddSingleton<IMessageService, MessageService>();
@@ -87,7 +88,7 @@ public static class Program
 			TokenType = TokenType.Bot,
 			AutoReconnect = true,
 			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
-			LoggerFactory = provider.GetRequiredService<ILoggerFactory>()
+			LoggerFactory = provider.GetRequiredService<ILoggerFactory>(),
 		};
 
 		DiscordClient client = new(config);

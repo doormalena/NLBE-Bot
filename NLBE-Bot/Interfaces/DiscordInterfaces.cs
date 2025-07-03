@@ -29,6 +29,7 @@ internal interface IDiscordClient
 	public Task<IDiscordGuild> GetGuildAsync(ulong guildId);
 	public IDiscordInteractivityExtension GetInteractivity();
 	public Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed embed = null);
+	public Task DisconnectAsync();
 
 	public event AsyncEventHandler<DiscordClient, ReadyEventArgs> Ready;
 	public event AsyncEventHandler<DiscordClient, HeartbeatEventArgs> Heartbeated;
@@ -39,6 +40,8 @@ internal interface IDiscordClient
 	public event AsyncEventHandler<DiscordClient, GuildMemberAddEventArgs> GuildMemberAdded;
 	public event AsyncEventHandler<DiscordClient, GuildMemberUpdateEventArgs> GuildMemberUpdated;
 	public event AsyncEventHandler<DiscordClient, GuildMemberRemoveEventArgs> GuildMemberRemoved;
+	public event AsyncEventHandler<DiscordClient, ClientErrorEventArgs> ClientErrored;
+	public event AsyncEventHandler<DiscordClient, SocketCloseEventArgs> SocketClosed;
 
 }
 internal interface IDiscordInteractivityExtension

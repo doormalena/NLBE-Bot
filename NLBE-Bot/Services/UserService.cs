@@ -2,7 +2,6 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus;
-using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.Net.Models;
 using FMWOTB;

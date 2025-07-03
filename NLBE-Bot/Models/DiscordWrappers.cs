@@ -12,6 +12,7 @@ using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -29,6 +30,12 @@ internal class DiscordClientWrapper(DiscordClient client) : IDiscordClient
 	{
 		return _inner.ConnectAsync(activity, status);
 	}
+
+	public Task DisconnectAsync()
+	{
+		return _inner.DisconnectAsync();
+	}
+
 	public ICommandsNextExtension UseCommandsNext(CommandsNextConfiguration config)
 	{
 		return new CommandsNextExtensionWrapper(_inner.UseCommandsNext(config));
@@ -89,6 +96,14 @@ internal class DiscordClientWrapper(DiscordClient client) : IDiscordClient
 	public event AsyncEventHandler<DiscordClient, GuildMemberRemoveEventArgs> GuildMemberRemoved
 	{
 		add => _inner.GuildMemberRemoved += value; remove => _inner.GuildMemberRemoved -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, ClientErrorEventArgs> ClientErrored
+	{
+		add => _inner.ClientErrored += value; remove => _inner.ClientErrored -= value;
+	}
+	public event AsyncEventHandler<DiscordClient, SocketCloseEventArgs> SocketClosed
+	{
+		add => _inner.SocketClosed += value; remove => _inner.SocketClosed -= value;
 	}
 }
 
