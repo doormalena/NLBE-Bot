@@ -14,7 +14,7 @@ internal class MapService(IErrorHandler errorHandler, IChannelService channelSer
 
 	public async Task<List<Tuple<string, string>>> GetAllMaps(ulong guildId)
 	{
-		DiscordChannel mapChannel = await _channelService.GetMappenChannel(guildId);
+		IDiscordChannel mapChannel = await _channelService.GetMappenChannel(guildId);
 
 		if (mapChannel == null)
 		{
@@ -24,8 +24,8 @@ internal class MapService(IErrorHandler errorHandler, IChannelService channelSer
 		List<Tuple<string, string>> images = [];
 		try
 		{
-			IReadOnlyList<DiscordMessage> xMessages = mapChannel.GetMessagesAsync(100).Result;
-			foreach (DiscordMessage message in xMessages)
+			IReadOnlyList<IDiscordMessage> xMessages = mapChannel.GetMessagesAsync(100).Result;
+			foreach (IDiscordMessage message in xMessages)
 			{
 				IReadOnlyList<DiscordAttachment> attachments = message.Attachments;
 				foreach (DiscordAttachment item in attachments)

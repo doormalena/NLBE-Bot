@@ -51,6 +51,15 @@ internal class Bot(IDiscordClient discordClient, IBotEventHandlers eventHandlers
 		}
 		finally
 		{
+			try
+			{
+				await _discordClient.DisconnectAsync();
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "An error occurred while disconnecting the Discord client gracefully. Cause: {Message}", ex.Message);
+			}
+
 			_logger.LogInformation("NLBE Bot is stopped.");
 		}
 	}

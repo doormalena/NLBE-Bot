@@ -12,8 +12,6 @@ public class ErrorHandler(ILogger<ErrorHandler> logger) : IErrorHandler
 	public async Task HandleErrorAsync(string message, Exception ex = null)
 	{
 		_logger.LogError(ex, "{Message}{ExMessage}{NewLine}{ExStackTrace}", message, ex?.Message, Environment.NewLine, ex?.StackTrace);
-
-		// Optionally: send to Discord channel.
 		await Task.CompletedTask;
 	}
 }
