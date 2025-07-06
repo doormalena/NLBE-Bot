@@ -319,7 +319,7 @@ internal interface IDiscordGuild
 	public Task<IDiscordMember> GetMemberAsync(ulong userId);
 	public Task LeaveAsync();
 	public IDiscordRole GetRole(ulong roleId);
-	public IDiscordChannel GetChannel(ulong chatID);
+	public IDiscordChannel GetChannel(ulong id);
 	public Task UnbanMemberAsync(IDiscordUser user);
 	public Task BanMemberAsync(IDiscordMember member);
 }

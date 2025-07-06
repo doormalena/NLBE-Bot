@@ -2,10 +2,12 @@ namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.EventArgs;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLBE_Bot;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
@@ -14,18 +16,20 @@ using System.Threading.Tasks;
 internal class BotEventHandlers(ICommandEventHandler commandHandler,
 								IGuildMemberEventHandler guildMemberHandler,
 								IMessageEventHandler messageHandler,
-								ITimedEventHandler timedEventHandler,
+								IJob<VerifyServerNicknamesJob> verifyServerNicknamesJob,
+								IJob<AnnounceWeeklyWinnerJob> announceWeeklyWinnerJob,
 								ILogger<BotEventHandlers> logger,
 								IErrorHandler errorHandler,
-								IConfiguration configuration) : IBotEventHandlers
+								IOptions<BotOptions> options) : IBotEventHandlers
 {
 	private readonly ICommandEventHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
 	private readonly IGuildMemberEventHandler _guildMemberHandler = guildMemberHandler ?? throw new ArgumentNullException(nameof(guildMemberHandler));
 	private readonly IMessageEventHandler _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));
-	private readonly ITimedEventHandler _timedEventHandler = timedEventHandler ?? throw new ArgumentNullException(nameof(timedEventHandler));
+	private readonly IJob<VerifyServerNicknamesJob> _verifyServerNicknamesJob = verifyServerNicknamesJob ?? throw new ArgumentNullException(nameof(verifyServerNicknamesJob));
+	private readonly IJob<AnnounceWeeklyWinnerJob> _announceWeeklyWinnerJob = announceWeeklyWinnerJob ?? throw new ArgumentNullException(nameof(announceWeeklyWinnerJob));
 	private readonly ILogger<BotEventHandlers> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
 	private int _heartBeatCounter;
 
@@ -81,17 +85,17 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 			return;
 		}
 
-		await _timedEventHandler.Execute(now);
+		await _verifyServerNicknamesJob.Execute(now);
+		await _announceWeeklyWinnerJob.Execute(now);
 	}
 
 	internal Task HandleReady(IDiscordClient discordClient)
 	{
 		foreach (KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds)
 		{
-			ulong serverId = _configuration.GetValue<ulong>("NLBEBot:ServerId");
-
-			if (!guild.Key.Equals(serverId))
+			if (!guild.Key.Equals(_options.ServerId))
 			{
+				_logger.LogWarning("Bot is not configured to handle guild {GuildId}. Leaving the guild.", guild.Key);
 				guild.Value.LeaveAsync();
 			}
 		}

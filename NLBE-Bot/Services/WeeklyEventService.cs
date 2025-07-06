@@ -1,26 +1,22 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using DSharpPlus;
-using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
-using Microsoft.Extensions.Logging;
-using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class WeeklyEventService(IDiscordClient discordClient, IChannelService channelService, IUserService userService, IBotState botState, ILogger<BotEventHandlers> logger, IErrorHandler errorHandler) : IWeeklyEventService
+internal class WeeklyEventService(IChannelService channelService,
+								  IUserService userService,
+								  IBotState botState,
+								  IErrorHandler errorHandler) : IWeeklyEventService
 {
-	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly ILogger<BotEventHandlers> _logger = logger;
 
 	public IDiscordMessage DiscordMessage
 	{
@@ -32,42 +28,6 @@ internal class WeeklyEventService(IDiscordClient discordClient, IChannelService 
 		get; set;
 	}
 
-	public async Task AnnounceWeeklyWinner()
-	{
-		DateTime now = DateTime.Now;
-		StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
-
-		try
-		{
-			_logger.LogInformation(winnerMessage.ToString());
-
-			await ReadWeeklyEvent();
-
-			if (WeeklyEvent.StartDate.DayOfYear == now.DayOfYear - 7)
-			{
-				winnerMessage.AppendLine("Na 1 week...");
-				WeeklyEventItem weeklyEventItemMostDMG = WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
-
-				if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
-				{
-					foreach (KeyValuePair<ulong, IDiscordGuild> guild in from KeyValuePair<ulong, IDiscordGuild> guild in _discordClient.Guilds
-																		 where guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID
-																		 select guild)
-					{
-						await WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, WeeklyEvent.Tank);
-					}
-				}
-			}
-
-			IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
-			await bottestChannel.SendMessageAsync(winnerMessage.ToString());
-		}
-		catch (Exception ex)
-		{
-			string message = winnerMessage + "\nERROR:\n" + ex.Message;
-			await _errorHandler.HandleErrorAsync(message, ex);
-		}
-	}
 	public async Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
 		bool userNotFound = true;
@@ -82,14 +42,12 @@ internal class WeeklyEventService(IDiscordClient discordClient, IChannelService 
 			{
 				if (!member.IsBot)
 				{
-					Tuple<string, string> gebruiker = _userService.GetIGNFromMember(member.DisplayName);
+					Tuple<string, string> gebruiker = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
 					string x = gebruiker.Item2
 						.Replace("\\", string.Empty)
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();
-					if (x == weeklyEventItemMostDMGPlayer
-						|| (member.Id == Constants.THIBEASTMO_ID
-							&& guild.Id == Constants.DA_BOIS_ID))
+					if (x == weeklyEventItemMostDMGPlayer)
 					{
 						userNotFound = false;
 
@@ -136,7 +94,7 @@ internal class WeeklyEventService(IDiscordClient discordClient, IChannelService 
 				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 			}
 		}
-		IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
 		if (userNotFound)
 		{
 			string message = "Weekly event winnaar was niet gevonden! Je zal het zelf moeten regelen met het `weekly` commando.";

@@ -14,7 +14,7 @@ internal class MapService(IErrorHandler errorHandler, IChannelService channelSer
 
 	public async Task<List<Tuple<string, string>>> GetAllMaps(ulong guildId)
 	{
-		IDiscordChannel mapChannel = await _channelService.GetMappenChannel(guildId);
+		IDiscordChannel mapChannel = await _channelService.GetMappenChannel();
 
 		if (mapChannel == null)
 		{

@@ -1,14 +1,12 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using DSharpPlus;
-using DSharpPlus.CommandsNext;
-using DSharpPlus.Entities;
 using FMWOTB;
 using FMWOTB.Clans;
 using FMWOTB.Tools;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -17,11 +15,14 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class ClanService(IConfiguration configuration, IMessageService messageService, ILogger<ClanService> logger) : IClanService
+internal class ClanService(IOptions<BotOptions> options,
+						   IMessageService messageService,
+						   ILogger<ClanService> logger) : IClanService
 {
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly ILogger<ClanService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
 	public async Task ShowClanInfo(IDiscordChannel channel, WGClan clan)
 	{
 		List<DEF> deflist = [];
@@ -91,7 +92,7 @@ internal class ClanService(IConfiguration configuration, IMessageService message
 	{
 		try
 		{
-			IReadOnlyList<WGClan> clans = await WGClan.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, clan_naam, _configuration["NLBEBOT:WarGamingAppId"], loadMembers);
+			IReadOnlyList<WGClan> clans = await WGClan.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, clan_naam, _options.WarGamingAppId, loadMembers);
 			int aantalClans = clans.Count;
 			List<WGClan> clanList = [];
 			foreach (WGClan clan in clans)

@@ -6,6 +6,8 @@ using FMWOTB.Tournament;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -15,12 +17,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class TournamentService(ILogger<TournamentService> logger, IErrorHandler errorHandler, IConfiguration configuration, IUserService userService, IChannelService channelService, IMessageService messageService,
+internal class TournamentService(ILogger<TournamentService> logger, IErrorHandler errorHandler, IOptions<BotOptions> options, IUserService userService, IChannelService channelService, IMessageService messageService,
 		IDiscordMessageUtils discordMessageUtils, IDiscordClient discordClient) : ITournamentService
 {
 	private readonly ILogger<TournamentService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
@@ -32,7 +34,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 		bool addInLog = true;
 		if (message.Author != null)
 		{
-			if (!message.Author.Id.Equals(Constants.NLBE_BOT) && !message.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+			if (!message.Author.Id.Equals(Constants.NLBE_BOT))
 			{
 				addInLog = false;
 			}
@@ -47,7 +49,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 					IReadOnlyList<IDiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji));
 					foreach (IDiscordUser user in userListOfThisEmoji)
 					{
-						if (user.Id.Equals(Constants.NLBE_BOT) || user.Id.Equals(Constants.TESTBEASTV2_BOT))
+						if (user.Id.Equals(Constants.NLBE_BOT))
 						{
 							botReactedWithThisEmoji = true;
 						}
@@ -59,7 +61,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 						{
 							string organisator = await GetOrganisator(await toernooiAanmeldenChannel.GetMessageAsync(message.Id));
 							string logMessage = "Teams|" + member.DisplayName.adaptToDiscordChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
-							await WriteInLog(toernooiAanmeldenChannel.Guild.Id, message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
+							await WriteInLog(message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
 						}
 					}
 					else
@@ -77,7 +79,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 
 	public async Task<List<WGTournament>> InitialiseTournaments(bool all)
 	{
-		string tournamentJson = await Tournaments.tournamentsToString(_configuration["NLBEBOT:WarGamingAppId"]);
+		string tournamentJson = await Tournaments.tournamentsToString(_options.WarGamingAppId);
 		Json json = new(tournamentJson, "Tournaments");
 		List<WGTournament> tournamentsList = [];
 
@@ -94,9 +96,9 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 						{
 							if (tournaments.start_at.Value > DateTime.Now || all)
 							{
-								string wgTournamentJsonString = await WGTournament.tournamentsToString(_configuration["NLBEBOT:WarGamingAppId"], tournaments.tournament_id);
+								string wgTournamentJsonString = await WGTournament.tournamentsToString(_options.WarGamingAppId, tournaments.tournament_id);
 								Json wgTournamentJson = new(wgTournamentJsonString, "WGTournament");
-								WGTournament eenToernooi = new(wgTournamentJson, _configuration["NLBEBOT:WarGamingAppId"]);
+								WGTournament eenToernooi = new(wgTournamentJson, _options.WarGamingAppId);
 								tournamentsList.Add(eenToernooi);
 							}
 						}
@@ -503,9 +505,9 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 		await _messageService.CreateEmbed(channel, options);
 	}
 
-	private async Task WriteInLog(ulong guildID, string date, string message)
+	private async Task WriteInLog(string date, string message)
 	{
-		IDiscordChannel logChannel = await _channelService.GetLogChannel(guildID);
+		IDiscordChannel logChannel = await _channelService.GetLogChannel();
 		if (logChannel != null)
 		{
 			await logChannel.SendMessageAsync(date + "|" + message);
@@ -585,7 +587,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 
 				if (goodNumber)
 				{
-					IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(channel.Guild.Id);
+					IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
 					if (toernooiAanmeldenChannel != null)
 					{
 						List<IDiscordMessage> messages = [];
@@ -606,9 +608,9 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 							IDiscordMessage theMessage = messages[hoeveelste];
 							if (theMessage != null)
 							{
-								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 								{
-									IDiscordChannel logChannel = await _channelService.GetLogChannel(channel.Guild.Id);
+									IDiscordChannel logChannel = await _channelService.GetLogChannel();
 
 									if (logChannel.Inner != null)
 									{
@@ -700,7 +702,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 										{
 											foreach (KeyValuePair<ulong, IDiscordGuild> aGuild in _discordClient.Guilds)
 											{
-												if (aGuild.Key.Equals(Constants.NLBE_SERVER_ID))
+												if (aGuild.Key == _options.ServerId)
 												{
 													IDiscordMember theMemberAuthor = await _userService.GetDiscordMember(aGuild.Value, theMessage.Author.Id);
 													if (theMemberAuthor != null)

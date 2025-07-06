@@ -8,8 +8,9 @@ using FMWOTB;
 using FMWOTB.Account;
 using FMWOTB.Clans;
 using FMWOTB.Tools;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -19,12 +20,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandler, IConfiguration configuration, IChannelService channelService, IMessageService messageService) : IUserService
+internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandler, IOptions<BotOptions> options, IMessageService messageService) : IUserService
 {
 	private readonly ILogger<UserService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 
 	public async Task<IDiscordMember> GetDiscordMember(IDiscordGuild guild, ulong userID)
@@ -39,13 +39,13 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 			void mem(MemberEditModel item)
 			{
 				item.Nickname = nickname;
-				item.AuditLogReason = "Changed by NLBE-Bot";
+				item.AuditLogReason = "Changed by NLBE-Bot in compliance with the server rules.";
 			}
 			await member.ModifyAsync(mem);
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Could not edit displayname for " + member.Username + ":", ex);
+			await _errorHandler.HandleErrorAsync($"Could not update the nickname for {member.Username} to `{nickname}`.", ex);
 		}
 	}
 
@@ -277,151 +277,10 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		return returnString;
 	}
 
-	public async Task UpdateUsers()
+	public Tuple<string, string> GetWotbPlayerNameFromDisplayName(string displayName)
 	{
-		IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
-		if (bottestChannel != null)
-		{
-			bool sjtubbersUserNameIsOk = true;
-			IDiscordMember sjtubbersMember = await bottestChannel.Guild.GetMemberAsync(359817512109604874);
-			if (sjtubbersMember.DisplayName != "[NLBE] sjtubbers")
-			{
-				sjtubbersUserNameIsOk = false;
-			}
+		// TODO: make this more robust by using regex.
 
-			if (!sjtubbersUserNameIsOk)
-			{
-				await _messageService.SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van sjtubbers was al incorrect dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.**");
-				return;
-			}
-			const int maxMemberChangesAmount = 7;
-			IReadOnlyCollection<IDiscordMember> members = await bottestChannel.Guild.GetAllMembersAsync();
-			Dictionary<IDiscordMember, string> memberChanges = [];
-			List<IDiscordMember> membersNotFound = [];
-			List<IDiscordMember> correctNicknamesOfMembers = [];
-			//test 3x if names are correct
-			for (int i = 0; i < 3; i++)
-			{
-				foreach (IDiscordMember member in members)
-				{
-					if (memberChanges.Count + membersNotFound.Count >= maxMemberChangesAmount)
-					{
-						break;
-					}
-
-					if (!member.IsBot && member.Roles != null && member.Roles.Contains(bottestChannel.Guild.GetRole(Constants.LEDEN_ROLE)))
-					{
-						bool accountFound = false;
-						bool goodClanTag = false;
-						Tuple<string, string> gebruiker = GetIGNFromMember(member.DisplayName);
-						IReadOnlyList<WGAccount> wgAccounts = await WGAccount.searchByName(SearchAccuracy.EXACT, gebruiker.Item2, _configuration["NLBEBOT:WarGamingAppId"], false, true, false);
-						if (wgAccounts != null && wgAccounts.Count > 0)
-						{
-							//Account met exact deze gebruikersnaam gevonden
-							accountFound = true;
-							string clanTag = string.Empty;
-							if (gebruiker.Item1.Length > 1 && gebruiker.Item1.StartsWith('[') && gebruiker.Item1.EndsWith(']'))
-							{
-								goodClanTag = true;
-								string currentClanTag = string.Empty;
-								if (wgAccounts[0].clan != null && wgAccounts[0].clan.tag != null)
-								{
-									currentClanTag = wgAccounts[0].clan.tag;
-								}
-								string goodDisplayName = '[' + currentClanTag + "] " + wgAccounts[0].nickname;
-								if (wgAccounts[0].nickname != null && !member.DisplayName.Equals(goodDisplayName))
-								{
-									memberChanges.TryAdd(member, goodDisplayName);
-								}
-								else if (member.DisplayName.Equals(goodDisplayName))
-								{
-									correctNicknamesOfMembers.Add(member);
-								}
-							}
-							if (!goodClanTag)
-							{
-								if (wgAccounts[0].clan != null && wgAccounts[0].clan.tag != null)
-								{
-									clanTag = wgAccounts[0].clan.tag;
-								}
-								string goodDisplayName = '[' + clanTag + "] " + wgAccounts[0].nickname;
-								memberChanges.TryAdd(member, goodDisplayName);
-							}
-						}
-						if (!accountFound)
-						{
-							membersNotFound.Add(member);
-						}
-					}
-				}
-			}
-			IEnumerable<IDiscordMember> correctNicknames = correctNicknamesOfMembers.Distinct();
-			for (int i = 0; i < memberChanges.Count; i++)
-			{
-				IDiscordMember currentMember = memberChanges.Keys.ElementAt(i);
-				if (correctNicknames.Contains(currentMember))
-				{
-					memberChanges.Remove(currentMember);
-					i--;
-				}
-			}
-			for (int i = 0; i < membersNotFound.Count; i++)
-			{
-				IDiscordMember currentMember = membersNotFound[i];
-				if (correctNicknames.Contains(currentMember))
-				{
-					memberChanges.Remove(currentMember);
-					i--;
-				}
-			}
-			if (memberChanges.Count + membersNotFound.Count == 0)
-			{
-				string bericht = "Bijnamen van gebruikers nagekeken maar geen namen moesten aangepast worden.";
-				await bottestChannel.SendMessageAsync("**" + bericht + "**");
-				_logger.LogInformation(bericht);
-			}
-			else if (memberChanges.Count + membersNotFound.Count < maxMemberChangesAmount)
-			{
-				foreach (KeyValuePair<IDiscordMember, string> memberChange in memberChanges)
-				{
-					await _messageService.SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnaam van **`" + memberChange.Key.DisplayName + "`** wordt aangepast naar **`" + memberChange.Value + "`");
-					await ChangeMemberNickname(memberChange.Key, memberChange.Value);
-				}
-				foreach (IDiscordMember memberNotFound in membersNotFound)
-				{
-					await _messageService.SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**Bijnaam van **`" + memberNotFound.DisplayName + "` (Discord ID: `" + memberNotFound.Id + "`)** komt niet overeen met WoTB account.**");
-					await _messageService.SendPrivateMessage(memberNotFound, bottestChannel.Guild.Name, "Hallo,\n\nEr werd voor iedere gebruiker in de NLBE discord server gecontroleerd of je bijnaam overeenkomt met je wargaming account.\nHelaas is dit voor jou niet het geval.\nZou je dit zelf even willen aanpassen aub?\nPas je bijnaam aan naargelang de vereisten het #regels kanaal.\n\nAlvast bedankt!\n- [NLBE] sjtubbers#4241");
-				}
-			}
-			else
-			{
-				StringBuilder sb = new("Deze spelers hadden een verkeerde bijnaam:\n```");
-				if (memberChanges.Count > 0)
-				{
-					foreach (KeyValuePair<IDiscordMember, string> memberChange in memberChanges)
-					{
-						sb.AppendLine(memberChange.Key.DisplayName + " -> " + memberChange.Value);
-					}
-					sb.Append("```");
-				}
-				if (membersNotFound.Count > 0)
-				{
-					if (sb.Length > 3)
-					{
-						sb.Append("Deze spelers konden niet gevonden worden:\n```");
-					}
-					foreach (IDiscordMember memberNotFound in membersNotFound)
-					{
-						sb.AppendLine(memberNotFound.DisplayName);
-					}
-					sb.Append("```");
-				}
-				await _messageService.SendMessage(bottestChannel, await bottestChannel.Guild.GetMemberAsync(Constants.THIBEASTMO_ID), bottestChannel.Guild.Name, "**De bijnamen van 7 of meer spelers waren incorrect of niet gevonden dus ben ik gestopt voor ik begon met nakijken van de rest van de bijnamen.\nHier is een lijstje van aanpassingen die zouden gemaakt zijn:**\n" + sb);
-			}
-		}
-	}
-	public Tuple<string, string> GetIGNFromMember(string displayName)
-	{
 		string[] splitted = displayName.Split(']');
 		StringBuilder sb = new();
 		for (int i = 1; i < splitted.Length; i++)
@@ -998,7 +857,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 
 		if (searchTerm.Contains('d'))
 		{
-			List<WGAccount> wgAccountList = memberList.Select(member => new WGAccount(_configuration["NLBEBOT:WarGamingAppId"], member.account_id, false, false, false))
+			List<WGAccount> wgAccountList = memberList.Select(member => new WGAccount(_options.WarGamingAppId, member.account_id, false, false, false))
 													  .OrderBy(p => p.last_battle_time).Reverse().ToList();
 
 			nameList = wgAccountList.Select(member => member.nickname).ToList();
@@ -1125,7 +984,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 	{
 		try
 		{
-			IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, naam, _configuration["NLBEBOT:WarGamingAppId"], false, false, true);
+			IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, naam, _options.WarGamingAppId, false, false, true);
 			StringBuilder sb = new();
 			int index = 0;
 			if (searchResults != null)
@@ -1142,7 +1001,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 				}
 				if (index >= 0 && searchResults.Count >= 1)
 				{
-					WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], searchResults[index].account_id, false, true, true);
+					WGAccount account = new(_options.WarGamingAppId, searchResults[index].account_id, false, true, true);
 					await ShowMemberInfo(channel, account);
 					return account;
 				}
@@ -1166,12 +1025,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 
 	public bool HasPermission(IDiscordMember member, IDiscordCommand command)
 	{
-		if (member.Guild.Id.Equals(Constants.DA_BOIS_ID))
-		{
-			return true;
-		}
-
-		if (!member.Guild.Id.Equals(Constants.NLBE_SERVER_ID))
+		if (member.Guild.Id != _options.ServerId)
 		{
 			return false;
 		}

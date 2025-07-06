@@ -37,8 +37,6 @@ internal interface IMessageService
 
 	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position);
 
-	public Task SendThibeastmo(string message, string exceptionMessage = "", string stackTrace = "");
-
 	public Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count);
 
 	public Task<string> AskQuestion(IDiscordChannel channel, IDiscordUser user, IDiscordGuild guild, string question);

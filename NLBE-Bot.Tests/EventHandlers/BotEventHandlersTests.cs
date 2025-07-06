@@ -1,63 +1,65 @@
 namespace NLBE_Bot.Tests.EventHandlers;
 
-using DSharpPlus;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Jobs;
 using NSubstitute;
 using System;
 
 [TestClass]
 public class BotEventHandlersTests
 {
-	private IConfiguration? _configuration;
-	private ICommandEventHandler? _commandHandler;
-	private IGuildMemberEventHandler? _guildMemberHandler;
-	private IMessageEventHandler? _messageHandler;
-	private ITimedEventHandler? _timedEventHandler;
-	private ILogger<BotEventHandlers>? _logger;
-	private IErrorHandler? _errorHandler;
-	private IBotState? _botState;
-	private IDiscordClient? _client;
-	private ICommandsNextExtension? _commandsNext;
+	private IOptions<BotOptions>? _optionsMock;
+	private ICommandEventHandler? _commandHandlerMock;
+	private IGuildMemberEventHandler? _guildMemberHandlerMock;
+	private IMessageEventHandler? _messageHandlerMock;
+	private IJob<VerifyServerNicknamesJob>? _verifyServerNicknamesJobMock;
+	private IJob<AnnounceWeeklyWinnerJob>? _announceWeeklyWinnerJobMock;
+	private ILogger<BotEventHandlers>? _loggerMock;
+	private IErrorHandler? _errorHandlerMock;
+	private IBotState? _botStateMock;
+	private IDiscordClient? _clientMock;
+	private ICommandsNextExtension? _commandsNextMock;
 	private BotEventHandlers? _handlers;
 
 	[TestInitialize]
 	public void Setup()
 	{
-		Dictionary<string, string> inMemorySettings = new()
+		_optionsMock = Substitute.For<IOptions<BotOptions>>();
+		_optionsMock.Value.Returns(new BotOptions()
 		{
-			{"NLBEBot:ServerId", "1000000"}
-		};
-		_configuration = new ConfigurationBuilder()
-			.AddInMemoryCollection(inMemorySettings!)
-			.Build();
-		_commandHandler = Substitute.For<ICommandEventHandler>();
-		_guildMemberHandler = Substitute.For<IGuildMemberEventHandler>();
-		_messageHandler = Substitute.For<IMessageEventHandler>();
-		_timedEventHandler = Substitute.For<ITimedEventHandler>();
-		_logger = Substitute.For<ILogger<BotEventHandlers>>();
-		_errorHandler = Substitute.For<IErrorHandler>();
-		_botState = Substitute.For<IBotState>();
-		_client = Substitute.For<IDiscordClient>();
-		_commandsNext = Substitute.For<ICommandsNextExtension>();
+			ServerId = 1000000
+		});
 
-		_client.GetCommandsNext().Returns(_commandsNext);
+		_commandHandlerMock = Substitute.For<ICommandEventHandler>();
+		_guildMemberHandlerMock = Substitute.For<IGuildMemberEventHandler>();
+		_messageHandlerMock = Substitute.For<IMessageEventHandler>();
+		_verifyServerNicknamesJobMock = Substitute.For<IJob<VerifyServerNicknamesJob>>();
+		_announceWeeklyWinnerJobMock = Substitute.For<IJob<AnnounceWeeklyWinnerJob>>();
+		_loggerMock = Substitute.For<ILogger<BotEventHandlers>>();
+		_errorHandlerMock = Substitute.For<IErrorHandler>();
+		_botStateMock = Substitute.For<IBotState>();
+		_clientMock = Substitute.For<IDiscordClient>();
+		_commandsNextMock = Substitute.For<ICommandsNextExtension>();
 
-		_handlers = new(_commandHandler, _guildMemberHandler, _messageHandler, _timedEventHandler, _logger, _errorHandler, _configuration);
+		_clientMock.GetCommandsNext().Returns(_commandsNextMock);
+
+		_handlers = new(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock);
 	}
 
 	[TestMethod]
 	public void Register_RegistersAllHandlersAndEvents()
 	{
 		// Act.
-		_handlers!.Register(_client, _botState);
+		_handlers!.Register(_clientMock, _botStateMock);
 
 		// Assert.
-		_commandHandler!.Received(1).Register(_commandsNext);
-		_guildMemberHandler!.Received(1).Register(_client, _botState);
-		_messageHandler!.Received(1).Register(_client);
+		_commandHandlerMock!.Received(1).Register(_commandsNextMock);
+		_guildMemberHandlerMock!.Received(1).Register(_clientMock, _botStateMock);
+		_messageHandlerMock!.Received(1).Register(_clientMock);
 	}
 
 	[TestMethod]
@@ -75,15 +77,15 @@ public class BotEventHandlersTests
 			{ 1000000UL, guild2 },
 		};
 
-		_client!.Guilds.Returns(guilds);
+		_clientMock!.Guilds.Returns(guilds);
 
 		// Act.
-		await _handlers!.HandleReady(_client);
+		await _handlers!.HandleReady(_clientMock);
 
 		// Assert.
 		await guild1.Received(1).LeaveAsync();
 		await guild2.DidNotReceive().LeaveAsync();
-		_logger!.Received().Log(
+		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
 			Arg.Any<object>(),
@@ -102,15 +104,16 @@ public class BotEventHandlersTests
 		await _handlers!.HandleHeartbeated(now);
 
 		// Assert.
-		await _timedEventHandler!.DidNotReceive().Execute(Arg.Any<DateTime>());
+		await _verifyServerNicknamesJobMock!.DidNotReceive().Execute(Arg.Any<DateTime>());
+		await _announceWeeklyWinnerJobMock!.DidNotReceive().Execute(Arg.Any<DateTime>());
 	}
 
 	[TestMethod]
 	public void Register_ThrowsArgumentNullException_WhenAnyParameterIsNull()
 	{
 		// Act & Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(null, _botState));
-		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(_client, null));
+		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(null, _botStateMock));
+		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(_clientMock, null));
 	}
 
 	[TestMethod]
@@ -118,18 +121,20 @@ public class BotEventHandlersTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new BotEventHandlers(null, _guildMemberHandler, _messageHandler, _timedEventHandler, _logger, _errorHandler, _configuration));
+			  new BotEventHandlers(null, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandler, null, _messageHandler, _timedEventHandler, _logger, _errorHandler, _configuration));
+			new BotEventHandlers(_commandHandlerMock, null, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandler, _guildMemberHandler, null, _timedEventHandler, _logger, _errorHandler, _configuration));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, null, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandler, _guildMemberHandler, _messageHandler, null, _logger, _errorHandler, _configuration));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, null, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandler, _guildMemberHandler, _messageHandler, _timedEventHandler, null, _errorHandler, _configuration));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, null, _loggerMock, _errorHandlerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandler, _guildMemberHandler, _messageHandler, _timedEventHandler, _logger, null, _configuration));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, null, _errorHandlerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandler, _guildMemberHandler, _messageHandler, _timedEventHandler, _logger, _errorHandler, null));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, null, _optionsMock));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, null));
 	}
 }

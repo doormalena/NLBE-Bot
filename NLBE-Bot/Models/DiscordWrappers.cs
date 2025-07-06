@@ -12,7 +12,6 @@ using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -292,7 +291,7 @@ internal class DiscordUserWrapper(DiscordUser user) : IDiscordUser
 }
 internal class DiscordChannelWrapper(DiscordChannel channel) : IDiscordChannel
 {
-	private readonly DiscordChannel _channel = channel;
+	private readonly DiscordChannel _channel = channel ?? throw new ArgumentNullException(nameof(channel));
 	public string Mention => _channel.Mention;
 
 	public Task<IReadOnlyList<IDiscordMessage>> GetMessagesAsync(int limit = 100)
@@ -433,9 +432,10 @@ internal class DiscordGuildWrapper(DiscordGuild guild) : IDiscordGuild
 	{
 		return _guild.Roles.TryGetValue(roleId, out DiscordRole role) ? new DiscordRoleWrapper(role) : null;
 	}
-	public IDiscordChannel GetChannel(ulong chatID)
+	public IDiscordChannel GetChannel(ulong id)
 	{
-		return new DiscordChannelWrapper(_guild.GetChannel(chatID));
+		DiscordChannel channel = _guild.GetChannel(id);
+		return channel != null ? new DiscordChannelWrapper(channel) : null;
 	}
 
 	public Task UnbanMemberAsync(IDiscordUser user)

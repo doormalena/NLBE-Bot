@@ -1,20 +1,18 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
-using DSharpPlus.Interactivity.Extensions;
 using FMWOTB;
 using FMWOTB.Account;
 using FMWOTB.Clans;
 using FMWOTB.Tools;
 using FMWOTB.Tournament;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLBE_Bot;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -23,11 +21,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 
-internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHandler, ILogger<BotCommands> logger, IConfiguration configuration, IClanService clanService,
-							IBlitzstarsService handler, IDiscordMessageUtils discordMessageUtils, IBotState botState, IChannelService channelService, IUserService userService,
-							IMessageService messageService, IMapService mapService, ITournamentService tournamentService, IHallOfFameService hallOfFameService, IWeeklyEventService weeklyEventHandler) : BaseCommandModule
+internal class BotCommands(IDiscordClient discordClient,
+						   IErrorHandler errorHandler,
+						   ILogger<BotCommands> logger,
+						   IOptions<BotOptions> options,
+						   IClanService clanService,
+						   IBlitzstarsService handler,
+						   IDiscordMessageUtils discordMessageUtils,
+						   IBotState botState,
+						   IChannelService channelService,
+						   IUserService userService,
+						   IMessageService messageService,
+						   IMapService mapService,
+						   ITournamentService tournamentService,
+						   IHallOfFameService hallOfFameService,
+						   IWeeklyEventService weeklyEventHandler) : BaseCommandModule
 {
 	private const int MAX_NAME_LENGTH_IN_WOTB = 25;
 	private const int MAX_TANK_NAME_LENGTH_IN_WOTB = 14;
@@ -35,7 +44,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<BotCommands> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IBlitzstarsService _handler = handler ?? throw new ArgumentNullException(nameof(handler));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
@@ -93,7 +102,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 			{
 				if (_tournamentService.CheckIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
 				{
-					IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(ctx.Guild.Id);
+					IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
 					if (toernooiAanmeldenChannel != null)
 					{
 						List<DEF> deflist = [];
@@ -501,7 +510,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 		}
 
 		await _messageService.ConfirmCommandExecuting(ctx.Message);
-		IDiscordChannel pollChannel = await _channelService.GetPollsChannel(false, ctx.Guild.Id);
+		IDiscordChannel pollChannel = await _channelService.GetPollsChannel(false);
 		if (pollChannel != null)
 		{
 			List<DEF> deflist = [];
@@ -601,7 +610,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 		}
 		if (!validChannel)
 		{
-			IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
 			if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
 			{
 				validChannel = true;
@@ -626,7 +635,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 				}
 				sb.Append(optioneel_clan_naam_indien_nieuwe_kandidaat[i]);
 			}
-			IDiscordChannel deputiesPollsChannel = await _channelService.GetPollsChannel(true, ctx.Guild.Id);
+			IDiscordChannel deputiesPollsChannel = await _channelService.GetPollsChannel(true);
 			//https://www.blitzstars.com/player/eu/
 			bool goodOption = true;
 			IDiscordRole deputiesNLBERole = ctx.Guild.GetRole(Constants.DEPUTY_NLBE_ROLE);
@@ -679,7 +688,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 					bool hasAnswered = false;
 					bool hasConfirmed = false;
 					bool firstTime = true;
-					WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], 552887317, false, true, false);
+					WGAccount account = new(_options.WarGamingAppId, 552887317, false, true, false);
 
 					while (true)
 					{
@@ -1064,7 +1073,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") niet verwijderen!**");
 							_logger.LogWarning(ex, "Could not remove reaction(" + emoji + ") from message(" + (hoeveelste + 1) + ") in channel(" + naam_van_kanaal + "):" + ex.Message);
 						}
-						if (channel.Id.Equals(Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID) || channel.Id.Equals(Constants.DA_BOIS_TOERNOOI_AANMELDEN_KANAAL_ID))
+						if (channel.Id.Equals(Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID))
 						{
 							List<IDiscordMessage> messages = [];
 							try
@@ -1084,9 +1093,9 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 								IDiscordMessage theMessage = messages[hoeveelste];
 								if (theMessage != null)
 								{
-									if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+									if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 									{
-										IDiscordChannel logChannel = await _channelService.GetLogChannel(ctx.Guild.Id);
+										IDiscordChannel logChannel = await _channelService.GetLogChannel();
 
 										if (logChannel.Inner != null)
 										{
@@ -1720,7 +1729,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 					tempIGNName = splitted[0].ToString().Trim();
 				}
 
-				IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, tempIGNName, _configuration["NLBEBOT:WarGamingAppId"], false, false, false);
+				IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, tempIGNName, _options.WarGamingAppId, false, false, false);
 				if (searchResults != null)
 				{
 					if (searchResults.Count > 0)
@@ -1942,7 +1951,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 				{
 					try
 					{
-						WGAccount account = new(_configuration["NLBEBOT:WarGamingAppId"], id, false, true, true);
+						WGAccount account = new(_options.WarGamingAppId, id, false, true, true);
 						await _userService.ShowMemberInfo(ctx.Channel, account);
 					}
 					catch (Exception ex)
@@ -1986,7 +1995,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 		if (_userService.HasPermission(ctx.Member, ctx.Command))
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel(ctx.Guild.Id);
+			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
 			if (channel != null)
 			{
 				bool noErrors = true;
@@ -2081,7 +2090,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 			bool foundAtLeastOnce = false;
 			naam = naam.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			naam = naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel(ctx.Guild.Id);
+			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
 			if (channel != null)
 			{
 				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
@@ -2164,7 +2173,7 @@ internal class BotCommands(IDiscordClient discordClient, IErrorHandler errorHand
 			oldName = oldName.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			oldName = oldName.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 			niewe_naam = niewe_naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel(ctx.Guild.Id);
+			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
 			if (channel != null)
 			{
 				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);

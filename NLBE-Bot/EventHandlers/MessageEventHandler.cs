@@ -7,8 +7,9 @@ using DSharpPlus.EventArgs;
 using FMWOTB.Tools.Replays;
 using FMWOTB.Vehicles;
 using JsonObjectConverter;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -19,12 +20,22 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class MessageEventHandler(IConfiguration configuration, IErrorHandler errorHandler, IBotState botState, ILogger<MessageEventHandler> logger,
-								IChannelService channelService, IUserService userService, IDiscordMessageUtils discordMessageUtils, IWeeklyEventService weeklyEventHandler,
-								IMapService mapService, IReplayService replayService, ITournamentService tournamentService, IHallOfFameService hallOfFameService, IMessageService messageService) : IMessageEventHandler
+internal class MessageEventHandler(IOptions<BotOptions> options,
+								   IErrorHandler errorHandler,
+								   IBotState botState,
+								   ILogger<MessageEventHandler> logger,
+								   IChannelService channelService,
+								   IUserService userService,
+								   IDiscordMessageUtils discordMessageUtils,
+								   IWeeklyEventService weeklyEventHandler,
+								   IMapService mapService,
+								   IReplayService replayService,
+								   ITournamentService tournamentService,
+								   IHallOfFameService hallOfFameService,
+								   IMessageService messageService) : IMessageEventHandler
 {
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
@@ -112,17 +123,17 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 		if (!author.IsBot && channel.Guild != null)
 		{
 			bool validChannel = false;
-			IDiscordChannel masteryChannel = await _channelService.GetMasteryReplaysChannel(guild.Id);
+			IDiscordChannel masteryChannel = await _channelService.GetMasteryReplaysChannel();
 			if (masteryChannel != null)
 			{
-				if (masteryChannel.Equals(channel) || channel.Id.Equals(Constants.BOTTEST_ID))
+				if (masteryChannel.Equals(channel))
 				{
 					validChannel = true;
 				}
 			}
 			if (!validChannel)
 			{
-				masteryChannel = await _channelService.GetBottestChannel();
+				masteryChannel = await _channelService.GetBotTestChannel();
 				if (masteryChannel != null && masteryChannel.Equals(channel))
 				{
 					validChannel = true;
@@ -166,9 +177,8 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 				_botState.LastCreatedDiscordMessage = message;
 				IDiscordMember member = await guild.GetMemberAsync(author.Id);
 
-				if (channel.Id.Equals(Constants.PRIVE_ID) || (member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) &&
-					(channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || channel.Id.Equals(Constants.BOTTEST_ID))) || (member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE)) &&
-					(channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || channel.Id.Equals(Constants.BOTTEST_ID))))
+				if ((member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) && (channel.Id.Equals(Constants.MASTERY_REPLAYS_ID))) ||
+					(member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE)) && (channel.Id.Equals(Constants.MASTERY_REPLAYS_ID))))
 				{
 					//MasteryChannel (komt wel in HOF)
 					if (message.Attachments.Count > 0)
@@ -210,7 +220,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 							{
 								await _messageService.ConfirmCommandExecuting(message);
 								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetIGNFromMember(member.DisplayName).Item2, null);
+								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).Item2, null);
 							}
 						}
 					}
@@ -222,7 +232,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 							{
 								await _messageService.ConfirmCommandExecuting(message);
 								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetIGNFromMember(member.DisplayName).Item2, message.Content);
+								replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).Item2, message.Content);
 							}
 						}
 					}
@@ -290,11 +300,11 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			return;
 		}
 
-		IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(e.Guild.Id);
+		IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
 		if (e.Channel.Equals(toernooiAanmeldenChannel))
 		{
 			DateTime timeStamp = e.Message.Timestamp.LocalDateTime;
-			IDiscordChannel logChannel = await _channelService.GetLogChannel(e.Guild.Id);
+			IDiscordChannel logChannel = await _channelService.GetLogChannel();
 			if (logChannel != null)
 			{
 				IReadOnlyList<IDiscordMessage> messages = await logChannel.GetMessagesAsync(100);
@@ -325,9 +335,9 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			return;
 		}
 
-		if (!user.IsBot && guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
+		if (!user.IsBot && guild.Id == _options.ServerId)
 		{
-			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(guild.Id);
+			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
 			if (toernooiAanmeldenChannel != null && channel.Equals(toernooiAanmeldenChannel))
 			{
 				IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
@@ -431,16 +441,16 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			return;
 		}
 
-		if (guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
+		if (guild.Id == _options.ServerId)
 		{
-			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(guild.Id);
+			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
 			if (toernooiAanmeldenChannel != null)
 			{
 				if (channel.Equals(toernooiAanmeldenChannel))
 				{
 					bool removeInLog = true;
 					IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
-					if (messageTmp.Author != null && !messageTmp.Author.Id.Equals(Constants.NLBE_BOT) && !messageTmp.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+					if (messageTmp.Author != null && !messageTmp.Author.Id.Equals(Constants.NLBE_BOT))
 					{
 						removeInLog = false;
 					}
@@ -454,7 +464,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 						}
 
 						//remove in log
-						IDiscordChannel logChannel = await _channelService.GetLogChannel(guild.Id);
+						IDiscordChannel logChannel = await _channelService.GetLogChannel();
 
 						if (logChannel.Inner != null)
 						{
@@ -509,7 +519,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			return;
 		}
 
-		string vehiclesInString = await WGVehicle.vehiclesToString(_configuration["NLBEBOT:WarGamingAppId"], ["name"]);
+		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WarGamingAppId, ["name"]);
 		Json json = new(vehiclesInString, string.Empty);
 		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
 

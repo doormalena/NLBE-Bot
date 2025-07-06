@@ -4,7 +4,8 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using FMWOTB;
 using FMWOTB.Tools.Replays;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -14,10 +15,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class HallOfFameService(IErrorHandler errorHandler, IConfiguration configuration,
+internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions> options,
 		IDiscordMessageUtils discordMessageUtils, IChannelService channelService, IMessageService messageService, IMapService mapService, IReplayService replayService, IUserService userService) : IHallOfFameService
 {
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
@@ -31,32 +32,27 @@ internal class HallOfFameService(IErrorHandler errorHandler, IConfiguration conf
 		{
 			discAttach = attachment;
 		}
-		WGBattle replayInfo = await _replayService.GetReplayInfo(titel, discAttach, _userService.GetIGNFromMember(member.DisplayName).Item2, iets);
+		WGBattle replayInfo = await _replayService.GetReplayInfo(titel, discAttach, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).Item2, iets);
 		try
 		{
 			if (replayInfo != null)
 			{
 				bool validChannel = false;
-				if (guildID.Equals(Constants.DA_BOIS_ID))
+
+				IDiscordChannel goodChannel = await _channelService.GetMasteryReplaysChannel();
+				if (goodChannel != null && goodChannel.Id.Equals(channel.Id))
 				{
 					validChannel = true;
 				}
-				else
+				if (!validChannel)
 				{
-					IDiscordChannel goodChannel = await _channelService.GetMasteryReplaysChannel(guildID);
-					if (goodChannel != null && goodChannel.Id.Equals(channel.Id))
+					goodChannel = await _channelService.GetBotTestChannel();
+					if (goodChannel.Id.Equals(channel.Id))
 					{
 						validChannel = true;
 					}
-					if (!validChannel)
-					{
-						goodChannel = await _channelService.GetBottestChannel();
-						if (goodChannel.Id.Equals(channel.Id))
-						{
-							validChannel = true;
-						}
-					}
 				}
+
 				return validChannel
 					? await GoHOFDetails(replayInfo, channel, member, guildName, guildID)
 					: new Tuple<string, IDiscordMessage>("Kanaal is niet geschikt voor HOF.", null);
@@ -84,7 +80,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IConfiguration conf
 				try
 				{
 					return replayInfo.details != null
-						? await ReplayHOF(replayInfo, guildID, channel, member, guildName)
+						? await ReplayHOF(replayInfo, channel, member, guildName)
 						: new Tuple<string, IDiscordMessage>("Replay bevatte geen details.", null);
 				}
 				catch (JsonNotFoundException ex)
@@ -151,11 +147,11 @@ internal class HallOfFameService(IErrorHandler errorHandler, IConfiguration conf
 		await _messageService.CreateEmbed(channel, options);
 		return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
 	}
-	public async Task<Tuple<string, IDiscordMessage>> ReplayHOF(WGBattle battle, ulong guildID, IDiscordChannel channel, IDiscordMember member, string guildName)
+	public async Task<Tuple<string, IDiscordMessage>> ReplayHOF(WGBattle battle, IDiscordChannel channel, IDiscordMember member, string guildName)
 	{
 		if (battle.details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.details.clanid.Equals(Constants.NLBE2_CLAN_ID))
 		{
-			IDiscordMessage message = await GetHOFMessage(guildID, battle.vehicle_tier, battle.vehicle);
+			IDiscordMessage message = await GetHOFMessage(battle.vehicle_tier, battle.vehicle);
 			if (message != null)
 			{
 				List<Tuple<string, List<TankHof>>> tierHOF = ConvertHOFMessageToTupleListAsync(message, battle.vehicle_tier);
@@ -274,9 +270,9 @@ internal class HallOfFameService(IErrorHandler errorHandler, IConfiguration conf
 		}
 		return null;
 	}
-	public async Task<IDiscordMessage> GetHOFMessage(ulong GuildID, int tier, string vehicle)
+	public async Task<IDiscordMessage> GetHOFMessage(int tier, string vehicle)
 	{
-		IDiscordChannel channel = await _channelService.GetHallOfFameChannel(GuildID);
+		IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
 		if (channel != null)
 		{
 			IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
@@ -549,7 +545,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IConfiguration conf
 	public async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID)
 	{
 		List<Tuple<string, List<TankHof>>> players = [];
-		IDiscordChannel channel = await _channelService.GetHallOfFameChannel(guildID);
+		IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
 		if (channel != null)
 		{
 			IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
@@ -648,7 +644,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IConfiguration conf
 		bool good = false;
 		if (returnedTuple.Item1.Equals(string.Empty))
 		{
-			TimeSpan hofWaitTime = TimeSpan.FromSeconds(int.TryParse(_configuration["NLBEBOT:HofWaitTimeInSeconds"], out int hofWaitTimeInt) ? hofWaitTimeInt : 0);
+			TimeSpan hofWaitTime = TimeSpan.FromSeconds(_options.HofWaitTimeInSeconds);
 			await Task.Delay(hofWaitTime);
 			string description = string.Empty;
 			string thumbnail = string.Empty;

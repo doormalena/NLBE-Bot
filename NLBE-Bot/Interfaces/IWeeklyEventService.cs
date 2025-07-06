@@ -10,8 +10,6 @@ internal interface IWeeklyEventService
 		get; set;
 	}
 
-	public Task AnnounceWeeklyWinner();
-
 	public Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank);
 
 	public Task ReadWeeklyEvent();

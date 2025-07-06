@@ -59,12 +59,12 @@ public class BotStateTests
 		DateTime now = DateTime.UtcNow;
 		BotState state = new()
 		{
-			LasTimeNamesWereUpdated = now
+			LasTimeServerNicknamesWereVerified = now
 		};
-		Assert.AreEqual(now, state.LasTimeNamesWereUpdated);
+		Assert.AreEqual(now, state.LasTimeServerNicknamesWereVerified);
 
-		state.LasTimeNamesWereUpdated = null;
-		Assert.IsNull(state.LasTimeNamesWereUpdated);
+		state.LasTimeServerNicknamesWereVerified = null;
+		Assert.IsNull(state.LasTimeServerNicknamesWereVerified);
 	}
 
 	[TestMethod]

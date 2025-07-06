@@ -86,7 +86,7 @@ internal class BotState : IBotState
 
 	private DateTime? _lasTimeNamesWereUpdated;
 
-	public DateTime? LasTimeNamesWereUpdated
+	public DateTime? LasTimeServerNicknamesWereVerified
 	{
 		get
 		{

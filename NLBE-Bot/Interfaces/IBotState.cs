@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.Entities;
 using System;
 
 internal interface IBotState
@@ -25,7 +24,7 @@ internal interface IBotState
 		get; set;
 	}
 
-	public DateTime? LasTimeNamesWereUpdated
+	public DateTime? LasTimeServerNicknamesWereVerified
 	{
 		get; set;
 	}

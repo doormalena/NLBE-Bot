@@ -1,13 +1,13 @@
 namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
-using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using FMWOTB.Account;
 using FMWOTB.Tools;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLBE_Bot;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -16,13 +16,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class GuildMemberEventHandler(IDiscordClient discordClient, IErrorHandler errorHandler, ILogger<GuildMemberEventHandler> logger, IConfiguration configuration,
-										IChannelService channelService, IUserService userService, IMessageService messageService) : IGuildMemberEventHandler
+internal class GuildMemberEventHandler(IDiscordClient discordClient,
+									   IErrorHandler errorHandler,
+									   ILogger<GuildMemberEventHandler> logger,
+									   IOptions<BotOptions> options,
+									   IChannelService channelService,
+									   IUserService userService,
+									   IMessageService messageService) : IGuildMemberEventHandler
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
@@ -51,7 +56,7 @@ internal class GuildMemberEventHandler(IDiscordClient discordClient, IErrorHandl
 			return;
 		}
 
-		if (guild.Id != Constants.NLBE_SERVER_ID)
+		if (guild.Id != _options.ServerId)
 		{
 			return;
 		}
@@ -103,7 +108,7 @@ internal class GuildMemberEventHandler(IDiscordClient discordClient, IErrorHandl
 			}
 
 			string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
-			searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, _configuration["NLBEBOT:WarGamingAppId"], false, true, false);
+			searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, _options.WarGamingAppId, false, true, false);
 
 			if (searchResults != null && searchResults.Count > 0)
 			{
@@ -197,7 +202,7 @@ internal class GuildMemberEventHandler(IDiscordClient discordClient, IErrorHandl
 			return;
 		}
 
-		foreach (KeyValuePair<ulong, IDiscordGuild> guild in _discordClient.Guilds.Where(g => g.Key != Constants.NLBE_SERVER_ID))
+		foreach (KeyValuePair<ulong, IDiscordGuild> guild in _discordClient.Guilds.Where(g => g.Key != _options.ServerId))
 		{
 			IDiscordMember member = await _userService.GetDiscordMember(guild.Value, e.Member.Id);
 
@@ -232,7 +237,7 @@ internal class GuildMemberEventHandler(IDiscordClient discordClient, IErrorHandl
 			return;
 		}
 
-		if (member.Id.Equals(Constants.THIBEASTMO_ALT_ID) || guild.Id.Equals(Constants.NLBE_SERVER_ID))
+		if (guild.Id == _options.ServerId)
 		{
 			return;
 		}
@@ -243,7 +248,7 @@ internal class GuildMemberEventHandler(IDiscordClient discordClient, IErrorHandl
 			IReadOnlyDictionary<ulong, IDiscordRole> serverRoles = null;
 
 			foreach (KeyValuePair<ulong, IDiscordGuild> g in from KeyValuePair<ulong, IDiscordGuild> g in _discordClient.Guilds
-															 where g.Value.Id.Equals(Constants.NLBE_SERVER_ID)
+															 where g.Value.Id == _options.ServerId
 															 select g)
 			{
 				serverRoles = g.Value.Roles;

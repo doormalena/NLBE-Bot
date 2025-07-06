@@ -1,7 +1,9 @@
 namespace NLBE_Bot.Tests.EventHandlers;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
 using NSubstitute;
@@ -11,6 +13,7 @@ using System.Threading.Tasks;
 [TestClass]
 public class CommandEventHandlerTests
 {
+	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<CommandEventHandler>? _loggerMock;
 	private IErrorHandler? _errorHandlerMock;
 	private IDiscordMessageUtils? _discordMessageUtilsMock;
@@ -19,10 +22,15 @@ public class CommandEventHandlerTests
 	[TestInitialize]
 	public void Setup()
 	{
+		_optionsMock = Substitute.For<IOptions<BotOptions>>();
+		_optionsMock.Value.Returns(new BotOptions()
+		{
+			ServerId = 1000000
+		});
 		_loggerMock = Substitute.For<ILogger<CommandEventHandler>>();
 		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
-		_handler = new CommandEventHandler(_loggerMock, _errorHandlerMock, _discordMessageUtilsMock);
+		_handler = new CommandEventHandler(_loggerMock, _errorHandlerMock, _discordMessageUtilsMock, _optionsMock);
 	}
 
 	[TestMethod]
@@ -65,7 +73,7 @@ public class CommandEventHandlerTests
 	{
 		// Arrange.
 		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
-		contextMock.GuildId.Returns(Constants.NLBE_SERVER_ID);
+		contextMock.GuildId.Returns(1000000UL);
 		contextMock.SendUnauthorizedMessageAsync().Returns(Task.CompletedTask);
 
 		// Act.
@@ -80,7 +88,7 @@ public class CommandEventHandlerTests
 	{
 		// Arrange.
 		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
-		contextMock.GuildId.Returns(Constants.NLBE_SERVER_ID);
+		contextMock.GuildId.Returns(1000000UL);
 
 		IDiscordEmoji emojiInProgress = Substitute.For<IDiscordEmoji>();
 		IDiscordEmoji emojiError = Substitute.For<IDiscordEmoji>();

@@ -1,27 +1,24 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using DSharpPlus;
 using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
-using DSharpPlus.Interactivity.Extensions;
 using FMWOTB.Tools.Replays;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
-internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IConfiguration configuration, IErrorHandler errorHandler, IBotState botState,
+internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IOptions<BotOptions> options, IErrorHandler errorHandler, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,
 								IMapService mapService) : IMessageService
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<MessageService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
@@ -157,7 +154,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		try
 		{
-			IDiscordEmbed embed = CreateStandardEmbed("Geen toegang", ":raised_back_of_hand: Je hebt niet voldoende rechten om deze commando uit te voeren!", DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Geen toegang", ":raised_back_of_hand: Je hebt onvoldoende rechten om dit commando uit te voeren!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
@@ -169,7 +166,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		try
 		{
-			IDiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: De bot heeft voldoende rechten om dit uit te voeren!", DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: De bot heeft onvoldoende rechten om dit uit te voeren!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
@@ -285,29 +282,6 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return await channel.SendMessageAsync(embed);
 	}
 
-	//no longer sends to thibeastmo. This used to be a method to send towards thibeastmo but since thibeastmo is no longer hosting this it's moved towards the test channel
-	public async Task SendThibeastmo(string message, string exceptionMessage = "", string stackTrace = "")
-	{
-		IDiscordChannel bottestChannel = await _channelService.GetBottestChannel();
-		if (bottestChannel != null)
-		{
-			StringBuilder sb = new();
-			if (!string.IsNullOrEmpty(exceptionMessage) && !string.IsNullOrEmpty(stackTrace))
-			{
-				for (int i = 0; i < message.Length / 2; i++)
-				{
-					sb.Append('━');
-				}
-			}
-			StringBuilder firstMessage = new((sb.Length > 0 ? "**" + sb.ToString() + "**\n" : string.Empty) + message);
-			if (!string.IsNullOrEmpty(exceptionMessage))
-			{
-				firstMessage.Append("\n" + "`" + exceptionMessage + "`");
-			}
-			await bottestChannel.SendMessageAsync(firstMessage.ToString());
-		}
-	}
-
 	public async Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count)
 	{
 		IDiscordMessage discMessage = SayMultipleResults(channel, description);
@@ -400,7 +374,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			try
 			{
 				await channel.SendMessageAsync(question);
-				TimeSpan newPlayerWaitTime = TimeSpan.FromDays(int.TryParse(_configuration["NLBEBOT:NewPlayerWaitTimeInDays"], out int newPlayerWaitTimeInt) ? newPlayerWaitTimeInt : 0);
+				TimeSpan newPlayerWaitTime = TimeSpan.FromDays(_options.NewPlayerWaitTimeInDays);
 				IDiscordInteractivityResult<IDiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
 
 				if (!message.TimedOut)
@@ -425,10 +399,11 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 								await guild.BanMemberAsync(member);
 								isBanned = true;
 							}
-							catch
+							catch (Exception ex)
 							{
-								_logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
+								_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
 							}
+
 							if (isBanned)
 							{
 								try
@@ -441,20 +416,15 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 									{
 										await user.UnbanAsync(guild);
 									}
-									catch
+									catch (Exception ex)
 									{
-										_logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
-										IDiscordMember thibeastmo = await guild.GetMemberAsync(Constants.THIBEASTMO_ID);
-										if (thibeastmo != null)
-										{
-											await thibeastmo.SendMessageAsync("**Gebruiker [" + member.DisplayName + "(" + member.Username + "#" + member.Discriminator + ")] kon niet geünbanned worden!**");
-										}
+										_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
 									}
 								}
 							}
 						}
 					}
-					await _channelService.CleanChannel(guild.Id, channel.Id);
+					await _channelService.CleanChannel(channel.Id);
 				}
 			}
 			catch (Exception e)

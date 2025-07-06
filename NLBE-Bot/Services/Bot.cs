@@ -9,7 +9,12 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-internal class Bot(IDiscordClient discordClient, IBotEventHandlers eventHandlers, ILogger<Bot> logger, IPublicIpAddress publicIpAddress, IServiceProvider provider, IBotState botState) : BackgroundService
+internal class Bot(IDiscordClient discordClient,
+				   IBotEventHandlers eventHandlers,
+				   ILogger<Bot> logger,
+				   IPublicIpAddress publicIpAddress,
+				   IServiceProvider provider,
+				   IBotState botState) : BackgroundService
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly IBotEventHandlers _eventHandlers = eventHandlers ?? throw new ArgumentNullException(nameof(eventHandlers));

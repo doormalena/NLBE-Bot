@@ -1,7 +1,5 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.CommandsNext;
-using DSharpPlus.Entities;
 using FMWOTB.Account;
 using FMWOTB.Clans;
 using NLBE_Bot.Models;
@@ -17,9 +15,7 @@ internal interface IUserService
 
 	public string UpdateName(IDiscordMember member, string oldName);
 
-	public Task UpdateUsers();
-
-	public Tuple<string, string> GetIGNFromMember(string displayName);
+	public Tuple<string, string> GetWotbPlayerNameFromDisplayName(string displayName);
 
 	public Task ShowMemberInfo(IDiscordChannel channel, object gebruiker);
 
