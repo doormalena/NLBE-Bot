@@ -11,6 +11,7 @@ using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 internal class BotEventHandlers(ICommandEventHandler commandHandler,
@@ -91,13 +92,12 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 
 	internal Task HandleReady(IDiscordClient discordClient)
 	{
-		foreach (KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds)
+		foreach (KeyValuePair<ulong, IDiscordGuild> guild in from KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds
+															 where !guild.Key.Equals(_options.ServerId)
+															 select guild)
 		{
-			if (!guild.Key.Equals(_options.ServerId))
-			{
-				_logger.LogWarning("Bot is not configured to handle guild {GuildId}. Leaving the guild.", guild.Key);
-				guild.Value.LeaveAsync();
-			}
+			_logger.LogWarning("Bot is not configured to handle guild {GuildId}. Leaving the guild.", guild.Key);
+			guild.Value.LeaveAsync();
 		}
 
 		_logger.LogInformation("Client (v{Version}) is ready to process events.", Constants.Version);

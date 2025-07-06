@@ -56,7 +56,6 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 			IDiscordGuild guild = bottestChannel.Guild;
 			DateTime now = DateTime.Now;
 			StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
-			_logger.LogInformation(winnerMessage.ToString());
 
 			await _weeklyEventService.ReadWeeklyEvent();
 

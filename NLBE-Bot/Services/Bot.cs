@@ -54,6 +54,10 @@ internal class Bot(IDiscordClient discordClient,
 		{
 			_logger.LogInformation(ex, "NLBE Bot was cancelled gracefully.");
 		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "NLBE Bot experienced an unrecoverable exception.");
+		}
 		finally
 		{
 			try
