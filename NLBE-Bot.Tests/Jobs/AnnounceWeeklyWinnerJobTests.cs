@@ -155,6 +155,29 @@ public class AnnounceWeeklyWinnerJobTests
 	}
 
 	[TestMethod]
+	public async Task AnnounceWeeklyWinner_DoesNothing_WhenChannelIsNull()
+	{
+		// Arrange.
+		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local);
+		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
+		_channelServiceMock!.GetBotTestChannel().Returns((IDiscordChannel?) null);
+
+		// Act.
+		await _job!.Execute(monday15);
+
+		// Assert.
+		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
+		await _errorHandlerMock!.DidNotReceive().HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>());
+		_loggerMock!.Received().Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains("Could not find the bot test channel")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
 	{
 		// Act & Assert.

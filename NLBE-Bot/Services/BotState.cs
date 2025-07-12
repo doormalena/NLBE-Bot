@@ -8,9 +8,10 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
-internal class BotState(string stateFile = "botstate.json") : IBotState
+internal class BotState(string stateFile = "botstate.json", bool autoSave = true) : IBotState
 {
 	private readonly string _stateFile = stateFile ?? throw new ArgumentNullException(nameof(stateFile));
+	private readonly bool _autoSave = autoSave;
 	private readonly Lock _lock = new();
 	private BotStateData _data = new();
 
@@ -28,7 +29,10 @@ internal class BotState(string stateFile = "botstate.json") : IBotState
 			lock (_lock)
 			{
 				_data.IgnoreCommands = value;
-				Task.Run(() => SaveAsync());
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
@@ -47,7 +51,10 @@ internal class BotState(string stateFile = "botstate.json") : IBotState
 			lock (_lock)
 			{
 				_data.IgnoreEvents = value;
-				Task.Run(() => SaveAsync());
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
@@ -67,7 +74,10 @@ internal class BotState(string stateFile = "botstate.json") : IBotState
 			lock (_lock)
 			{
 				_data.WeeklyEventWinner = value;
-				Task.Run(() => SaveAsync());
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
@@ -106,7 +116,10 @@ internal class BotState(string stateFile = "botstate.json") : IBotState
 			lock (_lock)
 			{
 				_data.LasTimeServerNicknamesWereVerified = value;
-				Task.Run(() => SaveAsync());
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
@@ -125,12 +138,15 @@ internal class BotState(string stateFile = "botstate.json") : IBotState
 			lock (_lock)
 			{
 				_data.LastWeeklyWinnerAnnouncement = value;
-				Task.Run(() => SaveAsync());
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
 
-	private async Task SaveAsync()
+	public async Task SaveAsync()
 	{
 		string json = JsonSerializer.Serialize(_data);
 		await File.WriteAllTextAsync(_stateFile, json);
