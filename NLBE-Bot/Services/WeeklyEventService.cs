@@ -3,6 +3,7 @@ namespace NLBE_Bot.Services;
 using DiscordHelper;
 using FMWOTB.Tools.Replays;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -51,7 +52,7 @@ internal class WeeklyEventService(IChannelService channelService,
 					{
 						userNotFound = false;
 
-						_botState.WeeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
+						_botState.WeeklyEventWinner = new WeeklyEventWinner { UserId = member.Id, LastEventDate = DateTime.Now };
 
 						try
 						{

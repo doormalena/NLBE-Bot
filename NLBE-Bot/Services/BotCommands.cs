@@ -2427,7 +2427,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			else
 			{
 				await ctx.Member.SendMessageAsync("Hallo\nWelke tank wil je bij het volgende wekelijkse event instellen?"); //deze triggert OOK het dmchannelcreated event
-				_botState.WeeklyEventWinner = new Tuple<ulong, DateTime>(ctx.Member.Id, DateTime.Now);
+				_botState.WeeklyEventWinner = new WeeklyEventWinner { UserId = ctx.Member.Id, LastEventDate = DateTime.Now };
 			}
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		}

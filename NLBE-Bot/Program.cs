@@ -63,7 +63,12 @@ public static class Program
 				});
 
 				services.AddHostedService<Bot>();
-				services.AddSingleton<IBotState, BotState>();
+				services.AddSingleton<IBotState>(provider =>
+				{
+					BotState botState = new();
+					botState.LoadAsync().GetAwaiter().GetResult(); // Synchronously load state at startup
+					return botState;
+				});
 				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
 				services.AddSingleton<BotCommands>();
 				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();

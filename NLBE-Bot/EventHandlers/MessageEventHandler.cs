@@ -509,12 +509,12 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 
 	private async Task HandleWeeklyEventDM(IDiscordChannel channel, IDiscordMessage lastMessage)
 	{
-		if (!channel.IsPrivate || _botState.WeeklyEventWinner == null || _botState.WeeklyEventWinner.Item1 == 0)
+		if (!channel.IsPrivate || _botState.WeeklyEventWinner == null || _botState.WeeklyEventWinner.UserId == 0)
 		{
 			return;
 		}
 
-		if (lastMessage.Author.IsBot || channel.Guild != null || lastMessage.CreationTimestamp <= _botState.WeeklyEventWinner.Item2)
+		if (lastMessage.Author.IsBot || channel.Guild != null || lastMessage.CreationTimestamp <= _botState.WeeklyEventWinner.LastEventDate)
 		{
 			return;
 		}
@@ -555,7 +555,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			//tank was chosen
 			await channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
 			await _weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await _channelService.GetWeeklyEventChannel());
-			_botState.WeeklyEventWinner = new Tuple<ulong, DateTime>(0, DateTime.Now);//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
+			_botState.WeeklyEventWinner = null;//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
 		}
 	}
 }
