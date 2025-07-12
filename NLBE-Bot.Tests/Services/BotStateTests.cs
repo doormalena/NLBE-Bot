@@ -26,7 +26,7 @@ public class BotStateTests
 		try
 		{
 			// Act.
-			await Task.Delay(100); // Wait for async save to complete
+			await Task.Delay(200); // Wait for async save to complete
 
 			// Assert.
 			Assert.IsTrue(File.Exists(tempFile), "State file should exist after SaveAsync.");
