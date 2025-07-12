@@ -6,9 +6,9 @@ namespace NLBE_Bot
 {
     public class WeeklyEventItem
     {
-        public int Value { get; private set; }
-        public string Player { get; private set; }
-        public string Url { get; private set; }
+        public int Value { get; set; }
+        public string Player { get; set; }
+        public string Url { get; set; }
         public WeeklyEventType WeeklyEventType { get; }
 
         public WeeklyEventItem(WeeklyEventType WeeklyEventType)

@@ -36,6 +36,7 @@ public class AnnounceWeeklyWinnerJobTests
 		DateTime monday14 = new(2025, 6, 23, 14, 0, 0, DateTimeKind.Local); // Monday, 14:00, last announcement was a week ago.
 		DateTime lastAnnouncement = monday14.AddDays(-7);
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(lastAnnouncement);
+		_weeklyEventServiceMock!.ReadWeeklyEvent().Returns(Task.CompletedTask);
 
 		// Act.
 		await _job!.Execute(monday14);
@@ -43,6 +44,38 @@ public class AnnounceWeeklyWinnerJobTests
 		// Assert.
 		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
 		_botStateMock.Received().LastWeeklyWinnerAnnouncement = monday14;
+	}
+
+	[TestMethod]
+	public async Task AnnounceWeeklyWinner_SendsMessage_WhenChannelIsValid()
+	{
+		// Arrange.
+		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
+		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
+		channelMock.Guild.Returns(guildMock);
+		_channelServiceMock!.GetBotTestChannel().Returns(channelMock);
+
+		// Setup WeeklyEventService to return a valid WeeklyEvent with a Most_damage item and player.
+		WeeklyEventItem mostDmgItem = new(WeeklyEventType.Most_damage)
+		{
+			Player = "TestPlayer"
+		};
+		WeeklyEvent weeklyEvent = new("TestTank", [mostDmgItem])
+		{
+			StartDate = DateTime.Now.AddDays(-7)
+		};
+		_weeklyEventServiceMock!.WeeklyEvent.Returns(weeklyEvent);
+
+
+		_weeklyEventServiceMock.WeHaveAWinner(guildMock, mostDmgItem, "TestTank").Returns(Task.CompletedTask); // Make WeHaveAWinner a no-op.
+
+		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null); // Set up state to trigger announcement.
+
+		// Act.
+		await _job!.Execute(DateTime.Now.Date.AddDays(-(int) DateTime.Now.DayOfWeek + (int) DayOfWeek.Monday).AddHours(15)); // Monday after 14:00.
+
+		// Assert.
+		await channelMock.Received().SendMessageAsync(Arg.Any<string>());
 	}
 
 	[TestMethod]
