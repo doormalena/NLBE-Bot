@@ -1,45 +1,44 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.Entities;
 using System.Threading.Tasks;
 
 internal interface IChannelService
 {
-	public Task<DiscordChannel> GetHallOfFameChannel(ulong GuildID);
+	public Task<IDiscordChannel> GetHallOfFameChannel();
 
-	public Task<DiscordChannel> GetLogChannel(ulong GuildID);
+	public Task<IDiscordChannel> GetLogChannel();
 
-	public Task<DiscordChannel> GetDeputiesChannel();
+	public Task<IDiscordChannel> GetDeputiesChannel();
 
-	public Task<DiscordChannel> GetPollsChannel(bool isDeputyPoll, ulong GuildID);
+	public Task<IDiscordChannel> GetPollsChannel(bool isDeputyPoll);
 
-	public Task<DiscordChannel> GetTestChannel();
+	public Task<IDiscordChannel> GetTestChannel();
 
-	public Task<DiscordChannel> GetBottestChannel();
+	public Task<IDiscordChannel> GetBotTestChannel();
 
-	public Task<DiscordChannel> GetToernooiAanmeldenChannel(ulong GuildID);
+	public Task<IDiscordChannel> GetToernooiAanmeldenChannel();
 
-	public Task<DiscordChannel> GetWeeklyEventChannel();
+	public Task<IDiscordChannel> GetWeeklyEventChannel();
 
-	public Task<DiscordChannel> GetReplayResultsChannel();
+	public Task<IDiscordChannel> GetReplayResultsChannel();
 
-	public Task<DiscordChannel> GetChannel(ulong serverID, ulong chatID);
+	public Task<IDiscordChannel> GetChannel(ulong channeId);
 
-	public Task<DiscordChannel> GetWelkomChannel();
+	public Task<IDiscordChannel> GetWelkomChannel();
 
 	public Task CleanWelkomChannel();
 
-	public Task CleanWelkomChannel(ulong userID);
+	public Task CleanWelkomChannel(ulong userId);
 
-	public Task<DiscordChannel> GetAlgemeenChannel();
+	public Task<IDiscordChannel> GetAlgemeenChannel();
 
-	public Task<DiscordChannel> GetRegelsChannel();
+	public Task<IDiscordChannel> GetRegelsChannel();
 
-	public Task<DiscordChannel> GetMasteryReplaysChannel(ulong GuildID);
+	public Task<IDiscordChannel> GetMasteryReplaysChannel();
 
-	public Task<DiscordChannel> GetMappenChannel(ulong GuildID);
+	public Task<IDiscordChannel> GetMappenChannel();
 
-	public Task<DiscordChannel> GetOudLedenChannel();
+	public Task<IDiscordChannel> GetOudLedenChannel();
 
-	public Task CleanChannel(ulong serverID, ulong channelID);
+	public Task CleanChannel(ulong channeId);
 }

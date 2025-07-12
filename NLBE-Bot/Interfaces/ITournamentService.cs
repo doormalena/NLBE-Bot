@@ -9,15 +9,15 @@ using System.Threading.Tasks;
 
 internal interface ITournamentService
 {
-	public Task GenerateLogMessage(DiscordMessage message, DiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji);
+	public Task GenerateLogMessage(IDiscordMessage message, IDiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji);
 
 	public Task<List<WGTournament>> InitialiseTournaments(bool all);
 
-	public Task ShowTournamentInfo(DiscordChannel channel, WGTournament tournament, string titel);
+	public Task ShowTournamentInfo(IDiscordChannel channel, WGTournament tournament, string titel);
 
-	public Task<List<Tier>> ReadTeams(DiscordChannel channel, DiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team);
+	public Task<List<Tier>> ReadTeams(IDiscordChannel channel, IDiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team);
 
-	public Task<List<Tuple<ulong, string>>> GetIndividualParticipants(List<Tier> teams, DiscordGuild guild);
+	public Task<List<Tuple<ulong, string>>> GetIndividualParticipants(List<Tier> teams, IDiscordGuild guild);
 
 	public bool CheckIfAllWithinRange(string[] tiers, int min, int max);
 

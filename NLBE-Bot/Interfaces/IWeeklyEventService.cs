@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
 using System.Threading.Tasks;
 
@@ -11,13 +10,11 @@ internal interface IWeeklyEventService
 		get; set;
 	}
 
-	public Task AnnounceWeeklyWinner();
-
-	public Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank);
+	public Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank);
 
 	public Task ReadWeeklyEvent();
 
 	public Task<string> GetStringForWeeklyEvent(WGBattle battle);
 
-	public Task CreateNewWeeklyEvent(string tank, DiscordChannel weeklyEventChannel);
+	public Task CreateNewWeeklyEvent(string tank, IDiscordChannel weeklyEventChannel);
 }

@@ -19,6 +19,7 @@ public class BotTests
 	private IPublicIpAddress? _publicIpMock;
 	private IServiceProvider? _serviceProviderMock;
 	private IBotState? _botStateMock;
+	private Bot? _bot;
 
 	[TestInitialize]
 	public void Setup()
@@ -35,6 +36,9 @@ public class BotTests
 		ICommandsNextExtension commandsNextMock = Substitute.For<ICommandsNextExtension>();
 		_discordClientMock.UseCommandsNext(Arg.Any<CommandsNextConfiguration>()).Returns(commandsNextMock);
 		_discordClientMock.GetCommandsNext().Returns(commandsNextMock);
+
+
+		_bot = new(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock);
 	}
 
 	[TestMethod]
@@ -44,13 +48,11 @@ public class BotTests
 		_discordClientMock!.ConnectAsync(Arg.Any<DiscordActivity>(), Arg.Any<UserStatus>())
 								.Returns(Task.CompletedTask);
 
-		Bot bot = new(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock);
-
 		using CancellationTokenSource cts = new();
 		cts.CancelAfter(10); // Cancel quickly to complete task.
 
 		// Act.
-		await bot.StartAsync(cts.Token);
+		await _bot!.StartAsync(cts.Token);
 		await Task.Delay(200); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
@@ -80,10 +82,8 @@ public class BotTests
 		_discordClientMock!.ConnectAsync(Arg.Any<DiscordActivity>(), Arg.Any<UserStatus>())
 						.Returns(x => throw new OperationCanceledException());
 
-		Bot bot = new(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock);
-
 		// Act.
-		await bot.StartAsync(CancellationToken.None);
+		await _bot!.StartAsync(CancellationToken.None);
 
 		// Assert.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
@@ -92,6 +92,38 @@ public class BotTests
 			Arg.Any<EventId>(),
 			Arg.Is<object>(v => v != null && v.ToString().Contains("NLBE Bot was cancelled gracefully.")),
 			Arg.Any<OperationCanceledException>(),
+			Arg.Any<Func<object, Exception?, string>>());
+#pragma warning restore CS8602
+
+		await _discordClientMock.Received(1).DisconnectAsync();
+	}
+
+	[TestMethod]
+	public async Task ExecuteAsync_HandlesDisconnectException()
+	{
+		// Arrange.
+		_discordClientMock!.ConnectAsync(Arg.Any<DiscordActivity>(), Arg.Any<UserStatus>())
+						.Returns(x => throw new Exception());
+		_discordClientMock!.DisconnectAsync()
+						.Returns(x => throw new InvalidOperationException());
+
+		// Act.
+		await _bot!.StartAsync(CancellationToken.None);
+
+		// Assert.
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+		_loggerMock.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v != null && v.ToString().Contains("NLBE Bot experienced an unrecoverable exception.")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>());
+
+		_loggerMock.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v != null && v.ToString().Contains("An error occurred while disconnecting the Discord client gracefully.")),
+			Arg.Any<InvalidOperationException>(),
 			Arg.Any<Func<object, Exception?, string>>());
 #pragma warning restore CS8602
 	}

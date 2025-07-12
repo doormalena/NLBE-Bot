@@ -1,9 +1,10 @@
 namespace NLBE_Bot.Models;
 
 using DSharpPlus.Entities;
+using NLBE_Bot.Interfaces;
 using System.Collections.Generic;
 
-public class EmbedOptions
+internal class EmbedOptions
 {
 	public string Thumbnail
 	{
@@ -29,7 +30,7 @@ public class EmbedOptions
 	{
 		get; set;
 	}
-	public List<DiscordEmoji> Emojis
+	public List<IDiscordEmoji> Emojis
 	{
 		get; set;
 	}

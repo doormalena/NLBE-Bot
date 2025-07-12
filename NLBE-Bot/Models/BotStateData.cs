@@ -1,9 +1,8 @@
-namespace NLBE_Bot.Interfaces;
+namespace NLBE_Bot.Models;
 
-using NLBE_Bot.Models;
 using System;
 
-internal interface IBotState
+internal class BotStateData
 {
 	public bool IgnoreCommands
 	{
@@ -16,10 +15,6 @@ internal interface IBotState
 	}
 
 	public WeeklyEventWinner WeeklyEventWinner
-	{
-		get; set;
-	}
-	public IDiscordMessage LastCreatedDiscordMessage
 	{
 		get; set;
 	}

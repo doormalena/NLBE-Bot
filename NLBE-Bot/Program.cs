@@ -7,9 +7,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using System;
@@ -31,7 +33,7 @@ public static class Program
 			{
 				config.Sources.Clear();
 				config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-				config.AddJsonFile($"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json", optional: true);
+				config.AddJsonFile($"appsettings.{hostContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 				config.AddUserSecrets(Assembly.GetExecutingAssembly());
 			})
 			.ConfigureLogging(logging =>
@@ -50,13 +52,23 @@ public static class Program
 			})
 			.ConfigureServices((hostContext, services) =>
 			{
+				services.AddOptions<BotOptions>().
+					Bind(GetBotOptionSection(hostContext.Configuration)).
+					ValidateDataAnnotations().
+					ValidateOnStart();
+
 				services.AddSingleton(provider =>
 				{
 					return CreateDiscordClient(provider, hostContext.Configuration) as IDiscordClient;
 				});
 
 				services.AddHostedService<Bot>();
-				services.AddSingleton<IBotState, BotState>();
+				services.AddSingleton<IBotState>(provider =>
+				{
+					BotState botState = new();
+					botState.LoadAsync().GetAwaiter().GetResult(); // Synchronously load state at startup
+					return botState;
+				});
 				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
 				services.AddSingleton<BotCommands>();
 				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();
@@ -64,7 +76,6 @@ public static class Program
 				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
 				services.AddSingleton<IGuildMemberEventHandler, GuildMemberEventHandler>();
 				services.AddSingleton<IMessageEventHandler, MessageEventHandler>();
-				services.AddSingleton<IGuildProvider, GuildProvider>();
 				services.AddSingleton<IUserService, UserService>();
 				services.AddSingleton<IChannelService, ChannelService>();
 				services.AddSingleton<IMessageService, MessageService>();
@@ -74,6 +85,8 @@ public static class Program
 				services.AddSingleton<ITournamentService, TournamentService>();
 				services.AddSingleton<IBlitzstarsService, BlitzstarsService>();
 				services.AddSingleton<IClanService, ClanService>();
+				services.AddSingleton<IJob<AnnounceWeeklyWinnerJob>, AnnounceWeeklyWinnerJob>();
+				services.AddSingleton<IJob<VerifyServerNicknamesJob>, VerifyServerNicknamesJob>();
 				services.AddSingleton<IDiscordMessageUtils, DiscordMessageUtils>();
 				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
 				services.AddHttpClient<IApiRequester, ApiRequester>();
@@ -82,22 +95,29 @@ public static class Program
 
 	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider, IConfiguration configuration)
 	{
+		BotOptions options = GetBotOptionSection(configuration).Get<BotOptions>();
+
 		DiscordConfiguration config = new()
 		{
-			Token = configuration["NLBEBOT:DiscordToken"],
+			Token = options.DiscordToken,
 			TokenType = TokenType.Bot,
 			AutoReconnect = true,
 			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
-			LoggerFactory = provider.GetRequiredService<ILoggerFactory>()
+			LoggerFactory = provider.GetRequiredService<ILoggerFactory>(),
 		};
 
 		DiscordClient client = new(config);
 		client.UseInteractivity(new InteractivityConfiguration
 		{
-			Timeout = TimeSpan.FromSeconds(int.TryParse(configuration["NLBEBOT:DiscordTimeOutInSeconds"], out int timeout) ? timeout : 0)
+			Timeout = TimeSpan.FromSeconds(options.DiscordTimeOutInSeconds)
 		});
 
 		return new DiscordClientWrapper(client);
+	}
+
+	private static IConfigurationSection GetBotOptionSection(IConfiguration configuration)
+	{
+		return configuration.GetSection("NLBEBot");
 	}
 }
 
