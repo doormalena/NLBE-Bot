@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Jobs;
 using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 using System;
 
 [TestClass]
@@ -31,8 +32,8 @@ public class AnnounceWeeklyWinnerJobTests
 	[TestMethod]
 	public async Task Execute_AnnouncesWeeklyWinner_WhenMondayAfter14_AndNotAnnouncedThisWeek()
 	{
-		// Arrange: Monday, 14:00, last announcement was a week ago
-		DateTime monday14 = new(2025, 6, 23, 14, 0, 0, DateTimeKind.Local); // Monday 14:00
+		// Arrange.
+		DateTime monday14 = new(2025, 6, 23, 14, 0, 0, DateTimeKind.Local); // Monday, 14:00, last announcement was a week ago.
 		DateTime lastAnnouncement = monday14.AddDays(-7);
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(lastAnnouncement);
 
@@ -47,8 +48,8 @@ public class AnnounceWeeklyWinnerJobTests
 	[TestMethod]
 	public async Task Execute_DoesNotAnnounceWeeklyWinner_WhenNotMondayAfter14()
 	{
-		// Arrange: Tuesday, 14:00, last announcement was yesterday
-		DateTime tuesday14 = new(2025, 6, 24, 14, 0, 0, DateTimeKind.Local); // Tuesday 14:00
+		// Arrange.
+		DateTime tuesday14 = new(2025, 6, 24, 14, 0, 0, DateTimeKind.Local); // Tuesday, 14:00, last announcement was yesterday.
 		DateTime lastAnnouncement = tuesday14.AddDays(-1);
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(lastAnnouncement);
 
@@ -58,6 +59,66 @@ public class AnnounceWeeklyWinnerJobTests
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
 		_botStateMock.DidNotReceive().LastWeeklyWinnerAnnouncement = Arg.Any<DateTime>();
+	}
+
+	[TestMethod]
+	public async Task Execute_DoesNotAnnounce_WhenMondayBefore14()
+	{
+		// Arrange.
+		DateTime mondayBefore14 = new(2025, 6, 23, 13, 59, 0, DateTimeKind.Local); // Monday, 13:59.
+		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
+
+		// Act.
+		await _job!.Execute(mondayBefore14);
+
+		// Assert.
+		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
+		_botStateMock.DidNotReceive().LastWeeklyWinnerAnnouncement = Arg.Any<DateTime>();
+	}
+
+	[TestMethod]
+	public async Task Execute_DoesNotAnnounce_WhenAlreadyAnnouncedToday()
+	{
+		// Arrange.
+		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local); // Monday, 15:00, last announcement is today.
+		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(monday15.Date);
+
+		// Act.
+		await _job!.Execute(monday15);
+
+		// Assert.
+		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
+		_botStateMock.DidNotReceive().LastWeeklyWinnerAnnouncement = Arg.Any<DateTime>();
+	}
+
+	[TestMethod]
+	public async Task Execute_Announces_WhenLastAnnouncementIsNull()
+	{
+		// Arrange.
+		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local); // Monday, 15:00, last announcement is null.
+		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
+
+		// Act.
+		await _job!.Execute(monday15);
+
+		// Assert.
+		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
+		_botStateMock.Received().LastWeeklyWinnerAnnouncement = monday15;
+	}
+
+	[TestMethod]
+	public async Task Execute_CallsErrorHandler_WhenExceptionThrown()
+	{
+		// Arrange.
+		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local); // Monday, 15:00, last announcement is null.
+		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
+		_weeklyEventServiceMock!.ReadWeeklyEvent().Throws(new Exception("Test exception"));
+
+		// Act.
+		await _job!.Execute(monday15);
+
+		// Assert.
+		await _errorHandlerMock!.Received().HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>());
 	}
 
 	[TestMethod]
