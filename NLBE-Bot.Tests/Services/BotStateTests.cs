@@ -73,6 +73,31 @@ public class BotStateTests
 	}
 
 	[TestMethod]
+	public async Task LoadAsync_DoesNothing_WhenFileDoesNotExist()
+	{
+		// Arrange.
+		string tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+		BotState state = new(tempFile)
+		{
+			IgnoreCommands = false,
+			IgnoreEvents = false,
+			WeeklyEventWinner = new WeeklyEventWinner { UserId = 1, LastEventDate = DateTime.UtcNow },
+			LasTimeServerNicknamesWereVerified = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+			LastWeeklyWinnerAnnouncement = new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc)
+		};
+
+		// Act.
+		await state.LoadAsync(); // Should not throw, should not change state
+
+		// Assert.
+		Assert.IsFalse(state.IgnoreCommands);
+		Assert.IsFalse(state.IgnoreEvents);
+		Assert.AreEqual(1UL, state.WeeklyEventWinner.UserId);
+		Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
+		Assert.AreEqual(new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);
+	}
+
+	[TestMethod]
 	public void IgnoreCommands_GetSet_Works()
 	{
 		BotState state = new()
