@@ -14,19 +14,24 @@ public class BotStateTests
 		// Arrange.		
 		string tempFile = Path.GetTempFileName(); // Use a unique file for testing.
 
-		_ = new BotState(tempFile)
-		{
-			IgnoreCommands = true,
-			IgnoreEvents = true,
-			WeeklyEventWinner = new WeeklyEventWinner { UserId = 42, LastEventDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
-			LasTimeServerNicknamesWereVerified = new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc),
-			LastWeeklyWinnerAnnouncement = new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc)
-		};
-
 		try
 		{
 			// Act.
-			await Task.Delay(200); // Wait for async save to complete
+			_ = new BotState(tempFile)
+			{
+				IgnoreCommands = true,
+				IgnoreEvents = true,
+				WeeklyEventWinner = new WeeklyEventWinner { UserId = 42, LastEventDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+				LasTimeServerNicknamesWereVerified = new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc),
+				LastWeeklyWinnerAnnouncement = new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc)
+			};
+
+			// Wait for the file to be created.
+			int retries = 10;
+			while (!File.Exists(tempFile) && retries-- > 0)
+			{
+				await Task.Delay(50);
+			}
 
 			// Assert.
 			Assert.IsTrue(File.Exists(tempFile), "State file should exist after SaveAsync.");
