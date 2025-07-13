@@ -160,6 +160,12 @@ internal class BotState(string stateFile = "botstate.json", bool autoSave = true
 		}
 
 		string json = await File.ReadAllTextAsync(_stateFile);
+
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return;
+		}
+
 		_data = JsonSerializer.Deserialize<BotStateData>(json);
 	}
 }

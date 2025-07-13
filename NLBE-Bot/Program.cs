@@ -25,7 +25,7 @@ public static class Program
 		CreateHostBuilder(args).Build().Run();
 	}
 
-	public static IHostBuilder CreateHostBuilder(string[] args)
+	internal static IHostBuilder CreateHostBuilder(string[] args)
 	{
 		return Host.CreateDefaultBuilder(args)
 			.UseWindowsService()
@@ -61,16 +61,15 @@ public static class Program
 				{
 					return CreateDiscordClient(provider, hostContext.Configuration) as IDiscordClient;
 				});
-
-				services.AddHostedService<Bot>();
 				services.AddSingleton<IBotState>(provider =>
 				{
 					BotState botState = new();
 					botState.LoadAsync().GetAwaiter().GetResult(); // Synchronously load state at startup
 					return botState;
 				});
-				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
+				services.AddHostedService<Bot>();
 				services.AddSingleton<BotCommands>();
+				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
 				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();
 				services.AddSingleton<IErrorHandler, ErrorHandler>();
 				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
@@ -85,6 +84,7 @@ public static class Program
 				services.AddSingleton<ITournamentService, TournamentService>();
 				services.AddSingleton<IBlitzstarsService, BlitzstarsService>();
 				services.AddSingleton<IClanService, ClanService>();
+				services.AddSingleton<IWGAccountService, WGAccountService>();
 				services.AddSingleton<IJob<AnnounceWeeklyWinnerJob>, AnnounceWeeklyWinnerJob>();
 				services.AddSingleton<IJob<VerifyServerNicknamesJob>, VerifyServerNicknamesJob>();
 				services.AddSingleton<IDiscordMessageUtils, DiscordMessageUtils>();
