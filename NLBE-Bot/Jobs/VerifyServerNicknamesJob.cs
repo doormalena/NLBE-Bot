@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Jobs;
 
-using FMWOTB.Account;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,6 +14,7 @@ using System.Threading.Tasks;
 internal class VerifyServerNicknamesJob(IUserService userService,
 								 IChannelService channelService,
 								 IMessageService messageService,
+								 IWGAccountService wgAccountService,
 								 IErrorHandler errorHandler,
 								 IOptions<BotOptions> options,
 								 IBotState botState,
@@ -23,6 +23,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+	private readonly IWGAccountService _wgAccountService = wgAccountService ?? throw new ArgumentNullException(nameof(wgAccountService));
 	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -74,7 +75,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 
 				bool goodClanTag = false;
 				Tuple<string, string> gebruiker = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName); // TODO: Refactor to an extension method returning a dynamic type with structured data.
-				IReadOnlyList<WGAccount> wgAccounts = await WGAccount.searchByName(SearchAccuracy.EXACT, gebruiker.Item2, _options.WarGamingAppId, false, true, false); // TODO: wrap the WGAccount class for testability.
+				IReadOnlyList<IWGAccount> wgAccounts = await _wgAccountService.SearchByName(SearchAccuracy.EXACT, gebruiker.Item2, _options.WarGamingAppId, false, true, false);
 
 				if (wgAccounts?.Count > 0) // TODO: what if more than 1 user is returned?
 				{
@@ -84,12 +85,12 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 					{
 						goodClanTag = true;
 						string currentClanTag = string.Empty;
-						if (wgAccounts[0].clan != null && wgAccounts[0].clan.tag != null)
+						if (wgAccounts[0].Clan != null && wgAccounts[0].Clan.Tag != null)
 						{
-							currentClanTag = wgAccounts[0].clan.tag;
+							currentClanTag = wgAccounts[0].Clan.Tag;
 						}
-						string goodDisplayName = '[' + currentClanTag + "] " + wgAccounts[0].nickname; // TODO: extract to a method.
-						if (wgAccounts[0].nickname != null && !member.DisplayName.Equals(goodDisplayName))
+						string goodDisplayName = '[' + currentClanTag + "] " + wgAccounts[0].Nickname; // TODO: extract to a method.
+						if (wgAccounts[0].Nickname != null && !member.DisplayName.Equals(goodDisplayName))
 						{
 							invalidPlayerClanMatches.TryAdd(member, goodDisplayName);
 						}
@@ -101,11 +102,11 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 
 					if (!goodClanTag)
 					{
-						if (wgAccounts[0].clan != null && wgAccounts[0].clan.tag != null)
+						if (wgAccounts[0].Clan != null && wgAccounts[0].Clan.Tag != null)
 						{
-							clanTag = wgAccounts[0].clan.tag;
+							clanTag = wgAccounts[0].Clan.Tag;
 						}
-						string goodDisplayName = '[' + clanTag + "] " + wgAccounts[0].nickname; // TODO: extract to a method.
+						string goodDisplayName = '[' + clanTag + "] " + wgAccounts[0].Nickname; // TODO: extract to a method.
 						invalidPlayerClanMatches.TryAdd(member, goodDisplayName);
 					}
 				}
