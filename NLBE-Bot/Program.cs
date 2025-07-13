@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Helpers;
@@ -53,18 +54,18 @@ public static class Program
 			.ConfigureServices((hostContext, services) =>
 			{
 				services.AddOptions<BotOptions>().
-					Bind(GetBotOptionSection(hostContext.Configuration)).
+					Bind(hostContext.Configuration.GetSection("NLBEBot")).
 					ValidateDataAnnotations().
 					ValidateOnStart();
 
 				services.AddSingleton(provider =>
 				{
-					return CreateDiscordClient(provider, hostContext.Configuration) as IDiscordClient;
+					return CreateDiscordClient(provider) as IDiscordClient;
 				});
 				services.AddSingleton<IBotState>(provider =>
 				{
 					BotState botState = new();
-					botState.LoadAsync().GetAwaiter().GetResult(); // Synchronously load state at startup
+					botState.LoadAsync().GetAwaiter().GetResult(); // Synchronously load state at startup.
 					return botState;
 				});
 				services.AddHostedService<Bot>();
@@ -93,9 +94,9 @@ public static class Program
 			});
 	}
 
-	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider, IConfiguration configuration)
+	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider)
 	{
-		BotOptions options = GetBotOptionSection(configuration).Get<BotOptions>();
+		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
 
 		DiscordConfiguration config = new()
 		{
@@ -113,11 +114,6 @@ public static class Program
 		});
 
 		return new DiscordClientWrapper(client);
-	}
-
-	private static IConfigurationSection GetBotOptionSection(IConfiguration configuration)
-	{
-		return configuration.GetSection("NLBEBot");
 	}
 }
 
