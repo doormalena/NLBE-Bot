@@ -219,6 +219,51 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
+	public async Task VerifyServerNicknames_SendsMessage_ForInvalidPlayerMatch()
+	{
+		// Arrange.
+		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
+		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
+		testChannel.Guild.Returns(testGuild);
+		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+
+		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
+		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.IsBot.Returns(false);
+		member.Roles.Returns([memberRole]);
+		member.DisplayName.Returns("[TAG] Player");
+		member.Username.Returns("Player");
+
+		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
+			[member]
+		));
+
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member.DisplayName).Returns(new Tuple<string, string>("[TAG]", "Player"));
+		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), "Player", Arg.Any<string>(), false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([]));
+
+		// Act.
+		await _job!.Execute(DateTime.Today);
+
+		// Assert
+		await _messageServcieMock!.Received(1).SendMessage(
+			testChannel,
+			null,
+			testGuild.Name,
+			Arg.Is<string>(msg => msg.Contains("komt niet overeen met een WoTB-spelersnaam"))
+		);
+		_loggerMock!.Received().Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains("does not match any WoTB player name")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
 	public async Task VerifyServerNicknames_Skips_Member_WhenIsBotOrNoRolesOrMissingRole()
 	{
 		// Arrange
