@@ -21,14 +21,12 @@ public class ErrorHandlerTests
 		await handler.HandleErrorAsync(message);
 
 		// Assert.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-		loggerMock.Received().Log(
+		loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null && v.ToString().Contains(message)),
+			Arg.Is<object>(v => v.ToString()!.Contains(message)),
 			null,
 			Arg.Any<Func<object, Exception?, string>>());
-#pragma warning restore CS8602
 	}
 
 	[TestMethod]
@@ -44,16 +42,13 @@ public class ErrorHandlerTests
 		await handler.HandleErrorAsync(message, exception);
 
 		// Assert.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
 		loggerMock.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null &&
-							v.ToString().Contains(message) &&
-							v.ToString().Contains(exception.Message)),
+			Arg.Is<object>(v => v.ToString()!.Contains(message) &&
+								v.ToString()!.Contains(exception.Message)),
 			exception,
 			Arg.Any<Func<object, Exception?, string>>());
-#pragma warning restore CS8602
 	}
 
 	[TestMethod]

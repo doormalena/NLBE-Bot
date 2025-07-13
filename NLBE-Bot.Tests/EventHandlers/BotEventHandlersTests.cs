@@ -63,6 +63,23 @@ public class BotEventHandlersTests
 	}
 
 	[TestMethod]
+	public async Task HandleClienErrored_CallsErrorHandler_WithCorrectArguments()
+	{
+		// Arrange.
+		string eventName = "TestEvent";
+		Exception exception = new("Test exception");
+
+		// Act.
+		await _handlers!.HandleClienErrored(eventName, exception);
+
+		// Assert.
+		await _errorHandlerMock!.Received(1).HandleErrorAsync(
+			Arg.Is<string>(msg => msg.Contains(eventName)),
+			exception
+		);
+	}
+
+	[TestMethod]
 	public async Task HandleReady_LeavesNonWhitelistedGuilds_AndLogs()
 	{
 		// Arrange.
@@ -85,7 +102,7 @@ public class BotEventHandlersTests
 		// Assert.
 		await guild1.Received(1).LeaveAsync();
 		await guild2.DidNotReceive().LeaveAsync();
-		_loggerMock!.Received().Log(
+		_loggerMock!.Received(1).Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
 			Arg.Any<object>(),
@@ -95,17 +112,82 @@ public class BotEventHandlersTests
 	}
 
 	[TestMethod]
+	public async Task HandleReady_LogsError_WhenExceptionThrown()
+	{
+		// Arrange.
+		IDiscordClient faultyClient = Substitute.For<IDiscordClient>();
+		faultyClient.Guilds.Returns(x => { throw new Exception("Test exception"); });
+
+		// Act.
+		await _handlers!.HandleReady(faultyClient);
+
+		// Assert.
+		await _errorHandlerMock!.Received(1).HandleErrorAsync(
+			Arg.Is<string>(msg => msg.Contains("HandleReady")),
+			Arg.Any<Exception>()
+		);
+	}
+
+	[TestMethod]
 	public async Task HandleHeartbeated_SkipsFirstHeartbeat()
 	{
 		// Arrange.
+		int ping = 123;
+		DateTimeOffset timestamp = DateTimeOffset.Now;
 		DateTime now = DateTime.Now;
 
 		// Act.
-		await _handlers!.HandleHeartbeated(now);
+		await _handlers!.HandleHeartbeated(ping, timestamp, now);
 
 		// Assert.
 		await _verifyServerNicknamesJobMock!.DidNotReceive().Execute(Arg.Any<DateTime>());
 		await _announceWeeklyWinnerJobMock!.DidNotReceive().Execute(Arg.Any<DateTime>());
+	}
+
+	[TestMethod]
+	public async Task HandleHeartbeated_ExecutesJobs_AfterFirstHeartbeat()
+	{
+		// Arrange.		
+		int ping = 123;
+		DateTimeOffset timestamp = DateTimeOffset.Now;
+		DateTime now = DateTime.Now;
+
+		// Act.
+		await _handlers!.HandleHeartbeated(ping, timestamp, now); // First call (should skip).
+		await _handlers!.HandleHeartbeated(ping, timestamp, now); // Second call (should execute jobs).
+
+		// Assert.
+		await _verifyServerNicknamesJobMock!.Received(1).Execute(now);
+		await _announceWeeklyWinnerJobMock!.Received(1).Execute(now);
+	}
+
+	[TestMethod]
+	public async Task HandleSocketClosed_AbnormalClosure()
+	{
+		// Act.
+		await _handlers!.HandleSocketClosed(4000, "Closed by test");
+
+		// Assert.
+		await _errorHandlerMock!.Received(1).HandleErrorAsync(
+			Arg.Is<string>(msg => msg.Contains("Socket closed unexpectedly.")),
+			null
+		);
+	}
+
+	[TestMethod]
+	public async Task HandleSocketClosed_NormalClosure()
+	{
+		// Act.
+		await _handlers!.HandleSocketClosed(1000, "Closed by test");
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Information,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Socket closed normally.")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
 	}
 
 	[TestMethod]

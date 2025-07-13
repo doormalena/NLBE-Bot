@@ -56,15 +56,14 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 		client.SocketClosed += OnSocketClosed;
 	}
 
-	private async Task OnClientErrored(DiscordClient sender, ClientErrorEventArgs e)
+	private Task OnClientErrored(DiscordClient sender, ClientErrorEventArgs e)
 	{
-		await _errorHandler.HandleErrorAsync($"Error with event ({e.EventName}):\n", e.Exception);
+		return HandleClienErrored(e.EventName, e.Exception);
 	}
 
 	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs e)
 	{
-		_logger.LogDebug("Received heartbeat. Ping: {Ping}. Timestamp: {Timestamp}.", e.Ping, e.Timestamp);
-		return HandleHeartbeated(DateTime.Now);
+		return HandleHeartbeated(e.Ping, e.Timestamp, DateTime.Now);
 	}
 
 	private Task OnReady(DiscordClient discordClient, ReadyEventArgs _)
@@ -77,8 +76,15 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 		return HandleSocketClosed(e.CloseCode, e.CloseMessage);
 	}
 
-	internal async Task HandleHeartbeated(DateTime now)
+	internal async Task HandleClienErrored(string eventName, Exception exception)
 	{
+		await _errorHandler.HandleErrorAsync($"Error with event ({eventName}):\n", exception);
+	}
+
+	internal async Task HandleHeartbeated(int ping, DateTimeOffset timestamp, DateTime now)
+	{
+		_logger.LogDebug("Received heartbeat. Ping: {Ping}. Timestamp: {Timestamp}.", ping, timestamp);
+
 		_heartBeatCounter++;
 
 		if (_heartBeatCounter == 1) // Skip the first heartbeat, as it is triggered on startup.

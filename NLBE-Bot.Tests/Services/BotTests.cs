@@ -56,23 +56,20 @@ public class BotTests
 		await Task.Delay(200); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null && v.ToString().Contains("NLBE Bot is starting.")),
+			Arg.Is<object>(v => v.ToString()!.Contains("NLBE Bot is starting.")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>());
 
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null &&
-				(v.ToString().Contains("NLBE Bot is stopped.") ||
-					v.ToString().Contains("NLBE Bot was cancelled gracefully."))),
+			Arg.Is<object>(v => v.ToString()!.Contains("NLBE Bot is stopped.") ||
+								v.ToString()!.Contains("NLBE Bot was cancelled gracefully.")),
 			Arg.Any<Exception?>(),
 			Arg.Any<Func<object, Exception?, string>>());
-#pragma warning restore CS8602
 	}
 
 	[TestMethod]
@@ -86,14 +83,12 @@ public class BotTests
 		await _bot!.StartAsync(CancellationToken.None);
 
 		// Assert.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-		_loggerMock.Received().Log(
+		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null && v.ToString().Contains("NLBE Bot was cancelled gracefully.")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("NLBE Bot was cancelled gracefully.")),
 			Arg.Any<OperationCanceledException>(),
 			Arg.Any<Func<object, Exception?, string>>());
-#pragma warning restore CS8602
 
 		await _discordClientMock.Received(1).DisconnectAsync();
 	}
@@ -111,21 +106,19 @@ public class BotTests
 		await _bot!.StartAsync(CancellationToken.None);
 
 		// Assert.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-		_loggerMock.Received().Log(
+		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null && v.ToString().Contains("NLBE Bot experienced an unrecoverable exception.")),
+			Arg.Is<object>(v => v.ToString()!.Contains("NLBE Bot experienced an unrecoverable exception.")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>());
 
-		_loggerMock.Received().Log(
+		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null && v.ToString().Contains("An error occurred while disconnecting the Discord client gracefully.")),
+			Arg.Is<object>(v => v.ToString()!.Contains("An error occurred while disconnecting the Discord client gracefully.")),
 			Arg.Any<InvalidOperationException>(),
 			Arg.Any<Func<object, Exception?, string>>());
-#pragma warning restore CS8602
 	}
 
 	[TestMethod]

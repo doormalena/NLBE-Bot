@@ -51,7 +51,7 @@ public class CommandEventHandlerTests
 	}
 
 	[TestMethod]
-	public async Task OnCommandExecuted_LogsCommandName()
+	public async Task HandleCommandExecuted_LogsCommandName()
 	{
 		// Arrange.
 		IDiscordCommand commandInfoMock = Substitute.For<IDiscordCommand>();
@@ -61,18 +61,17 @@ public class CommandEventHandlerTests
 		await _handler!.HandleCommandExecuted(commandInfoMock);
 
 		// Assert.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null && v.ToString().Contains("Command executed: testcmd")),
+			Arg.Is<object>(o => o.ToString()!.Contains("testcmd")),
 			null,
-			Arg.Any<Func<object, Exception?, string>>());
-#pragma warning restore CS8602
+			Arg.Any<Func<object, Exception?, string>>()
+		);
 	}
 
 	[TestMethod]
-	public async Task OnCommandErrored_IgnoresIfNotInAllowedGuilds()
+	public async Task HandleCommandErrored_IgnoresIfNotInAllowedGuilds()
 	{
 		// Arrange.
 		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
@@ -86,7 +85,7 @@ public class CommandEventHandlerTests
 	}
 
 	[TestMethod]
-	public async Task OnCommandErrored_SendsUnauthorizedMessage()
+	public async Task HandleCommandError_SendsUnauthorizedMessage()
 	{
 		// Arrange.
 		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
@@ -101,7 +100,7 @@ public class CommandEventHandlerTests
 	}
 
 	[TestMethod]
-	public async Task OnCommandErrored_HandlesCommandError()
+	public async Task HandleCommandError_HandlesCommandError()
 	{
 		// Arrange.
 		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
