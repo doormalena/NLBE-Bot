@@ -15,13 +15,16 @@ public class ProgramTests
 	public void Host_Builds_Services()
 	{
 		// Arrange.
-		IHost host = Program.CreateHostBuilder(Array.Empty<string>()).Build();
+		IHost host = Program.CreateHostBuilder([]).Build();
 		IServiceProvider services = host.Services;
 
 		// Act & Assert.
 		IEnumerable<IHostedService> hostedServices = services.GetServices<IHostedService>();
 		IHostedService? botHostedService = hostedServices.OfType<Bot>().FirstOrDefault();
-		Assert.IsNotNull(services.GetService<IOptions<BotOptions>>());
+		IOptions<BotOptions>? botOptions = services.GetService<IOptions<BotOptions>>();
+		botOptions!.Value.DiscordToken = "testtoken"; // Set a test token to avoid validation errors when loading IDiscordClient.
+
+		Assert.IsNotNull(botOptions);
 		Assert.IsNotNull(services.GetService<IDiscordClient>());
 		Assert.IsNotNull(services.GetService<IBotState>());
 		Assert.IsNotNull(botHostedService);

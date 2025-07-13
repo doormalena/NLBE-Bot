@@ -57,22 +57,28 @@ public class BotStateTests
 		await File.WriteAllTextAsync(tempFile, json);
 		BotState state = new(tempFile);
 
-		// Act.
-		await state.LoadAsync();
 
-		// Assert.
-		Assert.IsTrue(state.IgnoreCommands);
-		Assert.IsFalse(state.IgnoreEvents);
-		Assert.AreEqual(99UL, state.WeeklyEventWinner.UserId);
-		Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.WeeklyEventWinner.LastEventDate);
-		Assert.AreEqual(new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
-		Assert.AreEqual(new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);
+		try
+		{
+			// Act.
+			await state.LoadAsync();
 
-		File.Delete(tempFile);
+			// Assert.
+			Assert.IsTrue(state.IgnoreCommands);
+			Assert.IsFalse(state.IgnoreEvents);
+			Assert.AreEqual(99UL, state.WeeklyEventWinner.UserId);
+			Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.WeeklyEventWinner.LastEventDate);
+			Assert.AreEqual(new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
+			Assert.AreEqual(new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);
+		}
+		finally
+		{
+			File.Delete(tempFile);
+		}
 	}
 
 	[TestMethod]
-	public async Task LoadAsync_DoesNothing_WhenFileDoesNotExist()
+	public async Task LoadAsync_LoadsDefaults_WhenFileDoesNotExist()
 	{
 		// Arrange.
 		string tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
@@ -94,6 +100,32 @@ public class BotStateTests
 		Assert.AreEqual(1UL, state.WeeklyEventWinner.UserId);
 		Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
 		Assert.AreEqual(new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);
+	}
+
+	[TestMethod]
+	public async Task LoadAsync_LoadsDefaults_WhenJsonIsEmpty()
+	{
+		// Arrange.
+		string tempFile = Path.GetTempFileName();
+		await File.WriteAllTextAsync(tempFile, "");
+		BotState state = new(tempFile);
+
+		try
+		{
+			// Act.
+			await state.LoadAsync();
+
+			// Assert.
+			Assert.IsFalse(state.IgnoreCommands, "IgnoreCommands should be false by default.");
+			Assert.IsFalse(state.IgnoreEvents, "IgnoreEvents should be false by default.");
+			Assert.IsNull(state.WeeklyEventWinner, "WeeklyEventWinner should not be null.");
+			Assert.IsNull(state.LasTimeServerNicknamesWereVerified, "LasTimeServerNicknamesWereVerified should be null by default.");
+			Assert.IsNull(state.LastWeeklyWinnerAnnouncement, "LastWeeklyWinnerAnnouncement should be null by default.");
+		}
+		finally
+		{
+			File.Delete(tempFile);
+		}
 	}
 
 	[TestMethod]
