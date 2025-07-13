@@ -96,19 +96,24 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 		await _announceWeeklyWinnerJob.Execute(now);
 	}
 
-	internal Task HandleReady(IDiscordClient discordClient)
+	internal async Task HandleReady(IDiscordClient discordClient)
 	{
-		foreach (KeyValuePair<ulong, IDiscordGuild> guild in from KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds
-															 where !guild.Key.Equals(_options.ServerId)
-															 select guild)
+		try
 		{
-			_logger.LogWarning("Bot is not configured to handle guild {GuildId}. Leaving the guild.", guild.Key);
-			guild.Value.LeaveAsync();
+			foreach (KeyValuePair<ulong, IDiscordGuild> guild in from KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds
+																 where !guild.Key.Equals(_options.ServerId)
+																 select guild)
+			{
+				_logger.LogWarning("Bot is not configured to handle guild {GuildId}. Leaving the guild.", guild.Key);
+				await guild.Value.LeaveAsync();
+			}
+		}
+		catch (Exception ex)
+		{
+			await _errorHandler.HandleErrorAsync($"An error occurred while handling the Ready event. Could not leave non-whitelisted guilds.", ex);
 		}
 
 		_logger.LogInformation("Client (v{Version}) is ready to process events.", Constants.Version);
-
-		return Task.CompletedTask;
 	}
 
 	internal Task HandleSocketClosed(int closeCode, string closeMessage)

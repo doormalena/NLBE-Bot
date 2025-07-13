@@ -123,7 +123,7 @@ public class BotEventHandlersTests
 
 		// Assert.
 		await _errorHandlerMock!.Received(1).HandleErrorAsync(
-			Arg.Is<string>(msg => msg.Contains("HandleReady")),
+			Arg.Is<string>(msg => msg.Contains("Could not leave non-whitelisted guilds.")),
 			Arg.Any<Exception>()
 		);
 	}
