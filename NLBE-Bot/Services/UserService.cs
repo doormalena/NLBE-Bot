@@ -3,6 +3,7 @@ namespace NLBE_Bot.Services;
 using DiscordHelper;
 using DSharpPlus;
 using DSharpPlus.Entities;
+using DSharpPlus.Exceptions;
 using DSharpPlus.Net.Models;
 using FMWOTB;
 using FMWOTB.Account;
@@ -43,6 +44,10 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 				item.AuditLogReason = "Changed by NLBE-Bot in compliance with the server rules.";
 			}
 			await member.ModifyAsync(mem);
+		}
+		catch (UnauthorizedException ex)
+		{
+			throw new UnauthorizedAccessException("Failed to update member nickname due to insufficient permissions.", ex);
 		}
 		catch (Exception ex)
 		{

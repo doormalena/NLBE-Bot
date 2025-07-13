@@ -1,6 +1,7 @@
 namespace NLBE_Bot.Tests.Jobs;
 
 using DSharpPlus;
+using DSharpPlus.Exceptions;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -9,7 +10,6 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
 using System;
 
 [TestClass]
@@ -31,7 +31,8 @@ public class VerifyServerNicknamesJobTests
 		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_optionsMock.Value.Returns(new BotOptions()
 		{
-			WarGamingAppId = "dummy"
+			WarGamingAppId = "dummy",
+			MemberDefaultRoleId = 1234567890,
 		});
 
 		_userServiceMock = Substitute.For<IUserService>();
@@ -46,7 +47,7 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
-	public async Task Execute_VerifyServerNicknames_WhenNotVerifiedToday()
+	public async Task Execute_WhenNotVerifiedToday()
 	{
 		// Arrange.
 		DateTime now = DateTime.Now;
@@ -58,11 +59,11 @@ public class VerifyServerNicknamesJobTests
 
 		// Assert.
 		await _channelServiceMock!.Received(1).GetBotTestChannel();
-		_botStateMock.Received().LasTimeServerNicknamesWereVerified = Arg.Is<DateTime>(dt => dt.Date == now.Date);
+		Assert.AreEqual(_botStateMock!.LasTimeServerNicknamesWereVerified, now);
 	}
 
 	[TestMethod]
-	public async Task Execute_VerifyServerNicknames_HandlesException()
+	public async Task Execute_HandlesException()
 	{
 		// Arrange.
 		DateTime yesterday = DateTime.Now.AddDays(-1);
@@ -75,6 +76,7 @@ public class VerifyServerNicknamesJobTests
 
 		// Assert.
 		await _errorHandlerMock!.Received().HandleErrorAsync(Arg.Is<string>(s => s.Contains("An error occured while verifing all server nicknames.")), Arg.Any<Exception>());
+		Assert.AreEqual(_botStateMock!.LasTimeServerNicknamesWereVerified, yesterday);
 	}
 
 	[TestMethod]
@@ -91,7 +93,7 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
-	public async Task VerifyServerNicknames_LogsWarning_WhenChannelIsNull()
+	public async Task Execute_LogsWarning_WhenChannelIsNull()
 	{
 		// Arrange.
 		_channelServiceMock!.GetBotTestChannel().Returns((IDiscordChannel?) null);
@@ -110,7 +112,31 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
-	public async Task VerifyServerNicknames_SendsNoChangesMessage_WhenNoInvalidMatches()
+	public async Task Execute_LogsWarning_WhenDefaultMemberRoleIsNull()
+	{
+		// Arrange.
+		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
+		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
+		testChannel.Guild.Returns(testGuild);
+		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+		testGuild.GetRole(Arg.Any<ulong>()).Returns((IDiscordRole?) null);
+
+		// Act.
+		await _job!.Execute(DateTime.UtcNow);
+
+		// Assert.
+		_loggerMock!.Received().Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains($"Could not find the default member role with id `{_optionsMock!.Value.MemberDefaultRoleId}`. Aborting user update.")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+		await testGuild.DidNotReceive().GetAllMembersAsync();
+	}
+
+	[TestMethod]
+	public async Task Execute_SendsNoChangesMessage_WhenNoInvalidMatches()
 	{
 		// Arrange,
 		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
@@ -153,7 +179,7 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
-	public async Task VerifyServerNicknames_SendsMessages_ForMultipleInvalidPlayerClanMatches()
+	public async Task Execute_SendsMessages_ForMultipleInvalidPlayerClanMatches()
 	{
 		// Arrange.
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
@@ -224,7 +250,7 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
-	public async Task VerifyServerNicknames_SendsMessage_ForInvalidPlayerMatch()
+	public async Task Execute_SendsMessage_ForInvalidPlayerMatch()
 	{
 		// Arrange.
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
@@ -274,7 +300,7 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
-	public async Task VerifyServerNicknames_Skips_Member_WhenIsBotOrNoRolesOrMissingRole()
+	public async Task Execute_Skips_Member_WhenIsBotOrNoRolesOrMissingRole()
 	{
 		// Arrange
 
@@ -320,18 +346,46 @@ public class VerifyServerNicknamesJobTests
 	}
 
 	[TestMethod]
-	public async Task VerifyServerNicknames_CallsErrorHandler_OnException()
+	public async Task Execute_SendsPrivateMessageAndHandlesError_OnUnauthorizedException()
 	{
-		//Arrange.
-		_channelServiceMock!.GetBotTestChannel().Throws(new Exception("Test exception"));
+		// Arrange
+		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
+		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
+		testChannel.Guild.Returns(testGuild);
+		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
+		memberRole.Id.Returns(123UL);
+		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
 
-		// Arrange.
-		await _job!.Execute(DateTime.Today);
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.IsBot.Returns(false);
+		member.Roles.Returns([memberRole]);
+		member.DisplayName.Returns("Player");
+		member.Username.Returns("Player");
+		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>([member]));
+
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new WotbPlayerNameInfo("", "Player"));
+		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), Arg.Any<string>(), Arg.Any<string>(), false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>(
+			[
+			Substitute.For<IWGAccount>()
+			]));
+
+		// Simulate UnauthorizedException when changing nickname.
+		_userServiceMock!
+			.When(x => x.ChangeMemberNickname(Arg.Any<IDiscordMember>(), Arg.Any<string>()))
+			.Do(_ => { throw new UnauthorizedAccessException(); });
+
+		// Act.
+		await _job!.Execute(DateTime.UtcNow);
 
 		// Assert.
-		await _errorHandlerMock!.Received().HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>());
+		await _messageServcieMock!.Received(1).SendPrivateMessage(member, testGuild.Name, Arg.Any<string>());
+		await _errorHandlerMock!.Received(1).HandleErrorAsync(
+			Arg.Is<string>(msg => msg.Contains("Failed to change nickname for user")),
+			Arg.Any<UnauthorizedAccessException>()
+		);
 	}
-
 
 	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()

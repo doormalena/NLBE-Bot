@@ -47,7 +47,7 @@ public class AnnounceWeeklyWinnerJobTests
 	}
 
 	[TestMethod]
-	public async Task AnnounceWeeklyWinner_SendsMessage_WhenChannelIsValid()
+	public async Task Execute_SendsMessage_WhenChannelIsValid()
 	{
 		// Arrange.
 		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
@@ -140,11 +140,12 @@ public class AnnounceWeeklyWinnerJobTests
 	}
 
 	[TestMethod]
-	public async Task Execute_CallsErrorHandler_WhenExceptionThrown()
+	public async Task Execute_HandlesException()
 	{
 		// Arrange.
 		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local); // Monday, 15:00, last announcement is null.
-		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
+		DateTime monday15Minus1Day = monday15.AddDays(-1);
+		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(monday15Minus1Day);
 		_weeklyEventServiceMock!.ReadWeeklyEvent().Throws(new Exception("Test exception"));
 
 		// Act.
@@ -152,10 +153,11 @@ public class AnnounceWeeklyWinnerJobTests
 
 		// Assert.
 		await _errorHandlerMock!.Received().HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>());
+		Assert.AreEqual(_botStateMock!.LastWeeklyWinnerAnnouncement, monday15Minus1Day);
 	}
 
 	[TestMethod]
-	public async Task AnnounceWeeklyWinner_DoesNothing_WhenChannelIsNull()
+	public async Task Execute_DoesNothing_WhenChannelIsNull()
 	{
 		// Arrange.
 		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local);

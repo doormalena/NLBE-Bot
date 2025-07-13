@@ -26,8 +26,7 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 			return;
 		}
 
-		await AnnounceWeeklyWinner();
-		_botState.LastWeeklyWinnerAnnouncement = now;
+		await AnnounceWeeklyWinner(now);
 	}
 
 	private static bool ShouldAnnounceWeeklyWinner(DateTime now, DateTime? lastAnnouncement)
@@ -41,10 +40,13 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 		return isMondayAtOrAfter14 && notAlreadyAnnouncedThisWeek;
 	}
 
-	private async Task AnnounceWeeklyWinner()
+	private async Task AnnounceWeeklyWinner(DateTime now)
 	{
+		DateTime? lastSuccessfull = _botState.LastWeeklyWinnerAnnouncement; // Temporary store the last successful announce time.
+
 		try
 		{
+			_botState.LastWeeklyWinnerAnnouncement = now;
 			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
 
 			if (bottestChannel == null)
@@ -54,7 +56,6 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 			}
 
 			IDiscordGuild guild = bottestChannel.Guild;
-			DateTime now = DateTime.Now;
 			StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
 
 			await _weeklyEventService.ReadWeeklyEvent();
@@ -74,6 +75,7 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 		}
 		catch (Exception ex)
 		{
+			_botState.LastWeeklyWinnerAnnouncement = lastSuccessfull; // Reset the last announce time to the last known good state.
 			string message = "An error occured while anouncing the weekly winner.";
 			await _errorHandler.HandleErrorAsync(message, ex);
 		}

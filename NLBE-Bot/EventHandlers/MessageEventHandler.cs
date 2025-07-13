@@ -369,7 +369,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 											if (memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE))
 											{
 												hadRulesNotReadrole = true;
-												await member.RevokeRoleAsync(memberRole);//een oorzaak
+												await member.RevokeRoleAsync(memberRole);
 												break;
 											}
 										}
@@ -382,28 +382,28 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 											{
 												string[] splitted = member.DisplayName.Split(']');
 												string tempName = splitted[splitted.Length - 1].Trim(' ');
-												await _userService.ChangeMemberNickname(member, "[] " + tempName);//een oorzaak
+												await _userService.ChangeMemberNickname(member, "[] " + tempName);
 
 											}
 											else if (member.DisplayName.Contains("[NLBE]"))
 											{
-												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE]", string.Empty).Trim(' '));//een oorzaak
+												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE]", string.Empty).Trim(' '));
 											}
 											else if (member.DisplayName.Contains("[NLBE2]"))
 											{
-												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE2]", string.Empty).Trim(' '));//een oorzaak
+												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE2]", string.Empty).Trim(' '));
 											}
 										}
 										else
 										{
-											await _userService.ChangeMemberNickname(member, "[] " + member.Username);//een oorzaak
+											await _userService.ChangeMemberNickname(member, "[] " + member.Username);
 										}
-										IDiscordRole ledenRole = guild.GetRole(Constants.LEDEN_ROLE);
+										IDiscordRole ledenRole = guild.GetRole(_options.MemberDefaultRoleId);
 										if (ledenRole != null)
 										{
-											await member.GrantRoleAsync(ledenRole);//een oorzaak
+											await member.GrantRoleAsync(ledenRole);
 										}
-										IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();//een oorzaak
+										IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 										if (algemeenChannel != null)
 										{
 											await algemeenChannel.SendMessageAsync(user.Mention + " , welkom op de NLBE discord server. GLHF!");

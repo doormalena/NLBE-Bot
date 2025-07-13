@@ -18,6 +18,7 @@ using NLBE_Bot.Services;
 using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 public static class Program
 {
@@ -65,7 +66,7 @@ public static class Program
 				services.AddSingleton<IBotState>(provider =>
 				{
 					BotState botState = new();
-					botState.LoadAsync().GetAwaiter().GetResult(); // Synchronously load state at startup.
+					Task.Run(() => botState.LoadAsync()).Wait(); // Synchronously load state at startup.
 					return botState;
 				});
 				services.AddHostedService<Bot>();
@@ -103,7 +104,7 @@ public static class Program
 			Token = options.DiscordToken,
 			TokenType = TokenType.Bot,
 			AutoReconnect = true,
-			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents,
+			Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContents | DiscordIntents.GuildMembers,
 			LoggerFactory = provider.GetRequiredService<ILoggerFactory>(),
 		};
 

@@ -29,6 +29,7 @@ public class ProgramTests
 								services.AddSingleton(Options.Create(new BotOptions
 								{
 									DiscordToken = "dummy-token",
+									MemberDefaultRoleId = 1234567890,
 									WarGamingAppId = "dummy-appid"
 								}));
 							})

@@ -29,6 +29,12 @@ internal class BotOptions
 		get; set;
 	} = 120;
 
+	[Required]
+	public ulong MemberDefaultRoleId
+	{
+		get; set;
+	}
+
 	public int NewPlayerWaitTimeInDays
 	{
 		get; set;
