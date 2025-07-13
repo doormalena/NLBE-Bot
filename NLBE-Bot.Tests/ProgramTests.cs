@@ -15,16 +15,31 @@ public class ProgramTests
 	public void Host_Builds_Services()
 	{
 		// Arrange.
-		IHost host = Program.CreateHostBuilder([]).Build();
+		IHost host = Program.CreateHostBuilder([])
+							.ConfigureServices(services =>
+							{
+								// Remove the real BotOptions registration.
+								ServiceDescriptor? descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IOptions<BotOptions>));
+								if (descriptor != null)
+								{
+									services.Remove(descriptor);
+								}
+
+								// Add a valid BotOptions instance usable during tests.
+								services.AddSingleton(Options.Create(new BotOptions
+								{
+									DiscordToken = "dummy-token",
+									WarGamingAppId = "dummy-appid"
+								}));
+							})
+							.Build();
 		IServiceProvider services = host.Services;
 
 		// Act & Assert.
 		IEnumerable<IHostedService> hostedServices = services.GetServices<IHostedService>();
 		IHostedService? botHostedService = hostedServices.OfType<Bot>().FirstOrDefault();
-		IOptions<BotOptions>? botOptions = services.GetService<IOptions<BotOptions>>();
-		botOptions!.Value.DiscordToken = "testtoken"; // Set a test token to avoid validation errors when loading IDiscordClient.
 
-		Assert.IsNotNull(botOptions);
+		Assert.IsNotNull(services.GetService<IOptions<BotOptions>>());
 		Assert.IsNotNull(services.GetService<IDiscordClient>());
 		Assert.IsNotNull(services.GetService<IBotState>());
 		Assert.IsNotNull(botHostedService);
