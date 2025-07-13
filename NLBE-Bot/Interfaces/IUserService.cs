@@ -3,7 +3,6 @@ namespace NLBE_Bot.Interfaces;
 using FMWOTB.Account;
 using FMWOTB.Clans;
 using NLBE_Bot.Models;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -15,7 +14,7 @@ internal interface IUserService
 
 	public string UpdateName(IDiscordMember member, string oldName);
 
-	public Tuple<string, string> GetWotbPlayerNameFromDisplayName(string displayName);
+	public WotbPlayerNameInfo GetWotbPlayerNameFromDisplayName(string displayName);
 
 	public Task ShowMemberInfo(IDiscordChannel channel, object gebruiker);
 

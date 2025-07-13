@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandler, IOptions<BotOptions> options, IMessageService messageService) : IUserService
@@ -277,26 +278,20 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		return returnString;
 	}
 
-	public Tuple<string, string> GetWotbPlayerNameFromDisplayName(string displayName)
+	public WotbPlayerNameInfo GetWotbPlayerNameFromDisplayName(string displayName)
 	{
-		// TODO: make this more robust by using regex.
+		// Pattern: optional [CLAN] (with or without space), then player name
+		// Examples matched: "[TAG] Player", "[NLBE]John", "NoClanTagName"
+		Match match = Regex.Match(displayName, @"^(?:\[(?<clan>[^\]]+)\]\s*)?(?<player>.+)$", RegexOptions.NonBacktracking);
+		if (match.Success)
+		{
+			string clanTag = match.Groups["clan"].Success ? $"[{match.Groups["clan"].Value}]" : string.Empty;
+			string playerName = match.Groups["player"].Value.Trim();
+			return new WotbPlayerNameInfo(clanTag, playerName);
+		}
 
-		string[] splitted = displayName.Split(']');
-		StringBuilder sb = new();
-		for (int i = 1; i < splitted.Length; i++)
-		{
-			if (i > 1)
-			{
-				sb.Append(' ');
-			}
-			sb.Append(splitted[i]);
-		}
-		string clan = string.Empty;
-		if (splitted.Length > 1)
-		{
-			clan = splitted[0] + ']';
-		}
-		return new Tuple<string, string>(clan, sb.ToString().Trim(' '));
+		// Fallback: no match, treat whole as player name
+		return new WotbPlayerNameInfo(string.Empty, displayName.Trim());
 	}
 
 	public async Task ShowMemberInfo(IDiscordChannel channel, object gebruiker)

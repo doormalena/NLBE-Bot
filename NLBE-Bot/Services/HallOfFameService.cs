@@ -32,7 +32,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions
 		{
 			discAttach = attachment;
 		}
-		WGBattle replayInfo = await _replayService.GetReplayInfo(titel, discAttach, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).Item2, iets);
+		WGBattle replayInfo = await _replayService.GetReplayInfo(titel, discAttach, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, iets);
 		try
 		{
 			if (replayInfo != null)

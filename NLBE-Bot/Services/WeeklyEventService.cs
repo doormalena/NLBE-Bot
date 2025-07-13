@@ -43,8 +43,8 @@ internal class WeeklyEventService(IChannelService channelService,
 			{
 				if (!member.IsBot)
 				{
-					Tuple<string, string> gebruiker = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
-					string x = gebruiker.Item2
+					WotbPlayerNameInfo playerInfo = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
+					string x = playerInfo.PlayerName
 						.Replace("\\", string.Empty)
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();

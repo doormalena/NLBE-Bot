@@ -220,7 +220,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							{
 								await _messageService.ConfirmCommandExecuting(message);
 								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).Item2, null);
+								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, null);
 							}
 						}
 					}
@@ -232,7 +232,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							{
 								await _messageService.ConfirmCommandExecuting(message);
 								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).Item2, message.Content);
+								replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, message.Content);
 							}
 						}
 					}

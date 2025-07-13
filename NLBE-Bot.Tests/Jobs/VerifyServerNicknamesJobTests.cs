@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Jobs;
+using NLBE_Bot.Models;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System;
@@ -127,7 +128,7 @@ public class VerifyServerNicknamesJobTests
 		member.Username.Returns("Player");
 		guildMock.GetAllMembersAsync().Returns([member]);
 
-		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new Tuple<string, string>("[NLBE]", "Player"));
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new WotbPlayerNameInfo("[NLBE]", "Player"));
 
 		IWGClan wgClan = Substitute.For<IWGClan>();
 		wgClan.Tag.Returns("NLBE");
@@ -179,8 +180,8 @@ public class VerifyServerNicknamesJobTests
 			[member1, member2]
 		));
 
-		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member1.DisplayName).Returns(new Tuple<string, string>("", "Player1"));
-		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member2.DisplayName).Returns(new Tuple<string, string>("[NLBE2]", "Player2"));
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member1.DisplayName).Returns(new WotbPlayerNameInfo("", "Player1"));
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member2.DisplayName).Returns(new WotbPlayerNameInfo("[NLBE2]", "Player2"));
 
 		IWGClan wgClan1 = Substitute.For<IWGClan>();
 		wgClan1.Tag.Returns("NLBE");
@@ -203,6 +204,10 @@ public class VerifyServerNicknamesJobTests
 		await _job!.Execute(DateTime.Today);
 
 		// Assert.
+		await _userServiceMock!.Received(2).ChangeMemberNickname(
+			Arg.Any<IDiscordMember>(),
+			Arg.Is<string>(s => s.Contains("Player1") || s.Contains("Player2"))
+		);
 		await _messageServcieMock!.Received(2).SendMessage(
 			testChannel,
 			null,
@@ -240,14 +245,19 @@ public class VerifyServerNicknamesJobTests
 			[member]
 		));
 
-		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member.DisplayName).Returns(new Tuple<string, string>("[TAG]", "Player"));
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member.DisplayName).Returns(new WotbPlayerNameInfo("[TAG]", "Player"));
 		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), "Player", Arg.Any<string>(), false, true, false)
 			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([]));
 
 		// Act.
 		await _job!.Execute(DateTime.Today);
 
-		// Assert
+		// Assert.
+		await _messageServcieMock!.Received(1).SendPrivateMessage(
+			member,
+			testGuild.Name,
+			Arg.Is<string>(s => s.Contains("Voor iedere gebruiker in de NLBE discord server wordt gecontroleerd of de ingestelde bijnaam overeenkomt met je WoTB spelersnaam.\nHelaas is dit voor jou niet het geval.\nWil je dit aanpassen?"))
+		);
 		await _messageServcieMock!.Received(1).SendMessage(
 			testChannel,
 			null,
