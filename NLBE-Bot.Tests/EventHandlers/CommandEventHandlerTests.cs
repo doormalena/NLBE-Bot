@@ -1,5 +1,8 @@
 namespace NLBE_Bot.Tests.EventHandlers;
 
+using DSharpPlus;
+using DSharpPlus.AsyncEvents;
+using DSharpPlus.CommandsNext;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -31,6 +34,20 @@ public class CommandEventHandlerTests
 		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
 		_handler = new CommandEventHandler(_loggerMock, _errorHandlerMock, _discordMessageUtilsMock, _optionsMock);
+	}
+
+	[TestMethod]
+	public void Register_RegistersAllHandlersAndEvents()
+	{
+		// Arrange.
+		ICommandsNextExtension commandsNextExtension = Substitute.For<ICommandsNextExtension>();
+
+		// Act.
+		_handler!.Register(commandsNextExtension);
+
+		// Assert.
+		commandsNextExtension.Received(1).CommandExecuted += Arg.Any<AsyncEventHandler<CommandsNextExtension, CommandExecutionEventArgs>>();
+		commandsNextExtension.Received(1).CommandErrored += Arg.Any<AsyncEventHandler<CommandsNextExtension, CommandErrorEventArgs>>();
 	}
 
 	[TestMethod]

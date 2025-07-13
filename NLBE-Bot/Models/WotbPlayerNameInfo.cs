@@ -11,6 +11,4 @@ internal class WotbPlayerNameInfo(string clanTag, string playerName)
 	{
 		get; set;
 	} = playerName;
-
-	public bool HasClanTag => !string.IsNullOrEmpty(ClanTag);
 }
