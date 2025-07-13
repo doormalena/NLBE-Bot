@@ -17,7 +17,7 @@ public class VerifyServerNicknamesJobTests
 	private IUserService? _userServiceMock;
 	private IChannelService? _channelServiceMock;
 	private IMessageService? _messageServcieMock;
-	private IWGAccountService? _wgAcacountService;
+	private IWGAccountService? _wgAcacountServiceMock;
 	private IErrorHandler? _errorHandlerMock;
 	private IBotState? _botStateMock;
 	private IOptions<BotOptions>? _optionsMock;
@@ -30,18 +30,18 @@ public class VerifyServerNicknamesJobTests
 		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_optionsMock.Value.Returns(new BotOptions()
 		{
-
+			WarGamingAppId = "dummy"
 		});
 
 		_userServiceMock = Substitute.For<IUserService>();
 		_channelServiceMock = Substitute.For<IChannelService>();
 		_messageServcieMock = Substitute.For<IMessageService>();
-		_wgAcacountService = Substitute.For<IWGAccountService>();
+		_wgAcacountServiceMock = Substitute.For<IWGAccountService>();
 		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_botStateMock = Substitute.For<IBotState>();
 		_loggerMock = Substitute.For<ILogger<VerifyServerNicknamesJob>>();
 
-		_job = new(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountService, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock);
+		_job = new(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock);
 	}
 
 	[TestMethod]
@@ -134,7 +134,7 @@ public class VerifyServerNicknamesJobTests
 		IWGAccount wgAccount = Substitute.For<IWGAccount>();
 		wgAccount.Nickname.Returns("Player");
 		wgAccount.Clan.Returns(wgClan);
-		_wgAcacountService!.SearchByName(Arg.Any<SearchAccuracy>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
+		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
 			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([wgAccount]));
 
 		// Act.
@@ -145,7 +145,120 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("no changes were necessary")),
+			Arg.Is<object>(o => o.ToString()!.Contains("All nicknames have been reviewed; no changes were necessary")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task VerifyServerNicknames_SendsMessages_ForMultipleInvalidPlayerClanMatches()
+	{
+		// Arrange.
+		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
+		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
+		testChannel.Guild.Returns(testGuild);
+		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+
+		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
+		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+
+		IDiscordMember member1 = Substitute.For<IDiscordMember>(); // Simulate missing clan tag.
+		member1.IsBot.Returns(false);
+		member1.Roles.Returns([memberRole]);
+		member1.DisplayName.Returns("Player1");
+		member1.Username.Returns("Player1");
+
+		IDiscordMember member2 = Substitute.For<IDiscordMember>(); // Simulate wrong clan tag.
+		member2.IsBot.Returns(false);
+		member2.Roles.Returns([memberRole]);
+		member2.DisplayName.Returns("[NLBE2] Player2");
+		member2.Username.Returns("Player2");
+
+		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
+			[member1, member2]
+		));
+
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member1.DisplayName).Returns(new Tuple<string, string>("", "Player1"));
+		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member2.DisplayName).Returns(new Tuple<string, string>("[NLBE2]", "Player2"));
+
+		IWGClan wgClan1 = Substitute.For<IWGClan>();
+		wgClan1.Tag.Returns("NLBE");
+		IWGAccount wgAccount1 = Substitute.For<IWGAccount>();
+		wgAccount1.Nickname.Returns("Player1");
+		wgAccount1.Clan.Returns(wgClan1);
+
+		IWGClan wgClan2 = Substitute.For<IWGClan>();
+		wgClan2.Tag.Returns("TAG");
+		IWGAccount wgAccount2 = Substitute.For<IWGAccount>();
+		wgAccount2.Nickname.Returns("Player2");
+		wgAccount2.Clan.Returns(wgClan2);
+
+		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), "Player1", Arg.Any<string>(), false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([wgAccount1]));
+		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), "Player2", Arg.Any<string>(), false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([wgAccount2]));
+
+		// Act.
+		await _job!.Execute(DateTime.Today);
+
+		// Assert.
+		await _messageServcieMock!.Received(2).SendMessage(
+			testChannel,
+			null,
+			testGuild.Name,
+			Arg.Is<string>(msg => msg.Contains("is aangepast van"))
+		);
+		_loggerMock!.Received(2).Log(
+			LogLevel.Information,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains("updated from")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task VerifyServerNicknames_Skips_Member_WhenIsBotOrNoRolesOrMissingRole()
+	{
+		// Arrange
+
+		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
+		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
+		testChannel.Guild.Returns(testGuild);
+		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+
+		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
+		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+
+		// 1. Member is a bot
+		IDiscordMember botMember = Substitute.For<IDiscordMember>();
+		botMember.IsBot.Returns(true);
+		botMember.Roles.Returns([memberRole]);
+
+		// 2. Member has null roles
+		IDiscordMember nullRolesMember = Substitute.For<IDiscordMember>();
+		nullRolesMember.IsBot.Returns(false);
+		nullRolesMember.Roles.Returns((IEnumerable<IDiscordRole>?) null);
+
+		// 3. Member does not have the required role
+		IDiscordMember noRoleMember = Substitute.For<IDiscordMember>();
+		noRoleMember.IsBot.Returns(false);
+		noRoleMember.Roles.Returns([]);
+
+		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
+			[botMember, nullRolesMember, noRoleMember]
+		));
+
+		// Act.
+		await _job!.Execute(DateTime.Today);
+
+		// Assert.
+		await _messageServcieMock!.DidNotReceiveWithAnyArgs().SendMessage(default, default, default, default);
+		_loggerMock!.Received().Log(
+			LogLevel.Information,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains("All nicknames have been reviewed; no changes were necessary")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -164,25 +277,26 @@ public class VerifyServerNicknamesJobTests
 		await _errorHandlerMock!.Received().HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>());
 	}
 
+
 	[TestMethod]
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new VerifyServerNicknamesJob(null, _channelServiceMock, _messageServcieMock, _wgAcacountService, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
+			  new VerifyServerNicknamesJob(null, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, null, _messageServcieMock, _wgAcacountService, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, null, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, null, _wgAcacountService, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, null, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
 			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, null, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountService, null, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, null, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountService, _errorHandlerMock, null, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, null, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountService, _errorHandlerMock, _optionsMock, null, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, null, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountService, _errorHandlerMock, _optionsMock, _botStateMock, null));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, null));
 	}
 }
