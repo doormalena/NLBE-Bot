@@ -135,7 +135,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 			try
 			{
 				await _userService.ChangeMemberNickname(memberChange.Key, memberChange.Value);
-				await _messageService.SendMessage(bottestChannel, null, guild.Name, $"De gebruikersbijnaam van **{memberChange.Key.Username}** is aangepast van {memberChange.Key.DisplayName} naar **{memberChange.Value}");
+				await _messageService.SendMessage(bottestChannel, null, guild.Name, $"De gebruikersbijnaam van **{memberChange.Key.Username}** is aangepast van {memberChange.Key.DisplayName} naar **{memberChange.Value}**");
 				_logger.LogInformation("Nickname for `{Username}` updated from `{DisplayName}` to `{Value}`", memberChange.Key.Username, memberChange.Key.DisplayName, memberChange.Value);
 			}
 			catch (UnauthorizedAccessException ex)
