@@ -22,14 +22,8 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 
 	public void Register(ICommandsNextExtension commands)
 	{
-		commands.CommandExecuted += OnCommandExecuted;
 		commands.CommandErrored += OnCommandErrored;
-	}
-
-	private Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
-	{
-		IDiscordCommand commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
-		return HandleCommandExecuted(commandInfo);
+		commands.CommandExecuted += OnCommandExecuted;
 	}
 
 	private Task OnCommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
@@ -39,10 +33,10 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 		return HandleCommandError(contextInfo, commandInfo, e.Exception);
 	}
 
-	internal Task HandleCommandExecuted(IDiscordCommand command)
+	private Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
 	{
-		_logger.LogInformation("Command executed: {CommandName}", command.Name);
-		return Task.CompletedTask;
+		IDiscordCommand commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
+		return HandleCommandExecuted(commandInfo);
 	}
 
 	internal async Task HandleCommandError(IDiscordCommandContext context, IDiscordCommand command, Exception exception)
@@ -66,4 +60,11 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 			await _errorHandler.HandleErrorAsync($"Error with command ({command.Name}):\n", exception);
 		}
 	}
+
+	internal Task HandleCommandExecuted(IDiscordCommand command)
+	{
+		_logger.LogInformation("Command executed: {CommandName}", command.Name);
+		return Task.CompletedTask;
+	}
+
 }

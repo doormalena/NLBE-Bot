@@ -22,5 +22,7 @@ internal class WgClanWrapper(WGClan clan) : IWGClan
 
 	public WGClan Inner => _clan;
 
+	public int Id => _clan.clan_id;
+
 	public string Tag => _clan.tag;
 }

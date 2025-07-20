@@ -25,6 +25,10 @@ internal interface IWGClan
 	{
 		get;
 	}
+	public int Id
+	{
+		get;
+	}
 
 	public string Tag
 	{
