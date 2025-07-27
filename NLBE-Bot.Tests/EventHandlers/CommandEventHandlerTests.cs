@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Tests.EventHandlers;
 
-using DSharpPlus;
 using DSharpPlus.AsyncEvents;
 using DSharpPlus.CommandsNext;
 using Microsoft.Extensions.Logging;
@@ -18,7 +17,6 @@ public class CommandEventHandlerTests
 {
 	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<CommandEventHandler>? _loggerMock;
-	private IErrorHandler? _errorHandlerMock;
 	private IDiscordMessageUtils? _discordMessageUtilsMock;
 	private CommandEventHandler? _handler;
 
@@ -31,9 +29,8 @@ public class CommandEventHandlerTests
 			ServerId = 1000000
 		});
 		_loggerMock = Substitute.For<ILogger<CommandEventHandler>>();
-		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
-		_handler = new CommandEventHandler(_loggerMock, _errorHandlerMock, _discordMessageUtilsMock, _optionsMock);
+		_handler = new CommandEventHandler(_loggerMock, _discordMessageUtilsMock, _optionsMock);
 	}
 
 	[TestMethod]
@@ -81,7 +78,13 @@ public class CommandEventHandlerTests
 		await _handler!.HandleCommandError(contextMock, null, null);
 
 		// Assert.
-		await _errorHandlerMock!.DidNotReceiveWithAnyArgs().HandleErrorAsync(default!, default!);
+		_loggerMock!.DidNotReceive().Log(
+			Arg.Any<LogLevel>(),
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
 	}
 
 	[TestMethod]
@@ -117,18 +120,20 @@ public class CommandEventHandlerTests
 
 		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
 		commandMock.Name.Returns("testcmd");
-
-		_errorHandlerMock!.HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>()).Returns(Task.CompletedTask);
+		Exception ex = new("Some error");
 
 		// Act.
-		await _handler!.HandleCommandError(contextMock, commandMock, new Exception("Some error"));
+		await _handler!.HandleCommandError(contextMock, commandMock, ex);
 
 		// Assert.
 		await contextMock.Received(1).DeleteInProgressReactionAsync(emojiInProgress);
 		await contextMock.Received(1).AddErrorReactionAsync(emojiError);
-		await _errorHandlerMock.Received(1).HandleErrorAsync(
-			Arg.Is<string>(s => s.Contains("testcmd")),
-			Arg.Any<Exception>());
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("testcmd")),
+			ex,
+			Arg.Any<Func<object, Exception?, string>>());
 	}
 }
 

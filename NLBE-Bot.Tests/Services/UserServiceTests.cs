@@ -13,7 +13,6 @@ using NSubstitute;
 public class UserServiceTests
 {
 	private IMessageService? _messageServcieMock;
-	private IErrorHandler? _errorHandlerMock;
 	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<UserService>? _loggerMock;
 	private UserService? _userService;
@@ -26,9 +25,8 @@ public class UserServiceTests
 		{
 		});
 		_messageServcieMock = Substitute.For<IMessageService>();
-		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_loggerMock = Substitute.For<ILogger<UserService>>();
-		_userService = new UserService(_loggerMock, _errorHandlerMock, _optionsMock, _messageServcieMock);
+		_userService = new UserService(_loggerMock, _optionsMock, _messageServcieMock);
 	}
 
 	[TestMethod]

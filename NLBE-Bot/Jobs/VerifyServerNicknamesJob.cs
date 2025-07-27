@@ -15,7 +15,6 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 								 IChannelService channelService,
 								 IMessageService messageService,
 								 IWGAccountService wgAccountService,
-								 IErrorHandler errorHandler,
 								 IOptions<BotOptions> options,
 								 IBotState botState,
 								 ILogger<VerifyServerNicknamesJob> logger) : IJob<VerifyServerNicknamesJob>
@@ -24,7 +23,6 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IWGAccountService _wgAccountService = wgAccountService ?? throw new ArgumentNullException(nameof(wgAccountService));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -84,8 +82,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		catch (Exception ex)
 		{
 			_botState.LasTimeServerNicknamesWereVerified = lastSuccessfull; // Reset the last successful verification time to the last known good state.
-			string message = "An error occured while verifing all server nicknames.";
-			await _errorHandler.HandleErrorAsync(message, ex);
+			_logger.LogError(ex, "An error occured while verifing all server nicknames.");
 		}
 	}
 
@@ -141,8 +138,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 			catch (UnauthorizedAccessException ex)
 			{
 				await SendPrivateMessageToUpdateNickname(memberChange.Key, guild);
-				string message = $"Failed to change nickname for user `{memberChange.Key.Username}`";
-				await _errorHandler.HandleErrorAsync(message, ex);
+				_logger.LogWarning(ex, "Failed to change nickname for user `{Username}`", memberChange.Key.Username);
 			}
 		}
 

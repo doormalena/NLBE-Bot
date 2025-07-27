@@ -1,16 +1,17 @@
 namespace NLBE_Bot.Services;
 
 using DSharpPlus.Entities;
+using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-internal class MapService(IErrorHandler errorHandler, IChannelService channelService) : IMapService
+internal class MapService(ILogger<MapService> logger, IChannelService channelService) : IMapService
 {
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly ILogger<MapService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 	public async Task<List<Tuple<string, string>>> GetAllMaps(ulong guildId)
 	{
@@ -36,7 +37,7 @@ internal class MapService(IErrorHandler errorHandler, IChannelService channelSer
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Could not load messages from " + mapChannel.Name + ":", ex);
+			_logger.LogError(ex, "Error while getting map images from channel {ChannelName}.", mapChannel.Name);
 		}
 
 		images.Sort((x, y) => y.Item1.CompareTo(x.Item1));

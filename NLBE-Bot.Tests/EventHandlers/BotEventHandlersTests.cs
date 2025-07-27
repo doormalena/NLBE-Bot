@@ -19,7 +19,6 @@ public class BotEventHandlersTests
 	private IJob<VerifyServerNicknamesJob>? _verifyServerNicknamesJobMock;
 	private IJob<AnnounceWeeklyWinnerJob>? _announceWeeklyWinnerJobMock;
 	private ILogger<BotEventHandlers>? _loggerMock;
-	private IErrorHandler? _errorHandlerMock;
 	private IBotState? _botStateMock;
 	private IDiscordClient? _clientMock;
 	private ICommandsNextExtension? _commandsNextMock;
@@ -40,14 +39,13 @@ public class BotEventHandlersTests
 		_verifyServerNicknamesJobMock = Substitute.For<IJob<VerifyServerNicknamesJob>>();
 		_announceWeeklyWinnerJobMock = Substitute.For<IJob<AnnounceWeeklyWinnerJob>>();
 		_loggerMock = Substitute.For<ILogger<BotEventHandlers>>();
-		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_botStateMock = Substitute.For<IBotState>();
 		_clientMock = Substitute.For<IDiscordClient>();
 		_commandsNextMock = Substitute.For<ICommandsNextExtension>();
 
 		_clientMock.GetCommandsNext().Returns(_commandsNextMock);
 
-		_handlers = new(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock);
+		_handlers = new(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock);
 	}
 
 	[TestMethod]
@@ -63,20 +61,22 @@ public class BotEventHandlersTests
 	}
 
 	[TestMethod]
-	public async Task HandleClienErrored_CallsErrorHandler_WithCorrectArguments()
+	public void HandleClienErrored_CallsErrorHandler_WithCorrectArguments()
 	{
 		// Arrange.
 		string eventName = "TestEvent";
 		Exception exception = new("Test exception");
 
 		// Act.
-		await _handlers!.HandleClienErrored(eventName, exception);
+		_handlers!.HandleClienErrored(eventName, exception);
 
 		// Assert.
-		await _errorHandlerMock!.Received(1).HandleErrorAsync(
-			Arg.Is<string>(msg => msg.Contains(eventName)),
-			exception
-		);
+		_loggerMock!.Received().Log(
+					LogLevel.Error,
+					Arg.Any<EventId>(),
+					Arg.Is<object>(v => v.ToString()!.Contains(eventName)),
+					exception,
+					Arg.Any<Func<object, Exception?, string>>());
 	}
 
 	[TestMethod]
@@ -116,16 +116,19 @@ public class BotEventHandlersTests
 	{
 		// Arrange.
 		IDiscordClient faultyClient = Substitute.For<IDiscordClient>();
-		faultyClient.Guilds.Returns(x => { throw new Exception("Test exception"); });
+		Exception ex = new("Test exception");
+		faultyClient.Guilds.Returns(x => { throw ex; });
 
 		// Act.
 		await _handlers!.HandleReady(faultyClient);
 
 		// Assert.
-		await _errorHandlerMock!.Received(1).HandleErrorAsync(
-			Arg.Is<string>(msg => msg.Contains("Could not leave non-whitelisted guilds.")),
-			Arg.Any<Exception>()
-		);
+		_loggerMock!.Received().Log(
+					LogLevel.Error,
+					Arg.Any<EventId>(),
+					Arg.Is<object>(v => v.ToString()!.Contains("Could not leave non-whitelisted guilds.")),
+					ex,
+					Arg.Any<Func<object, Exception?, string>>());
 	}
 
 	[TestMethod]
@@ -168,10 +171,12 @@ public class BotEventHandlersTests
 		await _handlers!.HandleSocketClosed(4000, "Closed by test");
 
 		// Assert.
-		await _errorHandlerMock!.Received(1).HandleErrorAsync(
-			Arg.Is<string>(msg => msg.Contains("Socket closed unexpectedly.")),
-			null
-		);
+		_loggerMock!.Received().Log(
+					LogLevel.Error,
+					Arg.Any<EventId>(),
+					Arg.Is<object>(v => v.ToString()!.Contains("Socket closed unexpectedly.")),
+					Arg.Any<Exception>(),
+					Arg.Any<Func<object, Exception?, string>>());
 	}
 
 	[TestMethod]
@@ -203,20 +208,18 @@ public class BotEventHandlersTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new BotEventHandlers(null, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
+			  new BotEventHandlers(null, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, null, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock, null, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, null, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, null, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, null, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, null, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, null, _loggerMock, _errorHandlerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, null, _loggerMock, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, null, _errorHandlerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, null, _optionsMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, null, _optionsMock));
-		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _errorHandlerMock, null));
+			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, null));
 	}
 }

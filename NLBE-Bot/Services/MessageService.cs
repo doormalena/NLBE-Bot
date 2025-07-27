@@ -12,14 +12,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IOptions<BotOptions> options, IErrorHandler errorHandler, IBotState botState,
+internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IOptions<BotOptions> options, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,
 								IMapService mapService) : IMessageService
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<MessageService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
@@ -33,7 +32,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("[" + guildName + "] (" + channel.Name + ") Could not send message: ", ex);
+			_logger.LogError(ex, "Could not send message to channel {ChannelName} in guild {GuildName}: {Message}", channel.Name, guildName, message);
 
 			if (ex.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
 			{
@@ -62,7 +61,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("[" + guildName + "] Could not send private message: ", ex);
+			_logger.LogError(ex, "Could not send private message to member {MemberName} in guild {GuildName}: {Message}", member.DisplayName, guildName, Message);
 		}
 
 		return false;
@@ -134,9 +133,10 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			_errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex).Wait();
-			return null;
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
+
+		return null;
 	}
 	public async Task SayNoResults(IDiscordChannel channel, string description)
 	{
@@ -147,9 +147,10 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
+
 	public async Task SayTheUserIsNotAllowed(IDiscordChannel channel)
 	{
 		try
@@ -159,9 +160,10 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
+
 	public async Task SayBotNotAuthorized(IDiscordChannel channel)
 	{
 		try
@@ -171,9 +173,10 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
+
 	public async Task SayTooManyCharacters(IDiscordChannel channel)
 	{
 		try
@@ -183,9 +186,10 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
+
 	public async Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
@@ -211,7 +215,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
+					_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 				}
 				break;
 			}
@@ -226,7 +230,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+				_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 			}
 		}
 		else
@@ -261,7 +265,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
+					_logger.LogError(ex, "Something went wrong while trying to set the thumbnail for an embedded message.");
 				}
 				break;
 			}
@@ -275,7 +279,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+				_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 			}
 		}
 
@@ -496,7 +500,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", ex);
+				_logger.LogError(ex, "Could not set thumbnail for embed: {Thumbnail}", options.Thumbnail);
 			}
 		}
 		if (options.Author != null)
@@ -520,7 +524,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				}
 				catch (Exception innerEx)
 				{
-					await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", innerEx);
+					_logger.LogError(innerEx, "Could not set image URL for embed: {ImageUrl}", options.ImageUrl);
 				}
 			}
 		}
@@ -537,7 +541,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 					}
 					catch (Exception ex)
 					{
-						await _errorHandler.HandleErrorAsync("Something went wrong while trying to add a field to an embedded message:", ex);
+						_logger.LogError(ex, "Could not add field to embed: {FieldName} - {FieldValue}", field.Name, field.Value);
 					}
 				}
 			}
@@ -571,7 +575,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Error while adding emoji's:", ex);
+				_logger.LogError(ex, "Could not add emojis to message");
 			}
 			if (!string.IsNullOrEmpty(options.NextMessage))
 			{
@@ -581,8 +585,9 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Error in createEmbed:", ex);
+			_logger.LogError(ex, "Could not send embed message to channel {ChannelName} in guild {GuildName}: {EmbedTitle}", channel.Name, channel.Guild.Name, options.Title);
 		}
+
 		return null;
 	}
 }

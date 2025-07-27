@@ -5,6 +5,7 @@ using DSharpPlus.Entities;
 using FMWOTB.Account;
 using FMWOTB.Tools;
 using FMWOTB.Tools.Replays;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
@@ -17,9 +18,9 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class ReplayService(IErrorHandler errorHandler, IOptions<BotOptions> options, IWeeklyEventService weeklyEventHandler) : IReplayService
+internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions> options, IWeeklyEventService weeklyEventHandler) : IReplayService
 {
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly ILogger<ReplayService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
 
@@ -36,7 +37,7 @@ internal class ReplayService(IErrorHandler errorHandler, IOptions<BotOptions> op
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
+			_logger.LogError(ex, "Error while getting weekly event description for replay.");
 		}
 		sb.Append(GetSomeReplayInfoAsText(battle, position).Replace(Constants.REPLACEABLE_UNDERSCORE_CHAR, '_'));
 		return sb.ToString();
@@ -82,7 +83,7 @@ internal class ReplayService(IErrorHandler errorHandler, IOptions<BotOptions> op
 				attachUrl = attach.Url;
 			}
 
-			await _errorHandler.HandleErrorAsync("Initializing WGBattle object from (" + (!string.IsNullOrEmpty(url) ? url : attachUrl) + "):\n", ex);
+			_logger.LogError(ex, "Error while initializing WGBattle object from ({Url}): {Json}", !string.IsNullOrEmpty(url) ? url : attachUrl, json);
 		}
 		return null;
 	}

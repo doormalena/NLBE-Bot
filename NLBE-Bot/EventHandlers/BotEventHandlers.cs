@@ -20,7 +20,6 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 								IJob<VerifyServerNicknamesJob> verifyServerNicknamesJob,
 								IJob<AnnounceWeeklyWinnerJob> announceWeeklyWinnerJob,
 								ILogger<BotEventHandlers> logger,
-								IErrorHandler errorHandler,
 								IOptions<BotOptions> options) : IBotEventHandlers
 {
 	private readonly ICommandEventHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
@@ -29,7 +28,6 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 	private readonly IJob<VerifyServerNicknamesJob> _verifyServerNicknamesJob = verifyServerNicknamesJob ?? throw new ArgumentNullException(nameof(verifyServerNicknamesJob));
 	private readonly IJob<AnnounceWeeklyWinnerJob> _announceWeeklyWinnerJob = announceWeeklyWinnerJob ?? throw new ArgumentNullException(nameof(announceWeeklyWinnerJob));
 	private readonly ILogger<BotEventHandlers> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
 	private int _heartBeatCounter;
@@ -58,7 +56,8 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 
 	private Task OnClientErrored(DiscordClient sender, ClientErrorEventArgs e)
 	{
-		return HandleClienErrored(e.EventName, e.Exception);
+		HandleClienErrored(e.EventName, e.Exception);
+		return Task.CompletedTask;
 	}
 
 	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs e)
@@ -76,9 +75,9 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 		return HandleSocketClosed(e.CloseCode, e.CloseMessage);
 	}
 
-	internal async Task HandleClienErrored(string eventName, Exception exception)
+	internal void HandleClienErrored(string eventName, Exception exception)
 	{
-		await _errorHandler.HandleErrorAsync($"Error with event ({eventName}):\n", exception);
+		_logger.LogError(exception, "An error occurred in the Discord client event: {EventName}.", eventName);
 	}
 
 	internal async Task HandleHeartbeated(int ping, DateTimeOffset timestamp, DateTime now)
@@ -110,7 +109,7 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync($"An error occurred while handling the Ready event. Could not leave non-whitelisted guilds.", ex);
+			_logger.LogError(ex, "An error occurred while handling the Ready event. Could not leave non-whitelisted guilds.");
 		}
 
 		_logger.LogInformation("Client (v{Version}) is ready to process events.", Constants.Version);
@@ -120,10 +119,13 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 	{
 		if (closeCode != 1000) // Abnormal closure
 		{
-			return _errorHandler.HandleErrorAsync($"Socket closed unexpectedly. Code: {closeCode}. Reason: {closeMessage}.");
+			_logger.LogError("Socket closed unexpectedly. Code: {CloseCode}. Reason: {CloseMessage}.", closeCode, closeMessage);
+		}
+		else
+		{
+			_logger.LogInformation("Socket closed normally. Code: {CloseCode}. Reason: {CloseMessage}.", closeCode, closeMessage);
 		}
 
-		_logger.LogInformation("Socket closed normally. Code: {CloseCode}. Reason: {CloseMessage}.", closeCode, closeMessage);
 		return Task.CompletedTask;
 	}
 }

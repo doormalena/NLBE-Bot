@@ -73,7 +73,6 @@ public static class Program
 				services.AddSingleton<BotCommands>();
 				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
 				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();
-				services.AddSingleton<IErrorHandler, ErrorHandler>();
 				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
 				services.AddSingleton<IGuildMemberEventHandler, GuildMemberEventHandler>();
 				services.AddSingleton<IMessageEventHandler, MessageEventHandler>();

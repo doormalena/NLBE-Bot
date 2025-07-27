@@ -11,12 +11,10 @@ using System;
 using System.Threading.Tasks;
 
 internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
-								   IErrorHandler errorHandler,
 								   IDiscordMessageUtils discordMessageUtils,
 								   IOptions<BotOptions> options) : ICommandEventHandler
 {
 	private readonly ILogger<CommandEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
@@ -57,7 +55,7 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 
 			await context.DeleteInProgressReactionAsync(inProgressEmoji);
 			await context.AddErrorReactionAsync(errorEmoji);
-			await _errorHandler.HandleErrorAsync($"Error with command ({command.Name}):\n", exception);
+			_logger.LogError(exception, "Error with command {CommandName}.", command.Name);
 		}
 	}
 

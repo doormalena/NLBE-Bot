@@ -22,10 +22,9 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandler, IOptions<BotOptions> options, IMessageService messageService) : IUserService
+internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> options, IMessageService messageService) : IUserService
 {
 	private readonly ILogger<UserService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 
@@ -51,7 +50,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync($"Could not update the nickname for {member.Username} to `{nickname}`.", ex);
+			_logger.LogError(ex, "Failed to update nickname for {Username} to `{Nickname}`", member.Username, nickname);
 		}
 	}
 
@@ -73,7 +72,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 
 				sb.Clear();
 
-				foreach (DiscordRole role in memberRoles)
+				foreach (IDiscordRole role in memberRoles)
 				{
 					if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 					{
@@ -91,7 +90,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 			}
 			else
 			{
-				foreach (DiscordRole role in memberRoles)
+				foreach (IDiscordRole role in memberRoles)
 				{
 					if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 					{
@@ -128,7 +127,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		}
 		else if (oldName.Contains('['))
 		{
-			foreach (DiscordRole role in memberRoles)
+			foreach (IDiscordRole role in memberRoles)
 			{
 				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 				{
@@ -179,7 +178,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		}
 		else if (oldName.Contains(']'))
 		{
-			foreach (DiscordRole role in memberRoles)
+			foreach (IDiscordRole role in memberRoles)
 			{
 				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 				{
@@ -230,7 +229,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 		}
 		else
 		{
-			foreach (DiscordRole role in memberRoles)
+			foreach (IDiscordRole role in memberRoles)
 			{
 				if (role.Id.Equals(Constants.NLBE_ROLE) || role.Id.Equals(Constants.NLBE2_ROLE))
 				{
@@ -797,7 +796,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 				}
 				catch (Exception ex)
 				{
-					_errorHandler.HandleErrorAsync("Error in gebruikerslijst:", ex).Wait();
+					_logger.LogError(ex, "Error while processing member list for embed.");
 				}
 			}
 			List<DEF> deflist = [];
@@ -931,7 +930,7 @@ internal class UserService(ILogger<UserService> logger, IErrorHandler errorHandl
 			}
 			catch (Exception ex)
 			{
-				_errorHandler.HandleErrorAsync("Error in listInPlayerEmbed:", ex).Wait();
+				_logger.LogError(ex, "Error while processing member list for embed.");
 			}
 		}
 

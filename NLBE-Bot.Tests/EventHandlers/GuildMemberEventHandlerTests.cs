@@ -16,7 +16,6 @@ using NSubstitute;
 public class GuildMemberEventHandlerTests
 {
 	private IDiscordClient? _discordClientMock;
-	private IErrorHandler? _errorHandlerMock;
 	private ILogger<GuildMemberEventHandler>? _loggerMock;
 	private IOptions<BotOptions>? _optionsMock;
 	private IChannelService? _channelServiceMock;
@@ -29,7 +28,6 @@ public class GuildMemberEventHandlerTests
 	public void Setup()
 	{
 		_discordClientMock = Substitute.For<IDiscordClient>();
-		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_loggerMock = Substitute.For<ILogger<GuildMemberEventHandler>>();
 		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_channelServiceMock = Substitute.For<IChannelService>();
@@ -40,7 +38,6 @@ public class GuildMemberEventHandlerTests
 		_optionsMock.Value.Returns(new BotOptions { ServerId = 12345, WarGamingAppId = "appid" });
 
 		_handler = new GuildMemberEventHandler(
-			_errorHandlerMock,
 			_loggerMock,
 			_optionsMock,
 			_channelServiceMock,
@@ -345,18 +342,16 @@ public class GuildMemberEventHandlerTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(null, _loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(null, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_errorHandlerMock, null, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, null, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, null, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, null, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, null, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, null, _messageServiceMock, _wgAcacountServiceMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, _channelServiceMock, null, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, null, _wgAcacountServiceMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, null, _wgAcacountServiceMock));
-		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, null));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, null));
 	}
 }

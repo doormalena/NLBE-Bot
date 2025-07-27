@@ -17,9 +17,8 @@ public class DiscordMessageExtensionsTests
 	{
 		// Arrange.
 		IDiscordClient discordClient = Substitute.For<IDiscordClient>();
-		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
 		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
-		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);
+		DiscordMessageUtils utils = new(discordClient, loggerMock);
 
 		IDiscordEmoji emoji1Mock = Substitute.For<IDiscordEmoji>();
 		IDiscordEmoji emoji2Mock = Substitute.For<IDiscordEmoji>();
@@ -55,9 +54,8 @@ public class DiscordMessageExtensionsTests
 	{
 		// Arrange.		
 		IDiscordClient discordClient = Substitute.For<IDiscordClient>();
-		IErrorHandler errorHandlerMock = Substitute.For<IErrorHandler>();
 		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
-		DiscordMessageUtils utils = new(discordClient, errorHandlerMock, loggerMock);
+		DiscordMessageUtils utils = new(discordClient, loggerMock);
 
 		// Example log format: "01-06-2024 12:34:56|rest"
 		string content1 = "01-06-2024 12:34:56|something";

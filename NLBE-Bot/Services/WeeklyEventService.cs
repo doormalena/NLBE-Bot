@@ -2,6 +2,7 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using FMWOTB.Tools.Replays;
+using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -12,9 +13,9 @@ using System.Threading.Tasks;
 internal class WeeklyEventService(IChannelService channelService,
 								  IUserService userService,
 								  IBotState botState,
-								  IErrorHandler errorHandler) : IWeeklyEventService
+								  ILogger<WeeklyEventService> _logger) : IWeeklyEventService
 {
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly ILogger<WeeklyEventService> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
@@ -64,7 +65,7 @@ internal class WeeklyEventService(IChannelService channelService,
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Could not send private message towards winner of weekly event.", ex);
+							_logger.LogError(ex, "Could not send private message to weekly event winner {PlayerName}.", member.DisplayName);
 						}
 						try
 						{
@@ -80,7 +81,7 @@ internal class WeeklyEventService(IChannelService channelService,
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Could not send message in algemeen channel for weekly event winner announcement.", ex);
+							_logger.LogError(ex, "Could not send message in algemeen channel for weekly event winner announcement.");
 						}
 						break;
 					}
@@ -103,10 +104,8 @@ internal class WeeklyEventService(IChannelService channelService,
 			{
 				await bottestChannel.SendMessageAsync(message);
 			}
-			else
-			{
-				await _errorHandler.HandleErrorAsync(message);
-			}
+
+			_logger.LogWarning("Weekly event winner was not found. You will have to handle it manually with the `weekly` command.");
 		}
 		else
 		{
@@ -115,10 +114,8 @@ internal class WeeklyEventService(IChannelService channelService,
 			{
 				await bottestChannel.SendMessageAsync(message);
 			}
-			else
-			{
-				await _errorHandler.HandleErrorAsync(message);
-			}
+
+			_logger.LogInformation("Weekly event winner found and notified.");
 		}
 	}
 
@@ -220,7 +217,7 @@ internal class WeeklyEventService(IChannelService channelService,
 					}
 					else
 					{
-						await _errorHandler.HandleErrorAsync("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
+						_logger.LogError("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
 					}
 				}
 			}
@@ -229,7 +226,7 @@ internal class WeeklyEventService(IChannelService channelService,
 		{
 			if (ex.Message != "Not found: 404")
 			{
-				await _errorHandler.HandleErrorAsync("Something went wrong at ReadWeeklyEvent:", ex);
+				_logger.LogError(ex, "Error while reading the last message in weekly event channel.");
 			}
 		}
 	}
@@ -242,7 +239,7 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
+			_logger.LogError(ex, "Error while updating the last message in weekly event channel.");
 		}
 	}
 
@@ -263,7 +260,7 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
+			_logger.LogError(ex, "Error while sending new weekly event message to the weekly event channel.");
 		}
 	}
 }

@@ -18,7 +18,6 @@ public class VerifyServerNicknamesJobTests
 	private IChannelService? _channelServiceMock;
 	private IMessageService? _messageServcieMock;
 	private IWGAccountService? _wgAcacountServiceMock;
-	private IErrorHandler? _errorHandlerMock;
 	private IBotState? _botStateMock;
 	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<VerifyServerNicknamesJob>? _loggerMock;
@@ -38,11 +37,10 @@ public class VerifyServerNicknamesJobTests
 		_channelServiceMock = Substitute.For<IChannelService>();
 		_messageServcieMock = Substitute.For<IMessageService>();
 		_wgAcacountServiceMock = Substitute.For<IWGAccountService>();
-		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_botStateMock = Substitute.For<IBotState>();
 		_loggerMock = Substitute.For<ILogger<VerifyServerNicknamesJob>>();
 
-		_job = new(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock);
+		_job = new(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock);
 	}
 
 	[TestMethod]
@@ -67,14 +65,20 @@ public class VerifyServerNicknamesJobTests
 		// Arrange.
 		DateTime yesterday = DateTime.Now.AddDays(-1);
 		DateTime now = DateTime.Now;
+		Exception ex = new("fail");
 		_botStateMock!.LasTimeServerNicknamesWereVerified.Returns(yesterday);
-		_channelServiceMock!.GetBotTestChannel().Returns<Task<IDiscordChannel>>(x => throw new Exception("fail"));
+		_channelServiceMock!.GetBotTestChannel().Returns<Task<IDiscordChannel>>(x => throw ex);
 
 		// Act.
 		await _job!.Execute(now);
 
 		// Assert.
-		await _errorHandlerMock!.Received().HandleErrorAsync(Arg.Is<string>(s => s.Contains("An error occured while verifing all server nicknames.")), Arg.Any<Exception>());
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("An error occured while verifing all server nicknames.")),
+			ex,
+			Arg.Any<Func<object, Exception?, string>>());
 		Assert.AreEqual(_botStateMock!.LasTimeServerNicknamesWereVerified, yesterday);
 	}
 
@@ -371,19 +375,22 @@ public class VerifyServerNicknamesJobTests
 			]));
 
 		// Simulate UnauthorizedException when changing nickname.
+		Exception ex = new UnauthorizedAccessException();
 		_userServiceMock!
 			.When(x => x.ChangeMemberNickname(Arg.Any<IDiscordMember>(), Arg.Any<string>()))
-			.Do(_ => { throw new UnauthorizedAccessException(); });
+			.Do(_ => { throw ex; });
 
 		// Act.
 		await _job!.Execute(DateTime.UtcNow);
 
 		// Assert.
 		await _messageServcieMock!.Received(1).SendPrivateMessage(member, testGuild.Name, Arg.Any<string>());
-		await _errorHandlerMock!.Received(1).HandleErrorAsync(
-			Arg.Is<string>(msg => msg.Contains("Failed to change nickname for user")),
-			Arg.Any<UnauthorizedAccessException>()
-		);
+		_loggerMock!.Received().Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Failed to change nickname for user `Player`")),
+			ex,
+			Arg.Any<Func<object, Exception?, string>>());
 	}
 
 	[TestMethod]
@@ -391,20 +398,18 @@ public class VerifyServerNicknamesJobTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new VerifyServerNicknamesJob(null, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
+			  new VerifyServerNicknamesJob(null, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, null, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, null, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, null, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, null, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, null, _errorHandlerMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, null, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, null, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, null, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, null, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, null, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, null, _loggerMock));
-		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _errorHandlerMock, _optionsMock, _botStateMock, null));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, null));
 	}
 }

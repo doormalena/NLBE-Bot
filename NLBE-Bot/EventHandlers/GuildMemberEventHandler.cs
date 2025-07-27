@@ -16,15 +16,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class GuildMemberEventHandler(IErrorHandler errorHandler,
-									   ILogger<GuildMemberEventHandler> logger,
+internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 									   IOptions<BotOptions> options,
 									   IChannelService channelService,
 									   IUserService userService,
 									   IMessageService messageService,
 									   IWGAccountService wgAccountService) : IGuildMemberEventHandler
 {
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
@@ -174,30 +172,6 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 		});
 	}
 
-	private async Task CleanWelcomeChannel(IDiscordGuild guild, IDiscordMember member, IDiscordRole noobRole)
-	{
-		IReadOnlyCollection<IDiscordMember> allMembers = await guild.GetAllMembersAsync();
-		bool atLeastOneOtherPlayerWithNoobRole = false;
-
-		foreach (var _ in from IDiscordMember m in allMembers
-						  where m.Roles.Contains(noobRole)
-						  select new
-						  {
-						  })
-		{
-			atLeastOneOtherPlayerWithNoobRole = true;
-		}
-
-		if (atLeastOneOtherPlayerWithNoobRole)
-		{
-			await _channelService.CleanWelkomChannel(member.Id);
-		}
-		else
-		{
-			await _channelService.CleanWelkomChannel();
-		}
-	}
-
 	internal async Task HandleMemberUpdated(IDiscordGuild guild, IDiscordMember member, IReadOnlyList<IDiscordRole> rolesAfter, string nicknameAfter)
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
@@ -205,11 +179,9 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 			try
 			{
 				IEnumerable<IDiscordRole> roles = member.Roles;
-				bool isNoob = roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE));
-				bool hasRoles = roles.Any();
 
-				// TODO: why do we check rolesAfter and nicknameAfter?
-				if (isNoob || !hasRoles || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
+				// TODO: why do we check rolesAfter and nicknameAfter? Filtering out changes that do not effect the name of the member?
+				if (roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
 				{
 					return;
 				}
@@ -223,8 +195,7 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 			}
 			catch (Exception ex)
 			{
-				string message = $"An error occured while processing the updated member. {member.DisplayName} ({member.Id})";
-				await _errorHandler.HandleErrorAsync(message, ex);
+				_logger.LogError(ex, "An error occured while processing the updated member. {DisplayName} ({Id})", member.DisplayName, member.Id);
 			}
 		});
 	}
@@ -324,6 +295,30 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 		}
 
 		return sbRoles.ToString();
+	}
+
+	private async Task CleanWelcomeChannel(IDiscordGuild guild, IDiscordMember member, IDiscordRole noobRole)
+	{
+		IReadOnlyCollection<IDiscordMember> allMembers = await guild.GetAllMembersAsync();
+		bool atLeastOneOtherPlayerWithNoobRole = false;
+
+		foreach (var _ in from IDiscordMember m in allMembers
+						  where m.Roles.Contains(noobRole)
+						  select new
+						  {
+						  })
+		{
+			atLeastOneOtherPlayerWithNoobRole = true;
+		}
+
+		if (atLeastOneOtherPlayerWithNoobRole)
+		{
+			await _channelService.CleanWelkomChannel(member.Id);
+		}
+		else
+		{
+			await _channelService.CleanWelkomChannel();
+		}
 	}
 
 	private async Task ExecuteIfAllowedAsync(IDiscordGuild guild, Func<Task> action)

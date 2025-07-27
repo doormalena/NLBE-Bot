@@ -47,7 +47,6 @@ public class ProgramTests
 		Assert.IsNotNull(services.GetService<BotCommands>());
 		Assert.IsNotNull(services.GetService<IBotEventHandlers>());
 		Assert.IsNotNull(services.GetService<IWeeklyEventService>());
-		Assert.IsNotNull(services.GetService<IErrorHandler>());
 		Assert.IsNotNull(services.GetService<ICommandEventHandler>());
 		Assert.IsNotNull(services.GetService<IGuildMemberEventHandler>());
 		Assert.IsNotNull(services.GetService<IMessageEventHandler>());

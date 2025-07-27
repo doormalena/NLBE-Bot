@@ -21,7 +21,6 @@ using System.Text;
 using System.Threading.Tasks;
 
 internal class MessageEventHandler(IOptions<BotOptions> options,
-								   IErrorHandler errorHandler,
 								   IBotState botState,
 								   ILogger<MessageEventHandler> logger,
 								   IChannelService channelService,
@@ -34,7 +33,6 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 								   IHallOfFameService hallOfFameService,
 								   IMessageService messageService) : IMessageEventHandler
 {
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
@@ -246,7 +244,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
+							_logger.LogError(ex, "Error while getting weekly event description for replay.");
 						}
 						List<Tuple<string, string>> images = await _mapService.GetAllMaps(guild.Id);
 						foreach (Tuple<string, string> map in images)
@@ -262,7 +260,8 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 								}
 								catch (Exception ex)
 								{
-									await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
+									_logger.LogError(ex, "Could not set thumbnail for embed.");
+									thumbnail = string.Empty;
 								}
 								break;
 							}
@@ -493,13 +492,13 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 								}
 								catch (Exception ex)
 								{
-									await _errorHandler.HandleErrorAsync("Could not compare TimeStamps in MessageReactionRemoved:", ex);
+									_logger.LogError(ex, "Error while comparing timestamps in MessageReactionRemoved.");
 								}
 							}
 						}
 						else
 						{
-							await _errorHandler.HandleErrorAsync("Could not find log channel at MessageReactionRemoved!");
+							_logger.LogError("Could not find log channel at MessageReactionRemoved.");
 						}
 					}
 				}

@@ -17,13 +17,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class TournamentService(ILogger<TournamentService> logger, IErrorHandler errorHandler, IOptions<BotOptions> options, IUserService userService, IChannelService channelService, IMessageService messageService,
+internal class TournamentService(ILogger<TournamentService> logger, IOptions<BotOptions> options, IUserService userService, IChannelService channelService, IMessageService messageService,
 		IDiscordMessageUtils discordMessageUtils, IDiscordClient discordClient) : ITournamentService
 {
 	private readonly ILogger<TournamentService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
@@ -71,7 +70,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("While adding to log: ", ex);
+					_logger.LogError(ex, "Error while adding to log.");
 				}
 			}
 		}
@@ -514,7 +513,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 		}
 		else
 		{
-			await _errorHandler.HandleErrorAsync("Could not find log channel, message: " + date + "|" + message);
+			_logger.LogError("Could not find log channel, message: {Date}|{Message}", date, message);
 		}
 	}
 
@@ -601,7 +600,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Could not load messages from " + toernooiAanmeldenChannel.Name + ":", ex);
+							_logger.LogError(ex, "Could not load messages from {ChannelName}:", toernooiAanmeldenChannel.Name);
 						}
 						if (messages.Count == hoeveelste + 1)
 						{
@@ -677,7 +676,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 									}
 									else
 									{
-										await _errorHandler.HandleErrorAsync("Could not find log channel!");
+										_logger.LogError("Could not find log channel for reading teams.");
 									}
 								}
 								else

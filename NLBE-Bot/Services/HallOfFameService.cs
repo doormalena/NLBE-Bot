@@ -4,6 +4,7 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using FMWOTB;
 using FMWOTB.Tools.Replays;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
@@ -15,17 +16,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions> options,
+internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<BotOptions> options,
 		IDiscordMessageUtils discordMessageUtils, IChannelService channelService, IMessageService messageService, IMapService mapService, IReplayService replayService, IUserService userService) : IHallOfFameService
 {
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly ILogger<HallOfFameService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 	private readonly IReplayService _replayService = replayService ?? throw new ArgumentNullException(nameof(replayService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+
 	public async Task<Tuple<string, IDiscordMessage>> Handle(string titel, object discAttach, IDiscordChannel channel, string guildName, ulong guildID, string iets, IDiscordMember member)
 	{
 		if (discAttach is DiscordAttachment attachment)
@@ -86,12 +88,12 @@ internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions
 				catch (JsonNotFoundException ex)
 				{
 					_ = await _messageService.SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
-					await _errorHandler.HandleErrorAsync("While reading json from a replay:\n", ex);
+					_logger.LogError(ex, "Error while reading json from a replay.");
 				}
 				catch (Exception ex)
 				{
 					_ = await _messageService.SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis bij het controleren van de HOF!**");
-					await _errorHandler.HandleErrorAsync("While checking HOF with a replay:\n", ex);
+					_logger.LogError(ex, "Error while checking HOF with a replay.");
 				}
 				tempMessage = await _messageService.SendMessage(channel, member, guildName, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
 				return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
@@ -132,7 +134,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
+					_logger.LogError(ex, "Could not set thumbnail for embed for map {MapName}", map.Item1);
 				}
 				break;
 			}
@@ -235,7 +237,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions
 								}
 								catch (Exception ex)
 								{
-									await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
+									_logger.LogError(ex, "Could not set thumbnail for embed for map {MapName}", map.Item1);
 								}
 								break;
 							}
@@ -495,7 +497,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
+			_logger.LogError(ex, "Error while editing HOF message.");
 			await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.MAINTENANCE_REACTION));
 		}
 	}
@@ -719,7 +721,7 @@ internal class HallOfFameService(IErrorHandler errorHandler, IOptions<BotOptions
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("While editing Resultaat message: ", ex);
+				_logger.LogError(ex, "Error while editing Resultaat message.");
 			}
 		}
 	}

@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 
 internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 									IChannelService channelService,
-									IErrorHandler errorHandler,
 									IBotState botState,
 									ILogger<AnnounceWeeklyWinnerJob> logger) : IJob<AnnounceWeeklyWinnerJob>
 {
@@ -17,7 +16,6 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly ILogger<AnnounceWeeklyWinnerJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 
 	public async Task Execute(DateTime now)
 	{
@@ -76,8 +74,7 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 		catch (Exception ex)
 		{
 			_botState.LastWeeklyWinnerAnnouncement = lastSuccessfull; // Reset the last announce time to the last known good state.
-			string message = "An error occured while anouncing the weekly winner.";
-			await _errorHandler.HandleErrorAsync(message, ex);
+			_logger.LogError(ex, "An error occured while anouncing the weekly winner.");
 		}
 	}
 }

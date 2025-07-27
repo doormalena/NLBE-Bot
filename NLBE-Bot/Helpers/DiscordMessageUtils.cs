@@ -8,10 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-internal class DiscordMessageUtils(IDiscordClient discordClient, IErrorHandler errorHandler, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
+internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<DiscordMessageUtils> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 	public Dictionary<IDiscordEmoji, List<IDiscordUser>> SortReactions(IDiscordMessage message)
@@ -83,7 +82,7 @@ internal class DiscordMessageUtils(IDiscordClient discordClient, IErrorHandler e
 		}
 		catch (Exception ex)
 		{
-			_errorHandler.HandleErrorAsync("Could not load emoji:", ex).Wait();
+			_logger.LogWarning(ex, "Could not load emoji: {EmojiName}", name);
 		}
 
 		return new DiscordEmojiWrapper(theEmoji);

@@ -23,7 +23,6 @@ using System.Text;
 using System.Threading.Tasks;
 
 internal class BotCommands(IDiscordClient discordClient,
-						   IErrorHandler errorHandler,
 						   ILogger<BotCommands> logger,
 						   IOptions<BotOptions> options,
 						   IClanService clanService,
@@ -42,7 +41,6 @@ internal class BotCommands(IDiscordClient discordClient,
 	private const int MAX_TANK_NAME_LENGTH_IN_WOTB = 14;
 
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 	private readonly ILogger<BotCommands> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IBlitzstarsService _handler = handler ?? throw new ArgumentNullException(nameof(handler));
@@ -1086,8 +1084,9 @@ internal class BotCommands(IDiscordClient discordClient,
 							}
 							catch (Exception ex)
 							{
-								await _errorHandler.HandleErrorAsync("Could not load messages from " + channel.Name + ": ", ex);
+								_logger.LogError(ex, "Error while loading messages from channel {ChannelName}.", channel.Name);
 							}
+
 							if (messages.Count == hoeveelste + 1)
 							{
 								IDiscordMessage theMessage = messages[hoeveelste];
@@ -1139,7 +1138,7 @@ internal class BotCommands(IDiscordClient discordClient,
 										}
 										else
 										{
-											await _errorHandler.HandleErrorAsync("Could not find log channel!");
+											_logger.LogError("Could not find log channel `{ChannelName}`.", channel.Name);
 										}
 									}
 								}
@@ -1469,7 +1468,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				catch (Exception ex)
 				{
 					error = true;
-					await _errorHandler.HandleErrorAsync("Something went wrong while showing the memberInfo:\n", ex);
+					_logger.LogError(ex, "Something went wrong while showing the memberInfo for ID {Id} in guild {GuildName}.", tempID, ctx.Guild.Name);
 					await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name);
 				}
 				if (!found && !error)
@@ -1957,7 +1956,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					catch (Exception ex)
 					{
 						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**GebruikersID (`" + id + "`) kon niet gevonden worden!**");
-						await _errorHandler.HandleErrorAsync($"User `{id}` could not be found (or loaded).", ex);
+						_logger.LogError(ex, "User with ID {Id} could not be found or loaded.", id);
 					}
 				}
 				else
@@ -2039,7 +2038,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("While getting the HOF messages (" + ctx.Command.Name + "): ", ex);
+					_logger.LogError(ex, "Error while getting the Hall Of Fame messages.");
 					noErrors = false;
 				}
 				if (noErrors)
