@@ -1,51 +1,66 @@
 namespace NLBE_Bot.Tests.EventHandlers;
 
+using DSharpPlus;
+using DSharpPlus.AsyncEvents;
+using DSharpPlus.EventArgs;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using NSubstitute;
+using System.Data;
 
 [TestClass]
 public class GuildMemberEventHandlerTests
 {
-	private IDiscordClient? _discordClient;
-	private IErrorHandler? _errorHandler;
-	private ILogger<GuildMemberEventHandler>? _logger;
-	private IOptions<BotOptions>? _options;
-	private IChannelService? _channelService;
-	private IUserService? _userService;
-	private IMessageService? _messageService;
+	private IDiscordClient? _discordClientMock;
+	private IErrorHandler? _errorHandlerMock;
+	private ILogger<GuildMemberEventHandler>? _loggerMock;
+	private IOptions<BotOptions>? _optionsMock;
+	private IChannelService? _channelServiceMock;
+	private IUserService? _userServiceMock;
+	private IMessageService? _messageServiceMock;
 	private IWGAccountService? _wgAcacountServiceMock;
 	private GuildMemberEventHandler? _handler;
 
 	[TestInitialize]
 	public void Setup()
 	{
-		_discordClient = Substitute.For<IDiscordClient>();
-		_errorHandler = Substitute.For<IErrorHandler>();
-		_logger = Substitute.For<ILogger<GuildMemberEventHandler>>();
-		_options = Substitute.For<IOptions<BotOptions>>();
-		_channelService = Substitute.For<IChannelService>();
-		_userService = Substitute.For<IUserService>();
-		_messageService = Substitute.For<IMessageService>();
+		_discordClientMock = Substitute.For<IDiscordClient>();
+		_errorHandlerMock = Substitute.For<IErrorHandler>();
+		_loggerMock = Substitute.For<ILogger<GuildMemberEventHandler>>();
+		_optionsMock = Substitute.For<IOptions<BotOptions>>();
+		_channelServiceMock = Substitute.For<IChannelService>();
+		_userServiceMock = Substitute.For<IUserService>();
+		_messageServiceMock = Substitute.For<IMessageService>();
 		_wgAcacountServiceMock = Substitute.For<IWGAccountService>();
 
-		_options.Value.Returns(new BotOptions { ServerId = 12345, WarGamingAppId = "appid" });
+		_optionsMock.Value.Returns(new BotOptions { ServerId = 12345, WarGamingAppId = "appid" });
 
 		_handler = new GuildMemberEventHandler(
-			_errorHandler,
-			_logger,
-			_options,
-			_channelService,
-			_userService,
-			_messageService,
+			_errorHandlerMock,
+			_loggerMock,
+			_optionsMock,
+			_channelServiceMock,
+			_userServiceMock,
+			_messageServiceMock,
 			_wgAcacountServiceMock
 		);
+	}
 
-		_handler.Register(_discordClient, Substitute.For<IBotState>());
+	[TestMethod]
+	public void Register_RegistersAllHandlersAndEvents()
+	{
+		// Act.
+		_handler!.Register(_discordClientMock, Substitute.For<IBotState>());
+
+		// Assert.
+		_discordClientMock!.Received(1).GuildMemberAdded += Arg.Any<AsyncEventHandler<DiscordClient, GuildMemberAddEventArgs>>();
+		_discordClientMock!.Received(1).GuildMemberUpdated += Arg.Any<AsyncEventHandler<DiscordClient, GuildMemberUpdateEventArgs>>();
+		_discordClientMock!.Received(1).GuildMemberRemoved += Arg.Any<AsyncEventHandler<DiscordClient, GuildMemberRemoveEventArgs>>();
 	}
 
 	[TestMethod]
@@ -80,19 +95,19 @@ public class GuildMemberEventHandlerTests
 		IDiscordUser user = Substitute.For<IDiscordUser>();
 		user.Mention.Returns("@Newbie");
 
-		_channelService!.GetWelkomChannel().Returns(welkomChannel);
-		_channelService.GetRegelsChannel().Returns(regelsChannel);
-		_channelService.CleanWelkomChannel(member.Id).Returns(Task.CompletedTask);
+		_channelServiceMock!.GetWelkomChannel().Returns(welkomChannel);
+		_channelServiceMock.GetRegelsChannel().Returns(regelsChannel);
+		_channelServiceMock.CleanWelkomChannel(member.Id).Returns(Task.CompletedTask);
 
-		_discordClient!.GetUserAsync(member.Id).Returns(Task.FromResult(user));
+		_discordClientMock!.GetUserAsync(member.Id).Returns(Task.FromResult(user));
 
-		_messageService!.AskQuestion(welkomChannel, user, guild, Arg.Any<string>())
+		_messageServiceMock!.AskQuestion(welkomChannel, user, guild, Arg.Any<string>())
 			.Returns(Task.FromResult("WargamingUser"));
 
-		_messageService.WaitForReply(welkomChannel, user, Arg.Any<string>(), Arg.Any<int>())
+		_messageServiceMock.WaitForReply(welkomChannel, user, Arg.Any<string>(), Arg.Any<int>())
 			.Returns(Task.FromResult(0));
 
-		_userService!.ChangeMemberNickname(member, Arg.Any<string>()).Returns(Task.CompletedTask);
+		_userServiceMock!.ChangeMemberNickname(member, Arg.Any<string>()).Returns(Task.CompletedTask);
 
 		IWGClan wgClan = Substitute.For<IWGClan>();
 		wgClan.Id.Returns((int) Constants.NLBE2_CLAN_ID);
@@ -107,17 +122,21 @@ public class GuildMemberEventHandlerTests
 		rulesNotReadRole.Id.Returns(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
 		guild.GetRole(Constants.MOET_REGELS_NOG_LEZEN_ROLE).Returns(rulesNotReadRole);
 
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock, botState);
+
 		// Act.
-		await _handler!.HandleMemberAdded(_discordClient, guild, member);
+		await _handler!.HandleMemberAdded(_discordClientMock, guild, member);
 
 		// Assert.
 		await member.Received().GrantRoleAsync(noobRole);
 		await welkomChannel.Received().SendMessageAsync(Arg.Is<string>(msg => msg.Contains("welkom")));
-		await _messageService.Received().AskQuestion(welkomChannel, user, guild, Arg.Any<string>());
+		await _messageServiceMock.Received().AskQuestion(welkomChannel, user, guild, Arg.Any<string>());
 		await member.Received().SendMessageAsync(Arg.Is<string>(msg => msg.Contains("regels")));
 		await member.Received().GrantRoleAsync(rulesNotReadRole);
 		await member.Received().RevokeRoleAsync(noobRole);
-		await _userService.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name.Contains(wgAccount.Nickname)));
+		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name.Contains(wgAccount.Nickname)));
 	}
 
 	[TestMethod]
@@ -137,18 +156,18 @@ public class GuildMemberEventHandlerTests
 		List<IDiscordRole> rolesAfter = [nonNoobRole];
 		string nicknameAfter = "NewNickname";
 
-		_options!.Value.Returns(new BotOptions { ServerId = 12345 });
-		_userService!.UpdateName(member, member.DisplayName).Returns("UpdatedNickname");
+		_optionsMock!.Value.Returns(new BotOptions { ServerId = 12345 });
+		_userServiceMock!.UpdateName(member, member.DisplayName).Returns("UpdatedNickname");
 
 		IBotState botState = Substitute.For<IBotState>();
 		botState.IgnoreEvents.Returns(false);
-		_handler!.Register(_discordClient, botState);
+		_handler!.Register(_discordClientMock, botState);
 
 		// Act.
 		await _handler.HandleMemberUpdated(guild, member, rolesAfter, nicknameAfter);
 
 		// Assert.
-		await _userService.Received().ChangeMemberNickname(member, "UpdatedNickname");
+		await _userServiceMock.Received().ChangeMemberNickname(member, "UpdatedNickname");
 	}
 
 	[TestMethod]
@@ -167,16 +186,175 @@ public class GuildMemberEventHandlerTests
 		List<IDiscordRole> rolesAfter = [noobRole];
 		string nicknameAfter = "Nickname";
 
-		_options!.Value.Returns(new BotOptions { ServerId = 12345 });
+		_optionsMock!.Value.Returns(new BotOptions { ServerId = 12345 });
 
 		IBotState botState = Substitute.For<IBotState>();
 		botState.IgnoreEvents.Returns(false);
-		_handler!.Register(Substitute.For<IDiscordClient>(), botState);
+		_handler!.Register(_discordClientMock, botState);
 
 		// Act.
 		await _handler.HandleMemberUpdated(guild, member, rolesAfter, nicknameAfter);
 
 		// Assert.
-		await _userService!.DidNotReceive().ChangeMemberNickname(Arg.Any<IDiscordMember>(), Arg.Any<string>());
+		await _userServiceMock!.DidNotReceive().ChangeMemberNickname(Arg.Any<IDiscordMember>(), Arg.Any<string>());
+	}
+
+	[TestMethod]
+	public async Task HandleMemberRemoved_ShouldNotLog_WhenEventIgnoredOrWrongServer()
+	{
+		// Arrange.
+		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
+		guild.Id.Returns(123ul); // Doesn't match options.ServerId
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock, botState);
+
+		// Act.
+		await _handler!.HandleMemberRemoved(guild, member);
+
+		// Assert.
+		await _channelServiceMock!.DidNotReceive().GetOudLedenChannel();
+		await _messageServiceMock!.DidNotReceive().CreateEmbed(Arg.Any<IDiscordChannel>(), Arg.Any<EmbedOptions>());
+	}
+
+	[TestMethod]
+	public async Task HandleMemberRemoved_ShouldLogWarning_IfOudLedenChannelIsNull()
+	{
+		// Arrange.
+		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
+		guild.Id.Returns(12345ul);
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		_channelServiceMock!.GetOudLedenChannel().Returns((IDiscordChannel?) null);
+
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock, botState);
+
+		// Act.
+		await _handler!.HandleMemberRemoved(guild, member);
+
+		// Assert.
+		_loggerMock!.Received().Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains("Could not find the Oud Leden channel")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task HandleMemberRemoved_ShouldLogWarning_IfNoServerRolesFound()
+	{
+		// Arrange.
+		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
+		guild.Id.Returns(12345ul);
+		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole>());
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		_channelServiceMock!.GetOudLedenChannel().Returns(Substitute.For<IDiscordChannel>());
+
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock, botState);
+
+		// Act.
+		await _handler!.HandleMemberRemoved(guild, member);
+
+		// Assert.
+		_loggerMock!.Received().Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains("Could not find server roles")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task HandleMemberRemoved_ShouldCleanWelkomChannel_IfMemberHasNoobRole()
+	{
+		// Arrange.
+		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
+		guild.Id.Returns(12345ul);
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		IDiscordRole role = Substitute.For<IDiscordRole>();
+		role.Id.Returns(Constants.NOOB_ROLE);
+		member.Roles.Returns([role]);
+		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { Constants.NOOB_ROLE, role } });
+		_channelServiceMock!.GetOudLedenChannel().Returns(Substitute.For<IDiscordChannel>());
+
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock, botState);
+
+		// Act.
+		await _handler!.HandleMemberRemoved(guild, member);
+
+		// Assert.
+		await _channelServiceMock.Received(1).CleanWelkomChannel();
+	}
+
+	[TestMethod]
+	public async Task HandleMemberRemoved_ShouldSendEmbed_WhenAllDataPresent()
+	{
+		// Arrange.
+		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
+		guild.Id.Returns(12345ul);
+
+		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.Username.Returns("alex");
+		member.Discriminator.Returns("1234");
+		member.DisplayName.Returns("Alex");
+		member.Id.Returns(100ul);
+
+		IDiscordRole role = Substitute.For<IDiscordRole>();
+		role.Id.Returns(999ul);
+		role.Name.Returns("Contributor");
+
+		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { 999ul, role } });
+		member.Roles.Returns([role]);
+		_channelServiceMock!.GetOudLedenChannel().Returns(channel);
+
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock, botState);
+
+		// Act.
+		await _handler!.HandleMemberRemoved(guild, member);
+
+		// Assert.
+		await _messageServiceMock!.Received(1).CreateEmbed(channel, Arg.Is<EmbedOptions>(embed =>
+			embed.Title.Contains("heeft de server verlaten") &&
+			embed.Fields.Any(f => f.Name == "Gebruiker:" && f.Value == "alex#1234") &&
+			embed.Fields.Any(f => f.Name == "GebruikersID:" && f.Value == 100ul.ToString()) &&
+			embed.Fields.Any(f => f.Name == "Bijnaam:" && f.Value == "Alex") &&
+			embed.Fields.Any(f => f.Name == "Rollen:" && f.Value == "Contributor")
+		));
+	}
+
+	[TestMethod]
+	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
+	{
+		// Act & Assert.
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			  new GuildMemberEventHandler(null, _loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			  new GuildMemberEventHandler(_errorHandlerMock, null, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, null, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, null, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, _channelServiceMock, null, _messageServiceMock, _wgAcacountServiceMock));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, null, _wgAcacountServiceMock));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+			  new GuildMemberEventHandler(_errorHandlerMock, _loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, null));
 	}
 }

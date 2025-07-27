@@ -11,6 +11,7 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -65,7 +66,7 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 
 			if (noobRole == null)
 			{
-				await _errorHandler.HandleErrorAsync("Could not grant new member [" + member.DisplayName + " (" + member.Username + "#" + member.Discriminator + ")] the Noob role.");
+				_logger.LogWarning("Noob role not found. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
@@ -196,21 +197,29 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			IEnumerable<IDiscordRole> roles = member.Roles;
-			bool isNoob = roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE));
-			bool hasRoles = roles.Any();
-
-			// TODO: why do we check rolesAfter and nicknameAfter?
-			if (isNoob || !hasRoles || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
+			try
 			{
-				return;
+				IEnumerable<IDiscordRole> roles = member.Roles;
+				bool isNoob = roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE));
+				bool hasRoles = roles.Any();
+
+				// TODO: why do we check rolesAfter and nicknameAfter?
+				if (isNoob || !hasRoles || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
+				{
+					return;
+				}
+
+				string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do?
+
+				if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
+				{
+					await _userService.ChangeMemberNickname(member, editedName);
+				}
 			}
-
-			string editedName = _userService.UpdateName(member, member.DisplayName);
-
-			if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
+			catch (Exception ex)
 			{
-				await _userService.ChangeMemberNickname(member, editedName);
+				string message = $"An error occured while processing the updated member. {member.DisplayName} ({member.Id})";
+				await _errorHandler.HandleErrorAsync(message, ex);
 			}
 		});
 	}
@@ -219,11 +228,11 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-
 			IDiscordChannel oudLedenChannel = await _channelService.GetOudLedenChannel();
 
 			if (oudLedenChannel == null)
 			{
+				_logger.LogWarning("Could not find the Oud Leden channel. Cannot log member removal for {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
@@ -231,80 +240,84 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 
 			if (serverRoles == null || serverRoles.Count <= 0)
 			{
+				_logger.LogWarning("Could not find server roles. Cannot log member removal for {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
-			IEnumerable<IDiscordRole> memberRoles = member.Roles;
-			StringBuilder sbRoles = new();
-			bool firstRole = true;
+			IEnumerable<IDiscordRole> roles = member.Roles;
 
-			foreach (IDiscordRole role in memberRoles)
+			if (roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE)))
 			{
-				foreach (var _ in from KeyValuePair<ulong, IDiscordRole> serverRole in serverRoles
-								  where serverRole.Key.Equals(role.Id)
-								  select new
-								  {
-								  })
-				{
-					if (role.Id.Equals(Constants.NOOB_ROLE))
-					{
-						await _channelService.CleanWelkomChannel();
-					}
-
-					if (firstRole)
-					{
-						firstRole = false;
-					}
-					else
-					{
-						sbRoles.Append(", ");
-					}
-
-					sbRoles.Append(role.Name);
-				}
+				await _channelService.CleanWelkomChannel(); // TODO: why do we clean the welcome channel here?
 			}
 
-			List<DEF> defList = [];
-			DEF newDef1 = new()
+			List<DEF> fields = [];
+
+			fields.Add(new()
 			{
 				Inline = true,
 				Name = "Bijnaam:",
 				Value = member.DisplayName
-			};
-			defList.Add(newDef1);
-			DEF newDef2 = new()
+			});
+
+			fields.Add(new()
 			{
 				Inline = true,
 				Name = "Gebruiker:",
 				Value = member.Username + "#" + member.Discriminator
-			};
-			defList.Add(newDef2);
-			DEF newDef3 = new()
+			});
+
+			fields.Add(new()
 			{
 				Inline = true,
 				Name = "GebruikersID:",
 				Value = member.Id.ToString()
-			};
-			defList.Add(newDef3);
-			if (sbRoles.Length > 0)
+			});
+
+			fields.Add(new()
 			{
-				DEF newDef = new()
-				{
-					Inline = true,
-					Name = "Rollen:",
-					Value = sbRoles.ToString()
-				};
-				defList.Add(newDef);
-			}
+				Inline = true,
+				Name = "Rollen:",
+				Value = GetCommaSeperatedRoleList(serverRoles, roles)
+			});
 
 			EmbedOptions embedOptions = new()
 			{
 				Title = member.Username + " heeft de server verlaten",
-				Fields = defList,
+				Fields = fields,
 			};
 
 			await _messageService.CreateEmbed(oudLedenChannel, embedOptions);
 		});
+	}
+
+	private static string GetCommaSeperatedRoleList(IReadOnlyDictionary<ulong, IDiscordRole> serverRoles, IEnumerable<IDiscordRole> memberRoles)
+	{
+		StringBuilder sbRoles = new();
+		bool firstRole = true;
+
+		foreach (IDiscordRole role in memberRoles)
+		{
+			foreach (var _ in from KeyValuePair<ulong, IDiscordRole> serverRole in serverRoles
+							  where serverRole.Key.Equals(role.Id)
+							  select new
+							  {
+							  })
+			{
+				if (firstRole)
+				{
+					firstRole = false;
+				}
+				else
+				{
+					sbRoles.Append(", ");
+				}
+
+				sbRoles.Append(role.Name);
+			}
+		}
+
+		return sbRoles.ToString();
 	}
 
 	private async Task ExecuteIfAllowedAsync(IDiscordGuild guild, Func<Task> action)

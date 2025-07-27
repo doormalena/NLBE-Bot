@@ -1,7 +1,6 @@
 namespace NLBE_Bot.Tests.Jobs;
 
 using DSharpPlus;
-using DSharpPlus.Exceptions;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
