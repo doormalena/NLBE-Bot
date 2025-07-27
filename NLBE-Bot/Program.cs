@@ -66,7 +66,7 @@ public static class Program
 				services.AddSingleton<IBotState>(provider =>
 				{
 					BotState botState = new();
-					Task.Run(() => botState.LoadAsync()).Wait(); // Synchronously load state at startup.
+					Task.Run(() => botState.LoadAsync()).GetAwaiter().GetResult(); // Synchronously load state at startup.
 					return botState;
 				});
 				services.AddHostedService<Bot>();

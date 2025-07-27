@@ -159,7 +159,9 @@ internal class BotState(string stateFile = "botstate.json", bool autoSave = true
 			return;
 		}
 
-		string json = await File.ReadAllTextAsync(_stateFile);
+		using FileStream stream = new(_stateFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+		using StreamReader reader = new(stream);
+		string json = await reader.ReadToEndAsync();
 
 		if (string.IsNullOrWhiteSpace(json))
 		{
