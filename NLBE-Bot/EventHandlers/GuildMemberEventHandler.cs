@@ -68,25 +68,26 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				return;
 			}
 
-			await member.GrantRoleAsync(noobRole);
-
 			IDiscordChannel welkomChannel = await _channelService.GetWelkomChannel();
 
 			if (welkomChannel == null)
 			{
+				_logger.LogWarning("Could not find the welcome channel. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
-
-			IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
-
-			welkomChannel.SendMessageAsync(member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.").Wait();
 
 			IDiscordUser user = await sender.GetUserAsync(member.Id);
 
 			if (user == null)
 			{
+				_logger.LogWarning("Could not find the user. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
+
+			await member.GrantRoleAsync(noobRole);
+
+			IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
+			await welkomChannel.SendMessageAsync(member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.");
 
 			IReadOnlyList<IWGAccount> searchResults = [];
 			bool resultFound = false;

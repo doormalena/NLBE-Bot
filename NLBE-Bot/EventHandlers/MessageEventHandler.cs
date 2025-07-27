@@ -122,13 +122,12 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		{
 			bool validChannel = false;
 			IDiscordChannel masteryChannel = await _channelService.GetMasteryReplaysChannel();
-			if (masteryChannel != null)
+
+			if (masteryChannel != null && masteryChannel.Equals(channel))
 			{
-				if (masteryChannel.Equals(channel))
-				{
-					validChannel = true;
-				}
+				validChannel = true;
 			}
+
 			if (!validChannel)
 			{
 				masteryChannel = await _channelService.GetBotTestChannel();
@@ -139,32 +138,23 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 				if (!validChannel)
 				{
 					masteryChannel = await _channelService.GetReplayResultsChannel();
-					if (masteryChannel != null)
+					if (masteryChannel != null && masteryChannel.Equals(channel))
 					{
-						if (masteryChannel.Equals(channel))
-						{
-							validChannel = true;
-						}
+						validChannel = true;
 					}
 					if (!validChannel)
 					{
 						masteryChannel = await _channelService.GetReplayResultsChannel();
-						if (masteryChannel != null)
+						if (masteryChannel != null && masteryChannel.Equals(channel))
 						{
-							if (masteryChannel.Equals(channel))
-							{
-								validChannel = true;
-							}
+							validChannel = true;
 						}
 						if (!validChannel)
 						{
 							masteryChannel = await _channelService.GetTestChannel();
-							if (masteryChannel != null)
+							if (masteryChannel != null && masteryChannel.Equals(channel))
 							{
-								if (masteryChannel.Equals(channel))
-								{
-									validChannel = true;
-								}
+								validChannel = true;
 							}
 						}
 					}
@@ -191,18 +181,12 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							}
 						}
 					}
-					else
+					else if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
 					{
-						if (message != null)
-						{
-							if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
-							{
-								string[] splitted = message.Content.Split(' ');
-								string url = splitted[0];
-								Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, null, channel, guild.Name, guild.Id, url, await guild.GetMemberAsync(author.Id));
-								await _hallOfFameService.HofAfterUpload(returnedTuple, message);
-							}
-						}
+						string[] splitted = message.Content.Split(' ');
+						string url = splitted[0];
+						Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, null, channel, guild.Name, guild.Id, url, await guild.GetMemberAsync(author.Id));
+						await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 					}
 				}
 				else
@@ -210,30 +194,25 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 					//ReplayResults die niet in HOF komen
 					WGBattle replayInfo = new(string.Empty);
 					bool wasReplay = false;
+
 					if (message.Attachments.Count > 0)
 					{
-						foreach (DiscordAttachment attachment in message.Attachments)
+						foreach (DiscordAttachment attachment in from DiscordAttachment attachment in message.Attachments
+																 where attachment.FileName.EndsWith(".wotbreplay")
+																 select attachment)
 						{
-							if (attachment.FileName.EndsWith(".wotbreplay"))
-							{
-								await _messageService.ConfirmCommandExecuting(message);
-								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, null);
-							}
+							await _messageService.ConfirmCommandExecuting(message);
+							wasReplay = true;
+							replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, null);
 						}
 					}
-					else
+					else if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
 					{
-						if (message != null)
-						{
-							if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
-							{
-								await _messageService.ConfirmCommandExecuting(message);
-								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, message.Content);
-							}
-						}
+						await _messageService.ConfirmCommandExecuting(message);
+						wasReplay = true;
+						replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, message.Content);
 					}
+
 					if (wasReplay && replayInfo != null)
 					{
 						string thumbnail = string.Empty;
@@ -246,34 +225,35 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 						{
 							_logger.LogError(ex, "Error while getting weekly event description for replay.");
 						}
+
 						List<Tuple<string, string>> images = await _mapService.GetAllMaps(guild.Id);
-						foreach (Tuple<string, string> map in images)
+
+						foreach (Tuple<string, string> map in from Tuple<string, string> map in images
+															  where replayInfo.map_name.ToLower().Contains(map.Item1.ToLower())
+															  select map)
 						{
-							if (replayInfo.map_name.ToLower().Contains(map.Item1.ToLower()))
+							try
 							{
-								try
+								if (map.Item1 != string.Empty)
 								{
-									if (map.Item1 != string.Empty)
-									{
-										thumbnail = map.Item2;
-									}
+									thumbnail = map.Item2;
 								}
-								catch (Exception ex)
-								{
-									_logger.LogError(ex, "Could not set thumbnail for embed.");
-									thumbnail = string.Empty;
-								}
-								break;
+							}
+							catch (Exception ex)
+							{
+								_logger.LogError(ex, "Could not set thumbnail for embed.");
+								thumbnail = string.Empty;
 							}
 						}
-						EmbedOptions options = new()
+
+						EmbedOptions embedOptions = new()
 						{
 							Thumbnail = thumbnail,
 							Title = "Resultaat",
 							Description = await _replayService.GetDescriptionForReplay(replayInfo, -1, eventDescription),
 							IsForReplay = true,
 						};
-						await _messageService.CreateEmbed(channel, options);
+						await _messageService.CreateEmbed(channel, embedOptions);
 						await _messageService.ConfirmCommandExecuted(message);
 					}
 					else if (wasReplay)
@@ -363,24 +343,22 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 									bool hadRulesNotReadrole = false;
 									if (member.Roles != null)
 									{
-										foreach (IDiscordRole memberRole in member.Roles)
+										foreach (IDiscordRole memberRole in from IDiscordRole memberRole in member.Roles
+																			where memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE)
+																			select memberRole)
 										{
-											if (memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE))
-											{
-												hadRulesNotReadrole = true;
-												await member.RevokeRoleAsync(memberRole);
-												break;
-											}
+											hadRulesNotReadrole = true;
+											await member.RevokeRoleAsync(memberRole);
 										}
 									}
-									if (hadRulesNotReadrole || member.Roles == null || member.Roles.Count() == 0)
+									if (hadRulesNotReadrole || member.Roles == null || member.Roles.Any())
 									{
 										if (member.DisplayName.Split(']').Length > 1)
 										{
 											if (member.DisplayName.Split(']').Length > 2)
 											{
 												string[] splitted = member.DisplayName.Split(']');
-												string tempName = splitted[splitted.Length - 1].Trim(' ');
+												string tempName = splitted[^1].Trim(' ');
 												await _userService.ChangeMemberNickname(member, "[] " + tempName);
 
 											}
@@ -443,63 +421,60 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		if (guild.Id == _options.ServerId)
 		{
 			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
-			if (toernooiAanmeldenChannel != null)
+			if (toernooiAanmeldenChannel != null && channel.Equals(toernooiAanmeldenChannel))
 			{
-				if (channel.Equals(toernooiAanmeldenChannel))
+				bool removeInLog = true;
+				IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
+				if (messageTmp.Author != null && !messageTmp.Author.Id.Equals(Constants.NLBE_BOT))
 				{
-					bool removeInLog = true;
-					IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
-					if (messageTmp.Author != null && !messageTmp.Author.Id.Equals(Constants.NLBE_BOT))
+					removeInLog = false;
+				}
+				if (removeInLog)
+				{
+					//check if reaction has to be added by bot (from 0 reactions to 1 reaction)
+					IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(emoji);
+					if (users == null || users.Count == 0)
 					{
-						removeInLog = false;
+						await message.CreateReactionAsync(emoji);
 					}
-					if (removeInLog)
+
+					//remove in log
+					IDiscordChannel logChannel = await _channelService.GetLogChannel();
+
+					if (logChannel.Inner != null)
 					{
-						//check if reaction has to be added by bot (from 0 reactions to 1 reaction)
-						IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(emoji);
-						if (users == null || users.Count == 0)
+						IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+						Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
+						foreach (KeyValuePair<DateTime, List<IDiscordMessage>> messageList in sortedMessages)
 						{
-							await message.CreateReactionAsync(emoji);
-						}
-
-						//remove in log
-						IDiscordChannel logChannel = await _channelService.GetLogChannel();
-
-						if (logChannel.Inner != null)
-						{
-							IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-							Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
-							foreach (KeyValuePair<DateTime, List<IDiscordMessage>> messageList in sortedMessages)
+							try
 							{
-								try
+								if (message.CreationTimestamp.LocalDateTime.CompareDateTime(messageList.Key))
 								{
-									if (message.CreationTimestamp.LocalDateTime.CompareDateTime(messageList.Key))
+									foreach (IDiscordMessage aMessage in messageList.Value)
 									{
-										foreach (IDiscordMessage aMessage in messageList.Value)
+										IDiscordMember member = await _userService.GetDiscordMember(guild, user.Id);
+										if (member != null)
 										{
-											IDiscordMember member = await _userService.GetDiscordMember(guild, user.Id);
-											if (member != null)
+											string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
+											string theEmoji = _discordMessageUtils.GetEmojiAsString(emoji.Name);
+											if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && _discordMessageUtils.GetEmojiAsString(splitted[3]).Equals(theEmoji))
 											{
-												string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
-												string theEmoji = _discordMessageUtils.GetEmojiAsString(emoji.Name);
-												if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && _discordMessageUtils.GetEmojiAsString(splitted[3]).Equals(theEmoji))
-												{
-													await aMessage.Inner.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
-												}
+												await aMessage.Inner.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
 											}
 										}
 									}
 								}
-								catch (Exception ex)
-								{
-									_logger.LogError(ex, "Error while comparing timestamps in MessageReactionRemoved.");
-								}
+							}
+							catch (Exception ex)
+							{
+								_logger.LogError(ex, "Error while comparing timestamps in MessageReactionRemoved.");
 							}
 						}
-						else
-						{
-							_logger.LogError("Could not find log channel at MessageReactionRemoved.");
-						}
+					}
+					else
+					{
+						_logger.LogError("Could not find log channel at MessageReactionRemoved.");
 					}
 				}
 			}
