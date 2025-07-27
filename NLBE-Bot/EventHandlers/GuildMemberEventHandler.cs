@@ -170,27 +170,32 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 				await member.GrantRoleAsync(rulesNotReadRole);
 			}
 
-			IReadOnlyCollection<IDiscordMember> allMembers = await guild.GetAllMembersAsync();
-			bool atLeastOneOtherPlayerWithNoobRole = false;
-
-			foreach (var _ in from IDiscordMember m in allMembers
-							  where m.Roles.Contains(noobRole)
-							  select new
-							  {
-							  })
-			{
-				atLeastOneOtherPlayerWithNoobRole = true;
-			}
-
-			if (atLeastOneOtherPlayerWithNoobRole)
-			{
-				await _channelService.CleanWelkomChannel(member.Id);
-			}
-			else
-			{
-				await _channelService.CleanWelkomChannel();
-			}
+			await CleanWelcomeChannel(guild, member, noobRole);
 		});
+	}
+
+	private async Task CleanWelcomeChannel(IDiscordGuild guild, IDiscordMember member, IDiscordRole noobRole)
+	{
+		IReadOnlyCollection<IDiscordMember> allMembers = await guild.GetAllMembersAsync();
+		bool atLeastOneOtherPlayerWithNoobRole = false;
+
+		foreach (var _ in from IDiscordMember m in allMembers
+						  where m.Roles.Contains(noobRole)
+						  select new
+						  {
+						  })
+		{
+			atLeastOneOtherPlayerWithNoobRole = true;
+		}
+
+		if (atLeastOneOtherPlayerWithNoobRole)
+		{
+			await _channelService.CleanWelkomChannel(member.Id);
+		}
+		else
+		{
+			await _channelService.CleanWelkomChannel();
+		}
 	}
 
 	internal async Task HandleMemberUpdated(IDiscordGuild guild, IDiscordMember member, IReadOnlyList<IDiscordRole> rolesAfter, string nicknameAfter)
@@ -248,7 +253,8 @@ internal class GuildMemberEventHandler(IErrorHandler errorHandler,
 
 			if (roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE)))
 			{
-				await _channelService.CleanWelkomChannel(); // TODO: why do we clean the welcome channel here?
+				IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
+				await CleanWelcomeChannel(guild, member, noobRole);
 			}
 
 			List<DEF> fields = [];

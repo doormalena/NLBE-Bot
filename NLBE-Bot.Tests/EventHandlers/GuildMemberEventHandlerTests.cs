@@ -11,7 +11,6 @@ using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using NSubstitute;
-using System.Data;
 
 [TestClass]
 public class GuildMemberEventHandlerTests
@@ -316,9 +315,12 @@ public class GuildMemberEventHandlerTests
 		IDiscordRole role = Substitute.For<IDiscordRole>();
 		role.Id.Returns(999ul);
 		role.Name.Returns("Contributor");
+		IDiscordRole role2 = Substitute.For<IDiscordRole>();
+		role2.Id.Returns(888ul);
+		role2.Name.Returns("Reader");
 
-		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { 999ul, role } });
-		member.Roles.Returns([role]);
+		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { 999ul, role }, { 888ul, role2 } });
+		member.Roles.Returns([role, role2]);
 		_channelServiceMock!.GetOudLedenChannel().Returns(channel);
 
 		IBotState botState = Substitute.For<IBotState>();
@@ -334,7 +336,7 @@ public class GuildMemberEventHandlerTests
 			embed.Fields.Any(f => f.Name == "Gebruiker:" && f.Value == "alex#1234") &&
 			embed.Fields.Any(f => f.Name == "GebruikersID:" && f.Value == 100ul.ToString()) &&
 			embed.Fields.Any(f => f.Name == "Bijnaam:" && f.Value == "Alex") &&
-			embed.Fields.Any(f => f.Name == "Rollen:" && f.Value == "Contributor")
+			embed.Fields.Any(f => f.Name == "Rollen:" && f.Value == "Contributor, Reader")
 		));
 	}
 
