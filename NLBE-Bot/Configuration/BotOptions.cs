@@ -47,7 +47,7 @@ internal class BotOptions
 	}
 
 	[Required]
-	public string WarGamingAppId
+	public WotbApiOptions WotbApi
 	{
 		get; set;
 	}

@@ -4,9 +4,10 @@ using DiscordHelper;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using FMWOTB.Account;
+using FMWOTB.Models;
 using FMWOTB.Clans;
 using FMWOTB.Exceptions;
+using FMWOTB.Interfaces;
 using FMWOTB.Tools;
 using FMWOTB.Tournament;
 using Microsoft.Extensions.Logging;
@@ -21,6 +22,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FMWOTB.Account;
 
 internal class BotCommands(IDiscordClient discordClient,
 						   ILogger<BotCommands> logger,
@@ -29,6 +31,7 @@ internal class BotCommands(IDiscordClient discordClient,
 						   IBlitzstarsService handler,
 						   IDiscordMessageUtils discordMessageUtils,
 						   IBotState botState,
+						   IAccountsRepository accountRepository,
 						   IChannelService channelService,
 						   IUserService userService,
 						   IMessageService messageService,
@@ -46,6 +49,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	private readonly IBlitzstarsService _handler = handler ?? throw new ArgumentNullException(nameof(handler));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
@@ -624,7 +628,8 @@ internal class BotCommands(IDiscordClient discordClient,
 						bool hasAnswered = false;
 						bool hasConfirmed = false;
 						bool firstTime = true;
-						WGAccount account = new(_options.WarGamingAppId, 552887317, false, true, false);
+
+						PlayerInfo account = await _accountRepository.GetByIdAsync(552887317, false, true, false);
 
 						while (true)
 						{
@@ -689,24 +694,24 @@ internal class BotCommands(IDiscordClient discordClient,
 							goodOption = false;
 							if (account != null)
 							{
-								if (account.nickname != null)
+								if (account.Nickname != null)
 								{
-									if (account.nickname.Length > 0)
+									if (account.Nickname.Length > 0)
 									{
 										bool allGood = true;
 										goodOption = true;
-										string link = "www.blitzstars.com/player/eu/" + account.nickname;
-										subject = subject.Replace("<|>", "**" + account.nickname.AdaptToDiscordChat() + "**");
+										string link = "www.blitzstars.com/player/eu/" + account.Nickname;
+										subject = subject.Replace("<|>", "**" + account.Nickname.AdaptToDiscordChat() + "**");
 										subject = subject.Replace("<link>", "[" + link + "](https://" + link + ")");
-										if (account.last_battle_time.HasValue)
+										if (account.LastBattleTime.HasValue)
 										{
-											subject = subject.Replace("<dd-mm-jjjj>", account.last_battle_time.Value.Day + "-" + account.last_battle_time.Value.Month + "-" + account.last_battle_time.Value.Year);
+											subject = subject.Replace("<dd-mm-jjjj>", account.LastBattleTime.Value.Day + "-" + account.LastBattleTime.Value.Month + "-" + account.LastBattleTime.Value.Year);
 										}
-										if (account.clan != null && account.clan.joined_at.HasValue)
+										if (account.Clan != null && account.Clan.joined_at.HasValue)
 										{
-											subject = subject.Replace("<dd-mm-yyyy>", account.clan.joined_at.Value.Day + "-" + account.clan.joined_at.Value.Month + "-" + account.clan.joined_at.Value.Year);
+											subject = subject.Replace("<dd-mm-yyyy>", account.Clan.joined_at.Value.Day + "-" + account.Clan.joined_at.Value.Month + "-" + account.Clan.joined_at.Value.Year);
 										}
-										int amountOfBattles90 = _handler.Get90DayBattles(account.account_id);
+										int amountOfBattles90 = _handler.Get90DayBattles(account.AccountId);
 										subject = subject.Replace("<90>", amountOfBattles90.ToString());
 										if (originalWat.ToLower().Equals("nieuw"))
 										{
@@ -723,10 +728,10 @@ internal class BotCommands(IDiscordClient discordClient,
 										else
 										{
 											bool clanFound = false;
-											if (account.clan != null && account.clan.tag != null)
+											if (account.Clan != null && account.Clan.tag != null)
 											{
 												clanFound = true;
-												subject = subject.Replace("<clan>", " van **" + account.clan.tag + "**");
+												subject = subject.Replace("<clan>", " van **" + account.Clan.tag + "**");
 											}
 											if (!clanFound)
 											{
@@ -1610,38 +1615,38 @@ internal class BotCommands(IDiscordClient discordClient,
 						tempIGNName = splitted[0].ToString().Trim();
 					}
 
-					IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.EXACT, tempIGNName, _options.WarGamingAppId, false, false, false);
+					IReadOnlyList<PlayerInfo> searchResults = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, tempIGNName, false, false, false);
 					if (searchResults != null)
 					{
 						if (searchResults.Count > 0)
 						{
 							bool used = false;
-							foreach (WGAccount account in searchResults)
+							foreach (PlayerInfo account in searchResults)
 							{
-								if (account.nickname.ToLower().Equals(tempIGNName.ToLower()))
+								if (account.Nickname.ToLower().Equals(tempIGNName.ToLower()))
 								{
 									try
 									{
 										if (searchTerm.Contains('o'))
 										{
-											if (account.created_at != null && account.created_at.HasValue)
+											if (account.CreatedAt != null && account.CreatedAt.HasValue)
 											{
-												dateMemberList.Add(account.created_at.Value.ConvertToDateTime(), member);
+												dateMemberList.Add(account.CreatedAt.Value.ConvertToDateTime(), member);
 												used = true;
 											}
 										}
 										else
 										{
-											if (account.clan != null && account.clan.joined_at.HasValue)
+											if (account.Clan != null && account.Clan.joined_at.HasValue)
 											{
-												dateMemberList.Add(account.clan.joined_at.Value.ConvertToDateTime(), member);
+												dateMemberList.Add(account.Clan.joined_at.Value.ConvertToDateTime(), member);
 												used = true;
 											}
 										}
 									}
 									catch
 									{
-										await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon gegevens niet nakijken bij **`" + account.nickname.Replace("\\", string.Empty) + "`** met als ID **`" + account.account_id + "`");
+										await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon gegevens niet nakijken bij **`" + account.Nickname.Replace("\\", string.Empty) + "`** met als ID **`" + account.AccountId + "`");
 									}
 								}
 							}
@@ -1812,7 +1817,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				{
 					try
 					{
-						WGAccount account = new(_options.WarGamingAppId, id, false, true, true);
+						PlayerInfo account = await _accountRepository.GetByIdAsync(id, false, true, true);
 						await _userService.ShowMemberInfo(ctx.Channel, account);
 					}
 					catch (Exception ex)

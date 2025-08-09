@@ -92,7 +92,7 @@ internal class ClanService(IOptions<BotOptions> options,
 	{
 		try
 		{
-			IReadOnlyList<WGClan> clans = await WGClan.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, clan_naam, _options.WarGamingAppId, loadMembers);
+			IReadOnlyList<WGClan> clans = await WGClan.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, clan_naam, _options.WotbApi.ApplicationId, loadMembers);
 			int aantalClans = clans.Count;
 			List<WGClan> clanList = [];
 			foreach (WGClan clan in clans)

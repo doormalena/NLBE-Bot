@@ -1,5 +1,6 @@
 namespace NLBE_Bot.Tests;
 
+using FMWOTB.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -30,7 +31,7 @@ public class ProgramTests
 								{
 									DiscordToken = "dummy-token",
 									MemberDefaultRoleId = 1234567890,
-									WarGamingAppId = "dummy-appid"
+									WotbApi = new() { ApplicationId = "dummy-appid", BaseUri = "https://apitest.something.test" }
 								}));
 							})
 							.Build();
@@ -43,6 +44,7 @@ public class ProgramTests
 		Assert.IsNotNull(services.GetService<IOptions<BotOptions>>());
 		Assert.IsNotNull(services.GetService<IDiscordClient>());
 		Assert.IsNotNull(services.GetService<IBotState>());
+		Assert.IsNotNull(services.GetService<IWotbConnection>());
 		Assert.IsNotNull(botHostedService);
 		Assert.IsNotNull(services.GetService<BotCommands>());
 		Assert.IsNotNull(services.GetService<IBotEventHandlers>());
@@ -59,11 +61,11 @@ public class ProgramTests
 		Assert.IsNotNull(services.GetService<ITournamentService>());
 		Assert.IsNotNull(services.GetService<IBlitzstarsService>());
 		Assert.IsNotNull(services.GetService<IClanService>());
-		Assert.IsNotNull(services.GetService<IWGAccountService>());
 		Assert.IsNotNull(services.GetService<IJob<AnnounceWeeklyWinnerJob>>());
 		Assert.IsNotNull(services.GetService<IJob<VerifyServerNicknamesJob>>());
 		Assert.IsNotNull(services.GetService<IDiscordMessageUtils>());
 		Assert.IsNotNull(services.GetService<IPublicIpAddress>());
 		Assert.IsNotNull(services.GetService<IApiRequester>());
+		Assert.IsNotNull(services.GetService<IAccountsRepository>());
 	}
 }

@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Interfaces;
 
-using FMWOTB.Account;
 using FMWOTB.Clans;
+using FMWOTB.Models;
 using NLBE_Bot.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -22,5 +22,5 @@ internal interface IUserService
 
 	public List<DEF> ListInMemberEmbed(int columns, List<IDiscordMember> memberList, string searchTerm);
 
-	public Task<WGAccount> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam);
+	public Task<PlayerInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam);
 }

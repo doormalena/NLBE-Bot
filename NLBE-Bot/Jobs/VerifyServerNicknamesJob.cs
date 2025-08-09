@@ -1,5 +1,7 @@
 namespace NLBE_Bot.Jobs;
 
+using FMWOTB.Models;
+using FMWOTB.Interfaces;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -14,7 +16,7 @@ using System.Threading.Tasks;
 internal class VerifyServerNicknamesJob(IUserService userService,
 								 IChannelService channelService,
 								 IMessageService messageService,
-								 IWGAccountService wgAccountService,
+								 IAccountsRepository accountRepository,
 								 IOptions<BotOptions> options,
 								 IBotState botState,
 								 ILogger<VerifyServerNicknamesJob> logger) : IJob<VerifyServerNicknamesJob>
@@ -22,7 +24,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
-	private readonly IWGAccountService _wgAccountService = wgAccountService ?? throw new ArgumentNullException(nameof(wgAccountService));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -94,12 +96,12 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		}
 
 		WotbPlayerNameInfo playerNameInfo = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
-		IReadOnlyList<IWGAccount> wgAccounts = await _wgAccountService.SearchByName(SearchAccuracy.EXACT, playerNameInfo.PlayerName, _options.WarGamingAppId, false, true, false);
+		IReadOnlyList<PlayerInfo> wgAccounts = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, playerNameInfo.PlayerName, false, true, false);
 
 		if (wgAccounts?.Count > 0)
 		{
-			IWGAccount account = wgAccounts[0];
-			string clanTag = account.Clan != null ? account.Clan.Tag : string.Empty;
+			PlayerInfo account = wgAccounts[0];
+			string clanTag = account.Clan != null ? account.Clan.tag : string.Empty;
 			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
 
 			if (account.Nickname != null && !member.DisplayName.Equals(expectedDisplayName))

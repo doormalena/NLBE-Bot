@@ -2,6 +2,8 @@ namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.EventArgs;
+using FMWOTB.Interfaces;
+using FMWOTB.Models;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,14 +23,14 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 									   IChannelService channelService,
 									   IUserService userService,
 									   IMessageService messageService,
-									   IWGAccountService wgAccountService) : IGuildMemberEventHandler
+									   IAccountsRepository accountRepository) : IGuildMemberEventHandler
 {
 	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
-	private readonly IWGAccountService _wgAccountService = wgAccountService ?? throw new ArgumentNullException(nameof(wgAccountService));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 
 	private IBotState _botState;
 
@@ -89,7 +91,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
 			await welkomChannel.SendMessageAsync(member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.");
 
-			IReadOnlyList<IWGAccount> searchResults = [];
+			IReadOnlyList<PlayerInfo> searchResults = [];
 			bool resultFound = false;
 			StringBuilder sbDescription = new();
 			int counter = 0;
@@ -108,17 +110,17 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				}
 
 				string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
-				searchResults = await _wgAccountService.SearchByName(SearchAccuracy.EXACT, ign, _options.WarGamingAppId, false, true, false);
+				searchResults = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, ign, false, true, false);
 
 				if (searchResults != null && searchResults.Count > 0)
 				{
 					resultFound = true;
-					foreach (IWGAccount tempAccount in searchResults)
+					foreach (PlayerInfo tempAccount in searchResults)
 					{
 						string tempClanName = string.Empty;
 						if (tempAccount.Clan != null)
 						{
-							tempClanName = tempAccount.Clan.Tag;
+							tempClanName = tempAccount.Clan.tag;
 						}
 
 						try
@@ -143,18 +145,18 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				}
 			}
 
-			IWGAccount account = searchResults[selectedAccount];
+			PlayerInfo account = searchResults[selectedAccount];
 
 			string clanName = string.Empty;
-			if (account.Clan != null && account.Clan.Tag != null)
+			if (account.Clan != null && account.Clan.tag != null)
 			{
-				if (account.Clan.Id.Equals(Constants.NLBE_CLAN_ID) || account.Clan.Id.Equals(Constants.NLBE2_CLAN_ID))
+				if (account.Clan.clan_id.Equals(Constants.NLBE_CLAN_ID) || account.Clan.clan_id.Equals(Constants.NLBE2_CLAN_ID))
 				{
-					await member.SendMessageAsync("Indien je echt van **" + account.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + account.Clan.Tag + "** rol wilt geven.");
+					await member.SendMessageAsync("Indien je echt van **" + account.Clan.tag + "** bent dan moet je even vragen of iemand jouw de **" + account.Clan.tag + "** rol wilt geven.");
 				}
 				else
 				{
-					clanName = account.Clan.Tag;
+					clanName = account.Clan.tag;
 				}
 			}
 

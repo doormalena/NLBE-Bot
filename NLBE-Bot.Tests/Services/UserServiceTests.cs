@@ -1,5 +1,6 @@
 namespace NLBE_Bot.Tests.Services;
 
+using FMWOTB.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -13,20 +14,17 @@ using NSubstitute;
 public class UserServiceTests
 {
 	private IMessageService? _messageServcieMock;
-	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<UserService>? _loggerMock;
+	private IAccountsRepository? _accountRepositoryMock;
 	private UserService? _userService;
 
 	[TestInitialize]
 	public void Setup()
 	{
-		_optionsMock = Substitute.For<IOptions<BotOptions>>();
-		_optionsMock.Value.Returns(new BotOptions()
-		{
-		});
 		_messageServcieMock = Substitute.For<IMessageService>();
 		_loggerMock = Substitute.For<ILogger<UserService>>();
-		_userService = new UserService(_loggerMock, _optionsMock, _messageServcieMock);
+		_accountRepositoryMock = Substitute.For<IAccountsRepository>();
+		_userService = new UserService(_loggerMock, _messageServcieMock, _accountRepositoryMock);
 	}
 
 	[TestMethod]

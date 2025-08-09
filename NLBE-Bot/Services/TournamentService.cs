@@ -78,7 +78,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 
 	public async Task<List<WGTournament>> InitialiseTournaments(bool all)
 	{
-		string tournamentJson = await Tournaments.tournamentsToString(_options.WarGamingAppId);
+		string tournamentJson = await Tournaments.tournamentsToString(_options.WotbApi.ApplicationId);
 		Json json = new(tournamentJson, "Tournaments");
 		List<WGTournament> tournamentsList = [];
 
@@ -95,9 +95,9 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							if (tournaments.start_at.Value > DateTime.Now || all)
 							{
-								string wgTournamentJsonString = await WGTournament.tournamentsToString(_options.WarGamingAppId, tournaments.tournament_id);
+								string wgTournamentJsonString = await WGTournament.tournamentsToString(_options.WotbApi.ApplicationId, tournaments.tournament_id);
 								Json wgTournamentJson = new(wgTournamentJsonString, "WGTournament");
-								WGTournament eenToernooi = new(wgTournamentJson, _options.WarGamingAppId);
+								WGTournament eenToernooi = new(wgTournamentJson, _options.WotbApi.ApplicationId);
 								tournamentsList.Add(eenToernooi);
 							}
 						}

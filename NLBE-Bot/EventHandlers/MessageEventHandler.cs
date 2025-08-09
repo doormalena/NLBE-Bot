@@ -493,7 +493,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			return;
 		}
 
-		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WarGamingAppId, ["name"]);
+		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WotbApi.ApplicationId, ["name"]);
 		Json json = new(vehiclesInString, string.Empty);
 		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
 

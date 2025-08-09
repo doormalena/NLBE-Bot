@@ -3,6 +3,8 @@ namespace NLBE_Bot.Services;
 using DiscordHelper;
 using DSharpPlus.Entities;
 using FMWOTB.Account;
+using FMWOTB.Interfaces;
+using FMWOTB.Models;
 using FMWOTB.Tools;
 using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
@@ -18,11 +20,15 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions> options, IWeeklyEventService weeklyEventHandler) : IReplayService
+internal class ReplayService(ILogger<ReplayService> logger,
+					 		 IOptions<BotOptions> options,
+						 	 IWeeklyEventService weeklyEventHandler,
+							 IAccountsRepository accountRepository) : IReplayService
 {
 	private readonly ILogger<ReplayService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 
 	public async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
 	{
@@ -47,7 +53,9 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 	{
 		string json = string.Empty;
 		bool playerIDFound = false;
-		IReadOnlyList<WGAccount> accountInfo = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, _options.WarGamingAppId, false, true, false);
+
+		IReadOnlyList<PlayerInfo> accountInfo = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, ign, false, true, false);
+
 		if (accountInfo != null)
 		{
 			if (accountInfo.Count > 0)
@@ -58,7 +66,7 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 					DiscordAttachment attach = (DiscordAttachment) attachment;
 					url = attach.Url;
 				}
-				json = await ReplayToString(url, titel, accountInfo[0].account_id);
+				json = await ReplayToString(url, titel, accountInfo[0].AccountId);
 			}
 		}
 		if (!playerIDFound)
@@ -165,7 +173,7 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 			List<FMWOTB.Achievement> achievementList = [];
 			for (int i = 0; i < battle.details.achievements.Count; i++)
 			{
-				FMWOTB.Achievement tempAchievement = FMWOTB.Achievement.getAchievement(_options.WarGamingAppId, battle.details.achievements.ElementAt(i).t).Result;
+				FMWOTB.Achievement tempAchievement = FMWOTB.Achievement.getAchievement(_options.WotbApi.ApplicationId, battle.details.achievements.ElementAt(i).t).Result;
 				if (tempAchievement != null)
 				{
 					achievementList.Add(tempAchievement);

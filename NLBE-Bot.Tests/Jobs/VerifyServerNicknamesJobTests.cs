@@ -1,6 +1,9 @@
 namespace NLBE_Bot.Tests.Jobs;
 
 using DSharpPlus;
+using FMWOTB.Clans;
+using FMWOTB.Interfaces;
+using FMWOTB.Models;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,7 +20,7 @@ public class VerifyServerNicknamesJobTests
 	private IUserService? _userServiceMock;
 	private IChannelService? _channelServiceMock;
 	private IMessageService? _messageServcieMock;
-	private IWGAccountService? _wgAcacountServiceMock;
+	private IAccountsRepository? _accountRepositoryMock;
 	private IBotState? _botStateMock;
 	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<VerifyServerNicknamesJob>? _loggerMock;
@@ -29,18 +32,17 @@ public class VerifyServerNicknamesJobTests
 		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_optionsMock.Value.Returns(new BotOptions()
 		{
-			WarGamingAppId = "dummy",
 			MemberDefaultRoleId = 1234567890,
 		});
 
 		_userServiceMock = Substitute.For<IUserService>();
 		_channelServiceMock = Substitute.For<IChannelService>();
 		_messageServcieMock = Substitute.For<IMessageService>();
-		_wgAcacountServiceMock = Substitute.For<IWGAccountService>();
+		_accountRepositoryMock = Substitute.For<IAccountsRepository>();
 		_botStateMock = Substitute.For<IBotState>();
 		_loggerMock = Substitute.For<ILogger<VerifyServerNicknamesJob>>();
 
-		_job = new(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock);
+		_job = new(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountRepositoryMock, _optionsMock, _botStateMock, _loggerMock);
 	}
 
 	[TestMethod]
@@ -159,13 +161,13 @@ public class VerifyServerNicknamesJobTests
 
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new WotbPlayerNameInfo("[NLBE]", "Player"));
 
-		IWGClan wgClan = Substitute.For<IWGClan>();
-		wgClan.Tag.Returns("NLBE");
-		IWGAccount wgAccount = Substitute.For<IWGAccount>();
-		wgAccount.Nickname.Returns("Player");
-		wgAccount.Clan.Returns(wgClan);
-		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
-			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([wgAccount]));
+		WGClan wgClan = Substitute.For<WGClan>();
+		wgClan.tag.Returns("NLBE");
+		PlayerInfo playerInfo = Substitute.For<PlayerInfo>();
+		playerInfo.Nickname.Returns("Player");
+		playerInfo.Clan.Returns(wgClan);
+		_accountRepositoryMock!.SearchByNameAsync(Arg.Any<SearchAccuracy>(), Arg.Any<string>(), Arg.Any<bool>(), Arg.Any<bool>(), Arg.Any<bool>())
+			.Returns(Task.FromResult<IReadOnlyList<PlayerInfo>>([playerInfo]));
 
 		// Act.
 		await _job!.Execute(DateTime.Today);
@@ -212,22 +214,22 @@ public class VerifyServerNicknamesJobTests
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member1.DisplayName).Returns(new WotbPlayerNameInfo("", "Player1"));
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member2.DisplayName).Returns(new WotbPlayerNameInfo("[NLBE2]", "Player2"));
 
-		IWGClan wgClan1 = Substitute.For<IWGClan>();
-		wgClan1.Tag.Returns("NLBE");
-		IWGAccount wgAccount1 = Substitute.For<IWGAccount>();
-		wgAccount1.Nickname.Returns("Player1");
-		wgAccount1.Clan.Returns(wgClan1);
+		WGClan wgClan1 = Substitute.For<WGClan>();
+		wgClan1.tag.Returns("NLBE");
+		PlayerInfo playerInfo1 = Substitute.For<PlayerInfo>();
+		playerInfo1.Nickname.Returns("Player1");
+		playerInfo1.Clan.Returns(wgClan1);
 
-		IWGClan wgClan2 = Substitute.For<IWGClan>();
-		wgClan2.Tag.Returns("TAG");
-		IWGAccount wgAccount2 = Substitute.For<IWGAccount>();
-		wgAccount2.Nickname.Returns("Player2");
-		wgAccount2.Clan.Returns(wgClan2);
+		WGClan wgClan2 = Substitute.For<WGClan>();
+		wgClan2.tag.Returns("TAG");
+		PlayerInfo playerInfo2 = Substitute.For<PlayerInfo>();
+		playerInfo2.Nickname.Returns("Player2");
+		playerInfo2.Clan.Returns(wgClan2);
 
-		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), "Player1", Arg.Any<string>(), false, true, false)
-			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([wgAccount1]));
-		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), "Player2", Arg.Any<string>(), false, true, false)
-			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([wgAccount2]));
+		_accountRepositoryMock!.SearchByNameAsync(Arg.Any<SearchAccuracy>(), "Player1", false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<PlayerInfo>>([playerInfo1]));
+		_accountRepositoryMock!.SearchByNameAsync(Arg.Any<SearchAccuracy>(), "Player2", false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<PlayerInfo>>([playerInfo2]));
 
 		// Act.
 		await _job!.Execute(DateTime.Today);
@@ -275,8 +277,8 @@ public class VerifyServerNicknamesJobTests
 		));
 
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member.DisplayName).Returns(new WotbPlayerNameInfo("[TAG]", "Player"));
-		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), "Player", Arg.Any<string>(), false, true, false)
-			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([]));
+		_accountRepositoryMock!.SearchByNameAsync(Arg.Any<SearchAccuracy>(), "Player", false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<PlayerInfo>>([]));
 
 		// Act.
 		await _job!.Execute(DateTime.Today);
@@ -368,10 +370,10 @@ public class VerifyServerNicknamesJobTests
 		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>([member]));
 
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new WotbPlayerNameInfo("", "Player"));
-		_wgAcacountServiceMock!.SearchByName(Arg.Any<SearchAccuracy>(), Arg.Any<string>(), Arg.Any<string>(), false, true, false)
-			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>(
+		_accountRepositoryMock!.SearchByNameAsync(Arg.Any<SearchAccuracy>(), Arg.Any<string>(), false, true, false)
+			.Returns(Task.FromResult<IReadOnlyList<PlayerInfo>>(
 			[
-			Substitute.For<IWGAccount>()
+			Substitute.For<PlayerInfo>()
 			]));
 
 		// Simulate UnauthorizedException when changing nickname.
@@ -398,18 +400,18 @@ public class VerifyServerNicknamesJobTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new VerifyServerNicknamesJob(null, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock));
+			  new VerifyServerNicknamesJob(null, _channelServiceMock, _messageServcieMock, _accountRepositoryMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, null, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, null, _messageServcieMock, _accountRepositoryMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, null, _wgAcacountServiceMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, null, _accountRepositoryMock, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
 			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, null, _optionsMock, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, null, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountRepositoryMock, null, _botStateMock, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, null, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountRepositoryMock, _optionsMock, null, _loggerMock));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _wgAcacountServiceMock, _optionsMock, _botStateMock, null));
+			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountRepositoryMock, _optionsMock, _botStateMock, null));
 	}
 }

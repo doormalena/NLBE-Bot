@@ -3,6 +3,9 @@ namespace NLBE_Bot;
 using DSharpPlus;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
+using FMWOTB;
+using FMWOTB.Interfaces;
+using FMWOTB.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -16,6 +19,7 @@ using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using System;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -63,6 +67,10 @@ public static class Program
 				{
 					return CreateDiscordClient(provider) as IDiscordClient;
 				});
+				services.AddHttpClient<IWotbConnection, WotbConnection>((client, provider) =>
+				{
+					return CreateWotbConnection(provider, client);
+				});
 				services.AddSingleton<IBotState>(provider =>
 				{
 					BotState botState = new();
@@ -85,13 +93,19 @@ public static class Program
 				services.AddSingleton<ITournamentService, TournamentService>();
 				services.AddSingleton<IBlitzstarsService, BlitzstarsService>();
 				services.AddSingleton<IClanService, ClanService>();
-				services.AddSingleton<IWGAccountService, WGAccountService>();
 				services.AddSingleton<IJob<AnnounceWeeklyWinnerJob>, AnnounceWeeklyWinnerJob>();
 				services.AddSingleton<IJob<VerifyServerNicknamesJob>, VerifyServerNicknamesJob>();
 				services.AddSingleton<IDiscordMessageUtils, DiscordMessageUtils>();
 				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
 				services.AddHttpClient<IApiRequester, ApiRequester>();
+				services.AddSingleton<IAccountsRepository, AccountsRepository>();
 			});
+	}
+
+	private static WotbConnection CreateWotbConnection(IServiceProvider provider, HttpClient client)
+	{
+		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
+		return new WotbConnection(client, options.WotbApi.ApplicationId, options.WotbApi.BaseUri);
 	}
 
 	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider)

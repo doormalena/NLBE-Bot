@@ -4,9 +4,10 @@ using DiscordHelper;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.Net.Models;
-using FMWOTB.Account;
 using FMWOTB.Clans;
 using FMWOTB.Exceptions;
+using FMWOTB.Interfaces;
+using FMWOTB.Models;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -21,11 +22,13 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> options, IMessageService messageService) : IUserService
+internal class UserService(ILogger<UserService> logger,
+						   IMessageService messageService,
+						   IAccountsRepository accountRepository) : IUserService
 {
 	private readonly ILogger<UserService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 
 	public async Task<IDiscordMember> GetDiscordMember(IDiscordGuild guild, ulong userID)
 	{
@@ -394,32 +397,32 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 			};
 			await _messageService.CreateEmbed(channel, embedOptions);
 		}
-		else if (gebruiker is WGAccount account)
+		else if (gebruiker is PlayerInfo account)
 		{
 			List<DEF> deflist = [];
-			WGAccount member = account;
+			PlayerInfo member = account;
 			try
 			{
 				DEF newDef1 = new()
 				{
 					Name = "Gebruikersnaam",
-					Value = member.nickname.AdaptToDiscordChat(),
+					Value = member.Nickname.AdaptToDiscordChat(),
 					Inline = true
 				};
 				deflist.Add(newDef1);
-				if (member.clan != null && member.clan.tag != null)
+				if (member.Clan != null && member.Clan.tag != null)
 				{
 					DEF newDef2 = new()
 					{
 						Name = "Clan",
-						Value = member.clan.tag.AdaptToDiscordChat(),
+						Value = member.Clan.tag.AdaptToDiscordChat(),
 						Inline = true
 					};
 					deflist.Add(newDef2);
 					DEF newDef4 = new()
 					{
 						Name = "Rol",
-						Value = member.clan.role.ToString().AdaptToDiscordChat(),
+						Value = member.Clan.role.ToString().AdaptToDiscordChat(),
 						Inline = true
 					};
 					deflist.Add(newDef4);
@@ -427,7 +430,7 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 					{
 						Name = "Clan gejoined op"
 					};
-					string[] splitted = member.clan.joined_at.Value.ConvertToDate().Split(' ');
+					string[] splitted = member.Clan.joined_at.Value.ConvertToDate().Split(' ');
 					newDef5.Value = splitted[0] + " " + splitted[1];
 					newDef5.Inline = true;
 					deflist.Add(newDef5);
@@ -442,62 +445,62 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 				DEF newDef3 = new()
 				{
 					Name = "SpelerID",
-					Value = member.account_id.ToString(),
+					Value = member.AccountId.ToString(),
 					Inline = true
 				};
 				deflist.Add(newDef3);
-				if (member.created_at.HasValue)
+				if (member.CreatedAt.HasValue)
 				{
 					DEF newDef6 = new()
 					{
 						Name = "Gestart op",
-						Value = member.created_at.Value.ConvertToDate(),
+						Value = member.CreatedAt.Value.ConvertToDate(),
 						Inline = true
 					};
 					deflist.Add(newDef6);
 				}
-				if (member.last_battle_time.HasValue)
+				if (member.LastBattleTime.HasValue)
 				{
 					DEF newDef6 = new()
 					{
 						Name = "Laatst actief",
-						Value = member.last_battle_time.Value.ConvertToDate(),
+						Value = member.LastBattleTime.Value.ConvertToDate(),
 						Inline = true
 					};
 					deflist.Add(newDef6);
 				}
-				if (member.statistics != null)
+				if (member.Statistics != null)
 				{
-					if (member.statistics.rating != null)
+					if (member.Statistics.rating != null)
 					{
 						DEF newDef4 = new()
 						{
 							Name = "Rating (WR)",
-							Value = member.statistics.rating.battles > 0 ? string.Format("{0:.##}", CalculateWinRate(member.statistics.rating.wins, member.statistics.rating.battles)) : "Nog geen rating gespeeld",
+							Value = member.Statistics.rating.battles > 0 ? string.Format("{0:.##}", CalculateWinRate(member.Statistics.rating.wins, member.Statistics.rating.battles)) : "Nog geen rating gespeeld",
 							Inline = true
 						};
 						deflist.Add(newDef4);
 					}
-					if (member.statistics.all != null)
+					if (member.Statistics.all != null)
 					{
 						DEF newDef5 = new()
 						{
 							Name = "Winrate",
-							Value = string.Format("{0:.##}", CalculateWinRate(member.statistics.all.wins, member.statistics.all.battles)),
+							Value = string.Format("{0:.##}", CalculateWinRate(member.Statistics.all.wins, member.Statistics.all.battles)),
 							Inline = true
 						};
 						deflist.Add(newDef5);
 						DEF newDef6 = new()
 						{
 							Name = "Gem. damage",
-							Value = (member.statistics.all.damage_dealt / member.statistics.all.battles).ToString(),
+							Value = (member.Statistics.all.damage_dealt / member.Statistics.all.battles).ToString(),
 							Inline = true
 						};
 						deflist.Add(newDef6);
 						DEF newDef7 = new()
 						{
 							Name = "Battles",
-							Value = member.statistics.all.battles.ToString(),
+							Value = member.Statistics.all.battles.ToString(),
 							Inline = true
 						};
 						deflist.Add(newDef7);
@@ -506,10 +509,10 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 
 				EmbedOptions embedOptions = new()
 				{
-					Title = "Info over " + member.nickname.AdaptToDiscordChat(),
+					Title = "Info over " + member.Nickname.AdaptToDiscordChat(),
 					Fields = deflist,
 					Color = Constants.BOT_COLOR,
-					NextMessage = member.blitzstars
+					NextMessage = member.BlitzStars
 				};
 
 				await _messageService.CreateEmbed(channel, embedOptions);
@@ -822,14 +825,14 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 
 		if (searchTerm.Contains('d'))
 		{
-			List<WGAccount> wgAccountList = memberList.Select(member => new WGAccount(_options.WarGamingAppId, member.account_id, false, false, false))
-													  .OrderBy(p => p.last_battle_time).Reverse().ToList();
+			List<PlayerInfo> wgAccountList = [.. memberList.Select(member => _accountRepository.GetByIdAsync(member.account_id, false, false, false).Result)
+													  .OrderBy(p => p.LastBattleTime).Reverse()];
 
-			nameList = wgAccountList.Select(member => member.nickname).ToList();
+			nameList = [.. wgAccountList.Select(member => member.Nickname)];
 		}
 		else
 		{
-			nameList = memberList.Select(member => member.account_name).ToList();
+			nameList = [.. memberList.Select(member => member.account_name)];
 		}
 
 		List<StringBuilder> sbs = [];
@@ -945,11 +948,11 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 		}
 		return deflist;
 	}
-	public async Task<WGAccount> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
+	public async Task<PlayerInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
 	{
 		try
 		{
-			IReadOnlyList<WGAccount> searchResults = await WGAccount.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, naam, _options.WarGamingAppId, false, false, true);
+			IReadOnlyList<PlayerInfo> searchResults = await _accountRepository.SearchByNameAsync(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, naam, true, false, true);
 			StringBuilder sb = new();
 			int index = 0;
 			if (searchResults != null)
@@ -957,16 +960,17 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 				if (searchResults.Count > 1)
 				{
 					int counter = 0;
-					foreach (WGAccount account in searchResults)
+					foreach (PlayerInfo account in searchResults)
 					{
 						counter++;
-						sb.AppendLine(counter + ". " + account.nickname.AdaptToDiscordChat());
+						sb.AppendLine(counter + ". " + account.Nickname.AdaptToDiscordChat());
 					}
 					index = await _messageService.WaitForReply(channel, user, sb.ToString(), searchResults.Count);
 				}
+
 				if (index >= 0 && searchResults.Count >= 1)
 				{
-					WGAccount account = new(_options.WarGamingAppId, searchResults[index].account_id, false, true, true);
+					PlayerInfo account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId, false, true, true);
 					await ShowMemberInfo(channel, account);
 					return account;
 				}
