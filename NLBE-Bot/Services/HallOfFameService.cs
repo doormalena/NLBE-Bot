@@ -2,7 +2,7 @@ namespace NLBE_Bot.Services;
 using DiscordHelper;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using FMWOTB;
+using FMWOTB.Exceptions;
 using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -486,7 +486,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 						// ▁
 						sb.AppendLine(i + 1 + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
 					}
-					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().adaptToDiscordChat());
+					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().AdaptToDiscordChat());
 				}
 			}
 

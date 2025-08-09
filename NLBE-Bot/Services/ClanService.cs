@@ -1,8 +1,8 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using FMWOTB;
 using FMWOTB.Clans;
+using FMWOTB.Exceptions;
 using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,7 +29,7 @@ internal class ClanService(IOptions<BotOptions> options,
 		DEF newDef1 = new()
 		{
 			Name = "Clannaam",
-			Value = clan.name.adaptToDiscordChat(),
+			Value = clan.name.AdaptToDiscordChat(),
 			Inline = true
 		};
 		deflist.Add(newDef1);
@@ -50,7 +50,7 @@ internal class ClanService(IOptions<BotOptions> options,
 		DEF newDef4 = new()
 		{
 			Name = "ClanTag",
-			Value = clan.tag.adaptToDiscordChat(),
+			Value = clan.tag.AdaptToDiscordChat(),
 			Inline = true
 		};
 		deflist.Add(newDef4);
@@ -68,21 +68,21 @@ internal class ClanService(IOptions<BotOptions> options,
 		DEF newDef6 = new()
 		{
 			Name = "Clan motto",
-			Value = clan.motto.adaptDiscordLink().adaptToDiscordChat(),
+			Value = clan.motto.AdaptDiscordLink().AdaptToDiscordChat(),
 			Inline = false
 		};
 		deflist.Add(newDef6);
 		DEF newDef7 = new()
 		{
 			Name = "Clan beschrijving",
-			Value = clan.description.adaptDiscordLink().adaptToDiscordChat(),
+			Value = clan.description.AdaptDiscordLink().AdaptToDiscordChat(),
 			Inline = false
 		};
 		deflist.Add(newDef7);
 
 		EmbedOptions options = new()
 		{
-			Title = "Info over " + clan.name.adaptToDiscordChat(),
+			Title = "Info over " + clan.name.AdaptToDiscordChat(),
 			Fields = deflist,
 		};
 		await _messageService.CreateEmbed(channel, options);

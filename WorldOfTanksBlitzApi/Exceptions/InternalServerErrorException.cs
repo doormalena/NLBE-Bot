@@ -1,6 +1,8 @@
-﻿using System;
-namespace FMWOTB.Exceptions {
-    public class InternalServerErrorException : Exception {
-        
-    }
+using System;
+namespace FMWOTB.Exceptions
+{
+	public class InternalServerErrorException : Exception
+	{
+
+	}
 }

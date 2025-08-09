@@ -132,8 +132,8 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 	private string GetSomeReplayInfoAsText(WGBattle battle, int position)
 	{
 		StringBuilder sb = new();
-		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.adaptToDiscordChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.adaptToDiscordChat() + ")", false));
-		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.adaptToDiscordChat()));
+		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.AdaptToDiscordChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.AdaptToDiscordChat() + ")", false));
+		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.AdaptToDiscordChat()));
 		sb.AppendLine(GetInfoInFormat("Clan", battle.details.clan_tag));
 		sb.AppendLine(GetInfoInFormat("Tank", battle.vehicle));
 		sb.AppendLine(GetInfoInFormat("Tier", Emoj.GetName(battle.vehicle_tier), false));

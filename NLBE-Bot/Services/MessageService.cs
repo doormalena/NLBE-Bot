@@ -128,7 +128,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		try
 		{
-			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.adaptToDiscordChat(), DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.AdaptToDiscordChat(), DiscordColor.Red);
 			return channel.SendMessageAsync(null, embed).Result;
 		}
 		catch (Exception ex)

@@ -4,9 +4,9 @@ using DiscordHelper;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using FMWOTB;
 using FMWOTB.Account;
 using FMWOTB.Clans;
+using FMWOTB.Exceptions;
 using FMWOTB.Tools;
 using FMWOTB.Tournament;
 using Microsoft.Extensions.Logging;
@@ -96,21 +96,21 @@ internal class BotCommands(IDiscordClient discordClient,
 							DEF newDef1 = new()
 							{
 								Name = "Type",
-								Value = (string.IsNullOrEmpty(type) ? "Quick Tournament" : type).adaptToDiscordChat(),
+								Value = (string.IsNullOrEmpty(type) ? "Quick Tournament" : type).AdaptToDiscordChat(),
 								Inline = true
 							};
 							deflist.Add(newDef1);
 							DEF newDef2 = new()
 							{
 								Name = "Wanneer?",
-								Value = wanneer.adaptToDiscordChat(),
+								Value = wanneer.AdaptToDiscordChat(),
 								Inline = true
 							};
 							deflist.Add(newDef2);
 							DEF newDef3 = new()
 							{
 								Name = "Organisator",
-								Value = ctx.Member.DisplayName.adaptToDiscordChat(),
+								Value = ctx.Member.DisplayName.AdaptToDiscordChat(),
 								Inline = true
 							};
 							deflist.Add(newDef3);
@@ -417,7 +417,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					{
 						Inline = true,
 						Name = "Alle deelnemers (" + participants.Count + "):",
-						Value = sb.ToString().adaptToDiscordChat()
+						Value = sb.ToString().AdaptToDiscordChat()
 					};
 					deflist.Add(newDef);
 				}
@@ -497,7 +497,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					DEF def = new()
 					{
 						Inline = true,
-						Name = item.Key.adaptToDiscordChat(),
+						Name = item.Key.AdaptToDiscordChat(),
 						Value = item.Value
 					};
 					deflist.Add(def);
@@ -506,7 +506,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				EmbedOptions embedOptions = new()
 				{
 					Title = "Poll",
-					Description = uitleg.adaptToDiscordChat(),
+					Description = uitleg.AdaptToDiscordChat(),
 					Fields = deflist,
 					Emojis = emojiList,
 				};
@@ -696,7 +696,7 @@ internal class BotCommands(IDiscordClient discordClient,
 										bool allGood = true;
 										goodOption = true;
 										string link = "www.blitzstars.com/player/eu/" + account.nickname;
-										subject = subject.Replace("<|>", "**" + account.nickname.adaptToDiscordChat() + "**");
+										subject = subject.Replace("<|>", "**" + account.nickname.AdaptToDiscordChat() + "**");
 										subject = subject.Replace("<link>", "[" + link + "](https://" + link + ")");
 										if (account.last_battle_time.HasValue)
 										{
@@ -1692,7 +1692,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			}
 			EmbedOptions embedOptions = new()
 			{
-				Title = "Gebruikerslijst [" + ctx.Guild.Name.adaptToDiscordChat() + ": " + members.Count + "] (Gevonden: " + amountOfMembers + ") " + "(Gesorteerd: " + sortedBy + ")",
+				Title = "Gebruikerslijst [" + ctx.Guild.Name.AdaptToDiscordChat() + ": " + members.Count + "] (Gevonden: " + amountOfMembers + ") " + "(Gesorteerd: " + sortedBy + ")",
 				Description = usersFound ? string.Empty : "Geen gebruikers gevonden die voldoen aan de zoekterm!",
 				Fields = usersFound ? deflist : null
 			};
@@ -1770,7 +1770,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				}
 				EmbedOptions embedOptions = new()
 				{
-					Title = "Clanmembers van [" + clan.tag.adaptToDiscordChat() + "] (Gevonden: " + clan.members.Count + ") (Gesorteerd: " + sorting + ")",
+					Title = "Clanmembers van [" + clan.tag.AdaptToDiscordChat() + "] (Gevonden: " + clan.members.Count + ") (Gesorteerd: " + sorting + ")",
 					Fields = defList
 				};
 				await _messageService.CreateEmbed(ctx.Channel, embedOptions);
