@@ -17,44 +17,52 @@ public class WotbConnectionTests
 	private const string BaseUri = "https://api.test.com";
 	private const string RelativeUrl = "endpoint";
 	private const string ExpectedContent = "{ \"status\": \"ok\", \"data\": [ ] }";
+	private MockHttpMessageHandler? _mockHttp;
+	private HttpClient? _httpClient;
+
+	[TestInitialize]
+	public void Setup()
+	{
+		_mockHttp = new();
+		_httpClient = _mockHttp.ToHttpClient();
+	}
 
 	[TestMethod]
 	public async Task PostAsync_ReturnsContent_OnSuccess()
 	{
-		MockHttpMessageHandler mockHttp = new();
+		// Arrange.
 		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
 
-		mockHttp.When(HttpMethod.Post, expectedUrl)
+		_mockHttp!.When(HttpMethod.Post, expectedUrl)
 			.Respond("application/json", ExpectedContent);
 
-		HttpClient httpClient = mockHttp.ToHttpClient();
-
-		WotbConnection connection = new(httpClient, ApplicationId, BaseUri);
+		WotbConnection connection = new(_httpClient, ApplicationId, BaseUri);
 
 		MultipartFormDataContent form = [];
 		form.Add(new StringContent("value"), "key");
 
+		// Act.
 		string result = await connection.PostAsync(RelativeUrl, form);
 
+		// Assert.
 		Assert.AreEqual(ExpectedContent, result);
 	}
 
 	[TestMethod]
 	public async Task PostAsync_ThrowsInternalServerErrorException_OnServerError()
 	{
-		MockHttpMessageHandler mockHttp = new();
+		// Arrange.
 		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
 
-		mockHttp.When(HttpMethod.Post, expectedUrl)
+		_mockHttp!.When(HttpMethod.Post, expectedUrl)
 			.Respond(HttpStatusCode.InternalServerError);
 
-		HttpClient httpClient = mockHttp.ToHttpClient();
-
-		WotbConnection connection = new(httpClient, ApplicationId, BaseUri);
+		WotbConnection connection = new(_httpClient, ApplicationId, BaseUri);
 
 		MultipartFormDataContent form = [];
 		form.Add(new StringContent("value"), "key");
 
+		// Act & Assert.
 		await Assert.ThrowsExceptionAsync<InternalServerErrorException>(async () =>
 		{
 			await connection.PostAsync(RelativeUrl, form);
@@ -64,12 +72,12 @@ public class WotbConnectionTests
 	[TestMethod]
 	public async Task PostAsync_AppendsApplicationIdToForm()
 	{
+		// Arrange.
 		string? foundAppId = null;
 
-		MockHttpMessageHandler mockHttp = new();
 		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
 
-		mockHttp.When(HttpMethod.Post, expectedUrl)
+		_mockHttp!.When(HttpMethod.Post, expectedUrl)
 			.With(message =>
 			{
 				if (message.Content is MultipartFormDataContent formData)
@@ -91,25 +99,23 @@ public class WotbConnectionTests
 			})
 			.Respond("application/json", ExpectedContent);
 
-		HttpClient httpClient = mockHttp.ToHttpClient();
-
-		WotbConnection connection = new(httpClient, ApplicationId, BaseUri);
+		WotbConnection connection = new(_httpClient, ApplicationId, BaseUri);
 
 		MultipartFormDataContent form = [];
 		form.Add(new StringContent("value"), "key");
 
-		string result = await connection.PostAsync(RelativeUrl, form);
+		// Act.
+		_ = await connection.PostAsync(RelativeUrl, form);
 
+		// Assert.
 		Assert.AreEqual(ApplicationId, foundAppId, "application_id was not found in the form data.");
 	}
 
 	[TestMethod]
 	public async Task PostAsync_ThrowsArgumentNullException_WhenFormIsNull()
 	{
-		MockHttpMessageHandler mockHttp = new();
-		HttpClient httpClient = mockHttp.ToHttpClient();
-
-		WotbConnection connection = new(httpClient, ApplicationId, BaseUri);
+		// Act & Assert.
+		WotbConnection connection = new(_httpClient, ApplicationId, BaseUri);
 
 		await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
 		{
