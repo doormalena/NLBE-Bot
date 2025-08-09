@@ -1,7 +1,6 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.Net.Models;
@@ -266,12 +265,9 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 				isFromNLBE = true;
 			}
 		}
-		if (!isFromNLBE)
+		if (!isFromNLBE && (returnString.StartsWith("[NLBE]") || returnString.StartsWith("[NLBE2]")))
 		{
-			if (returnString.StartsWith("[NLBE]") || returnString.StartsWith("[NLBE2]"))
-			{
-				returnString = returnString.Replace("[NLBE2]", "[]").Replace("[NLBE]", "[]");
-			}
+			returnString = returnString.Replace("[NLBE2]", "[]").Replace("[NLBE]", "[]");
 		}
 
 		while (returnString.EndsWith(' '))
@@ -336,7 +332,7 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 			};
 			StringBuilder sbRoles = new();
 			bool firstTime = true;
-			foreach (DiscordRole role in discordMember.Roles)
+			foreach (IDiscordRole role in discordMember.Roles)
 			{
 				if (firstTime)
 				{
@@ -367,15 +363,9 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 			{
 				StringBuilder sb = new();
 				sb.AppendLine(discordMember.Presence.Status.ToString());
-				if (discordMember.Presence.Activity != null)
+				if (discordMember.Presence.Activity != null && discordMember.Presence.Activity.CustomStatus != null && discordMember.Presence.Activity.CustomStatus.Name != null)
 				{
-					if (discordMember.Presence.Activity.CustomStatus != null)
-					{
-						if (discordMember.Presence.Activity.CustomStatus.Name != null)
-						{
-							sb.AppendLine(discordMember.Presence.Activity.CustomStatus.Name);
-						}
-					}
+					sb.AppendLine(discordMember.Presence.Activity.CustomStatus.Name);
 				}
 				DEF newDef6 = new()
 				{
@@ -385,27 +375,24 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 				};
 				deflist.Add(newDef6);
 			}
-			if (discordMember.Verified.HasValue)
+			if (discordMember.Verified.HasValue && !discordMember.Verified.Value)
 			{
-				if (!discordMember.Verified.Value)
+				DEF newDef6 = new()
 				{
-					DEF newDef6 = new()
-					{
-						Name = "Niet bevestigd!",
-						Value = "Dit account is niet bevestigd!",
-						Inline = true
-					};
-					deflist.Add(newDef6);
-				}
+					Name = "Niet bevestigd!",
+					Value = "Dit account is niet bevestigd!",
+					Inline = true
+				};
+				deflist.Add(newDef6);
 			}
 
-			EmbedOptions options = new()
+			EmbedOptions embedOptions = new()
 			{
 				Title = "Info over " + discordMember.DisplayName.adaptToDiscordChat() + (discordMember.IsBot ? " [BOT]" : ""),
 				Fields = deflist,
 				Author = newAuthor,
 			};
-			await _messageService.CreateEmbed(channel, options);
+			await _messageService.CreateEmbed(channel, embedOptions);
 		}
 		else if (gebruiker is WGAccount account)
 		{
@@ -420,33 +407,30 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 					Inline = true
 				};
 				deflist.Add(newDef1);
-				if (member.clan != null)
+				if (member.clan != null && member.clan.tag != null)
 				{
-					if (member.clan.tag != null)
+					DEF newDef2 = new()
 					{
-						DEF newDef2 = new()
-						{
-							Name = "Clan",
-							Value = member.clan.tag.adaptToDiscordChat(),
-							Inline = true
-						};
-						deflist.Add(newDef2);
-						DEF newDef4 = new()
-						{
-							Name = "Rol",
-							Value = member.clan.role.ToString().adaptToDiscordChat(),
-							Inline = true
-						};
-						deflist.Add(newDef4);
-						DEF newDef5 = new()
-						{
-							Name = "Clan gejoined op"
-						};
-						string[] splitted = member.clan.joined_at.Value.ConvertToDate().Split(' ');
-						newDef5.Value = splitted[0] + " " + splitted[1];
-						newDef5.Inline = true;
-						deflist.Add(newDef5);
-					}
+						Name = "Clan",
+						Value = member.clan.tag.adaptToDiscordChat(),
+						Inline = true
+					};
+					deflist.Add(newDef2);
+					DEF newDef4 = new()
+					{
+						Name = "Rol",
+						Value = member.clan.role.ToString().adaptToDiscordChat(),
+						Inline = true
+					};
+					deflist.Add(newDef4);
+					DEF newDef5 = new()
+					{
+						Name = "Clan gejoined op"
+					};
+					string[] splitted = member.clan.joined_at.Value.ConvertToDate().Split(' ');
+					newDef5.Value = splitted[0] + " " + splitted[1];
+					newDef5.Inline = true;
+					deflist.Add(newDef5);
 				}
 			}
 			catch (Exception ex)
@@ -520,7 +504,7 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 					}
 				}
 
-				EmbedOptions options = new()
+				EmbedOptions embedOptions = new()
 				{
 					Title = "Info over " + member.nickname.adaptToDiscordChat(),
 					Fields = deflist,
@@ -528,7 +512,7 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 					NextMessage = member.blitzstars
 				};
 
-				await _messageService.CreateEmbed(channel, options);
+				await _messageService.CreateEmbed(channel, embedOptions);
 			}
 		}
 		else if (gebruiker is DiscordUser discordUser)
@@ -562,18 +546,15 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 			newDef4.Value = splitted[0] + " " + splitted[1];
 			newDef4.Inline = true;
 			deflist.Add(newDef4);
-			if (discordUser.Flags.HasValue)
+			if (discordUser.Flags.HasValue && !discordUser.Flags.Value.ToString().Equals("None"))
 			{
-				if (!discordUser.Flags.Value.ToString().Equals("None"))
+				DEF newDef2 = new()
 				{
-					DEF newDef2 = new()
-					{
-						Name = "Discord Medailles",
-						Value = discordUser.Flags.Value.ToString(),
-						Inline = true
-					};
-					deflist.Add(newDef2);
-				}
+					Name = "Discord Medailles",
+					Value = discordUser.Flags.Value.ToString(),
+					Inline = true
+				};
+				deflist.Add(newDef2);
 			}
 			if (discordUser.Email != null && discordUser.Email.Length > 0)
 			{
@@ -614,26 +595,20 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 					{
 						string temp = string.Empty;
 						bool customStatus = false;
-						if (item.CustomStatus != null)
+						if (item.CustomStatus != null && item.CustomStatus.Name.Length > 0)
 						{
-							if (item.CustomStatus.Name.Length > 0)
-							{
-								customStatus = true;
-								temp = (item.CustomStatus.Emoji != null ? item.CustomStatus.Emoji.Name : string.Empty) + item.CustomStatus.Name;
-							}
+							customStatus = true;
+							temp = (item.CustomStatus.Emoji != null ? item.CustomStatus.Emoji.Name : string.Empty) + item.CustomStatus.Name;
 						}
 						if (!customStatus)
 						{
 							temp = item.Name;
 						}
 						bool streaming = false;
-						if (item.StreamUrl != null)
+						if (item.StreamUrl != null && item.StreamUrl.Length > 0)
 						{
-							if (item.StreamUrl.Length > 0)
-							{
-								streaming = true;
-								sb.AppendLine("[" + temp + "](" + item.StreamUrl + ")");
-							}
+							streaming = true;
+							sb.AppendLine("[" + temp + "](" + item.StreamUrl + ")");
 						}
 						if (!streaming)
 						{
@@ -652,24 +627,18 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 				{
 					string temp = string.Empty;
 					bool customStatus = false;
-					if (discordUser.Presence.Activity.CustomStatus != null)
+					if (discordUser.Presence.Activity.CustomStatus != null && discordUser.Presence.Activity.CustomStatus.Name.Length > 0)
 					{
-						if (discordUser.Presence.Activity.CustomStatus.Name.Length > 0)
-						{
-							customStatus = true;
-							temp = (discordUser.Presence.Activity.CustomStatus.Emoji != null ? discordUser.Presence.Activity.CustomStatus.Emoji.Name : string.Empty) + discordUser.Presence.Activity.CustomStatus.Name;
-						}
+						customStatus = true;
+						temp = (discordUser.Presence.Activity.CustomStatus.Emoji != null ? discordUser.Presence.Activity.CustomStatus.Emoji.Name : string.Empty) + discordUser.Presence.Activity.CustomStatus.Name;
 					}
 					if (!customStatus)
 					{
 						bool streaming = false;
-						if (discordUser.Presence.Activity.StreamUrl != null)
+						if (discordUser.Presence.Activity.StreamUrl != null && discordUser.Presence.Activity.StreamUrl.Length > 0)
 						{
-							if (discordUser.Presence.Activity.StreamUrl.Length > 0)
-							{
-								streaming = true;
-								temp = "[" + discordUser.Presence.Activity.Name + "](" + discordUser.Presence.Activity.StreamUrl + ")";
-							}
+							streaming = true;
+							temp = "[" + discordUser.Presence.Activity.Name + "](" + discordUser.Presence.Activity.StreamUrl + ")";
 						}
 						if (!streaming)
 						{
@@ -725,27 +694,24 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 				};
 				deflist.Add(newDef7);
 			}
-			if (discordUser.Verified.HasValue)
+			if (discordUser.Verified.HasValue && !discordUser.Verified.Value)
 			{
-				if (!discordUser.Verified.Value)
+				DEF newDef6 = new()
 				{
-					DEF newDef6 = new()
-					{
-						Name = "Niet bevestigd!",
-						Value = "Dit account is niet bevestigd!",
-						Inline = true
-					};
-					deflist.Add(newDef6);
-				}
+					Name = "Niet bevestigd!",
+					Value = "Dit account is niet bevestigd!",
+					Inline = true
+				};
+				deflist.Add(newDef6);
 			}
 
-			EmbedOptions options = new()
+			EmbedOptions embedOptions = new()
 			{
 				Title = "Info over " + discordUser.Username.adaptToDiscordChat() + "#" + discordUser.Discriminator + (discordUser.IsBot ? " [BOT]" : ""),
 				Fields = deflist,
 				Author = newAuthor,
 			};
-			await _messageService.CreateEmbed(channel, options);
+			await _messageService.CreateEmbed(channel, embedOptions);
 		}
 	}
 	public List<DEF> ListInMemberEmbed(int columns, List<IDiscordMember> memberList, string searchTerm)
@@ -1022,35 +988,8 @@ internal class UserService(ILogger<UserService> logger, IOptions<BotOptions> opt
 		return null;
 	}
 
-	public bool HasPermission(IDiscordMember member, IDiscordCommand command)
-	{
-		if (member.Guild.Id != _options.ServerId)
-		{
-			return false;
-		}
-
-		return command.Name.ToLower() switch
-		{
-			"help" or "map" or "gebruiker" or "gebruikerslijst" or "clan" or "clanmembers" or "spelerinfo" => true,
-			"toernooi" or "toernooien" => HasAnyRole(member, Constants.TOERNOOI_DIRECTIE),
-			"teams" => HasAnyRole(member, Constants.NLBE_ROLE, Constants.NLBE2_ROLE, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
-			"tagteams" => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
-			"hof" or "hofplayer" => HasAnyRole(member, Constants.NLBE_ROLE, Constants.NLBE2_ROLE),
-			"resethof" or "weekly" or "updategebruikers" => HasAnyRole(member, Constants.BEHEERDER_ROLE, Constants.DISCORD_ADMIN_ROLE),
-			"removeplayerhof" or "renameplayerhof" => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE),
-			"poll" => member.Id.Equals(414421187888676875) || HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
-			"deputypoll" => HasAnyRole(member, Constants.DEPUTY_ROLE, Constants.DEPUTY_NLBE_ROLE, Constants.DEPUTY_NLBE2_ROLE, Constants.DISCORD_ADMIN_ROLE),
-			_ => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
-		};
-	}
-	private static bool HasAnyRole(IDiscordMember member, params ulong[] roleIds)
-	{
-		return member.Roles.Any(role => roleIds.Contains(role.Id));
-	}
-
 	private static double CalculateWinRate(int wins, int battles)
 	{
 		return wins / battles * 100;
 	}
-
 }

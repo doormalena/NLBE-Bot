@@ -23,6 +23,4 @@ internal interface IUserService
 	public List<DEF> ListInMemberEmbed(int columns, List<IDiscordMember> memberList, string searchTerm);
 
 	public Task<WGAccount> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam);
-
-	public bool HasPermission(IDiscordMember member, IDiscordCommand command);
 }

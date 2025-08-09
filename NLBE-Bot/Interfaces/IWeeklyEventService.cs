@@ -1,6 +1,7 @@
 namespace NLBE_Bot.Interfaces;
 
 using FMWOTB.Tools.Replays;
+using NLBE_Bot.Models;
 using System.Threading.Tasks;
 
 internal interface IWeeklyEventService

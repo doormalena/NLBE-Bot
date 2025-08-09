@@ -1,8 +1,7 @@
-namespace NLBE_Bot;
+namespace NLBE_Bot.Models;
 
 using DSharpPlus.Entities;
 using NLBE_Bot.Interfaces;
-using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 
@@ -12,10 +11,12 @@ internal class WeeklyEvent
 	{
 		get; private set;
 	}
+
 	public List<WeeklyEventItem> WeeklyEventItems
 	{
 		get; set;
 	}
+
 	public DateTime StartDate
 	{
 		get; set;
@@ -48,7 +49,9 @@ internal class WeeklyEvent
 		{
 			Color = Constants.WEEKLY_EVENT_COLOR
 		};
-		string description = StartDate.ToString(DATETIME_FORMAT) + DATE_RANGE_SPLITTER + GetEndDate().ToString(DATETIME_FORMAT).TrimStart('0');
+
+		DateTime endDate = StartDate.AddDays(7);
+		string description = StartDate.ToString(DATETIME_FORMAT) + DATE_RANGE_SPLITTER + endDate.ToString(DATETIME_FORMAT).TrimStart('0');
 		newDiscEmbedBuilder.Description = description;
 
 		foreach (WeeklyEventItem weeklyEventItem in WeeklyEventItems)
@@ -62,14 +65,9 @@ internal class WeeklyEvent
 		return new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
 	}
 
-	public DateTime GetEndDate()
+	private static DateTime StartOfWeek(DateTime dt)
 	{
-		return StartDate.AddDays(7);
-	}
-
-	public static DateTime StartOfWeek(DateTime dt)
-	{
-		dt = new DateTime(dt.Year, dt.Month, dt.Day, 0, 0, 0);
+		dt = new DateTime(dt.Year, dt.Month, dt.Day, 0, 0, 0, DateTimeKind.Local);
 		int diff = (7 + (dt.DayOfWeek - DayOfWeek.Monday)) % 7;
 		dt = dt.AddDays(-1 * diff).Date;
 		dt = dt.AddHours(14);

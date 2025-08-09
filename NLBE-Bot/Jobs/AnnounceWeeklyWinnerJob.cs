@@ -2,6 +2,7 @@ namespace NLBE_Bot.Jobs;
 
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using System;
 using System.Globalization;
 using System.Text;
@@ -53,20 +54,16 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 				return;
 			}
 
-			IDiscordGuild guild = bottestChannel.Guild;
-			StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
-
 			await _weeklyEventService.ReadWeeklyEvent();
 
-			if (_weeklyEventService.WeeklyEvent.StartDate.DayOfYear == now.DayOfYear - 7)
-			{
-				winnerMessage.AppendLine("Na 1 week...");
-				WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventService.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
+			StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
+			winnerMessage.AppendLine("Na 1 week...");
 
-				if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
-				{
-					await _weeklyEventService.WeHaveAWinner(guild, weeklyEventItemMostDMG, _weeklyEventService.WeeklyEvent.Tank);
-				}
+			WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventService.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
+
+			if (weeklyEventItemMostDMG != null && !string.IsNullOrEmpty(weeklyEventItemMostDMG.Player))
+			{
+				await _weeklyEventService.WeHaveAWinner(bottestChannel.Guild, weeklyEventItemMostDMG, _weeklyEventService.WeeklyEvent.Tank);
 			}
 
 			await bottestChannel.SendMessageAsync(winnerMessage.ToString());

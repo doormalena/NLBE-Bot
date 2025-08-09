@@ -3,6 +3,7 @@ namespace NLBE_Bot.Tests.Jobs;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Jobs;
+using NLBE_Bot.Models;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using System;
