@@ -1,71 +1,89 @@
 namespace NLBE_Bot.Services;
 
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using System;
+using System.IO;
+using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 
-internal class BotState : IBotState
+internal class BotState(string stateFile = "botstate.json", bool autoSave = true) : IBotState
 {
+	private readonly string _stateFile = stateFile ?? throw new ArgumentNullException(nameof(stateFile));
+	private readonly bool _autoSave = autoSave;
 	private readonly Lock _lock = new();
+	private BotStateData _data = new();
 
-	private bool _ignoreCommands;
 	public bool IgnoreCommands
 	{
 		get
 		{
 			lock (_lock)
 			{
-				return _ignoreCommands;
+				return _data.IgnoreCommands;
 			}
 		}
 		set
 		{
 			lock (_lock)
 			{
-				_ignoreCommands = value;
+				_data.IgnoreCommands = value;
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
 
-	private bool _ignoreEvents;
 	public bool IgnoreEvents
 	{
 		get
 		{
 			lock (_lock)
 			{
-				return _ignoreEvents;
+				return _data.IgnoreEvents;
 			}
 		}
 		set
 		{
 			lock (_lock)
 			{
-				_ignoreEvents = value;
+				_data.IgnoreEvents = value;
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
 
-	private Tuple<ulong, DateTime> _weeklyEventWinner = new(0, DateTime.Now);
-	public Tuple<ulong, DateTime> WeeklyEventWinner
+
+	public WeeklyEventWinner WeeklyEventWinner
 	{
 		get
 		{
 			lock (_lock)
 			{
-				return _weeklyEventWinner;
+				return _data.WeeklyEventWinner;
 			}
 		}
 		set
 		{
 			lock (_lock)
 			{
-				_weeklyEventWinner = value;
+				_data.WeeklyEventWinner = value;
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
 
 	private IDiscordMessage _lastCreatedDiscordMessage;
+
 	public IDiscordMessage LastCreatedDiscordMessage
 	{
 		get
@@ -84,42 +102,72 @@ internal class BotState : IBotState
 		}
 	}
 
-	private DateTime? _lasTimeNamesWereUpdated;
-
-	public DateTime? LasTimeNamesWereUpdated
+	public DateTime? LasTimeServerNicknamesWereVerified
 	{
 		get
 		{
 			lock (_lock)
 			{
-				return _lasTimeNamesWereUpdated;
+				return _data.LasTimeServerNicknamesWereVerified;
 			}
 		}
 		set
 		{
 			lock (_lock)
 			{
-				_lasTimeNamesWereUpdated = value;
+				_data.LasTimeServerNicknamesWereVerified = value;
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
 	}
 
-	private DateTime? _lastWeeklyWinnerAnnouncement;
 	public DateTime? LastWeeklyWinnerAnnouncement
 	{
 		get
 		{
 			lock (_lock)
 			{
-				return _lastWeeklyWinnerAnnouncement;
+				return _data.LastWeeklyWinnerAnnouncement;
 			}
 		}
 		set
 		{
 			lock (_lock)
 			{
-				_lastWeeklyWinnerAnnouncement = value;
+				_data.LastWeeklyWinnerAnnouncement = value;
+				if (_autoSave)
+				{
+					Task.Run(() => SaveAsync());
+				}
 			}
 		}
+	}
+
+	public async Task SaveAsync()
+	{
+		string json = JsonSerializer.Serialize(_data);
+		await File.WriteAllTextAsync(_stateFile, json);
+	}
+
+	public async Task LoadAsync()
+	{
+		if (!File.Exists(_stateFile))
+		{
+			return;
+		}
+
+		using FileStream stream = new(_stateFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+		using StreamReader reader = new(stream);
+		string json = await reader.ReadToEndAsync();
+
+		if (string.IsNullOrWhiteSpace(json))
+		{
+			return;
+		}
+
+		_data = JsonSerializer.Deserialize<BotStateData>(json);
 	}
 }

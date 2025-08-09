@@ -1,6 +1,6 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.Entities;
+using NLBE_Bot.Models;
 using System;
 
 internal interface IBotState
@@ -15,17 +15,16 @@ internal interface IBotState
 		get; set;
 	}
 
-	public Tuple<ulong, DateTime> WeeklyEventWinner
+	public WeeklyEventWinner WeeklyEventWinner
 	{
 		get; set;
 	}
-
 	public IDiscordMessage LastCreatedDiscordMessage
 	{
 		get; set;
 	}
 
-	public DateTime? LasTimeNamesWereUpdated
+	public DateTime? LasTimeServerNicknamesWereVerified
 	{
 		get; set;
 	}

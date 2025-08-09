@@ -1,0 +1,163 @@
+namespace NLBE_Bot.Jobs;
+
+using FMWOTB.Tools;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
+using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+internal class VerifyServerNicknamesJob(IUserService userService,
+								 IChannelService channelService,
+								 IMessageService messageService,
+								 IWGAccountService wgAccountService,
+								 IOptions<BotOptions> options,
+								 IBotState botState,
+								 ILogger<VerifyServerNicknamesJob> logger) : IJob<VerifyServerNicknamesJob>
+{
+	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
+	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+	private readonly IWGAccountService _wgAccountService = wgAccountService ?? throw new ArgumentNullException(nameof(wgAccountService));
+	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
+	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+
+	public async Task Execute(DateTime now)
+	{
+		if (!ShouldVerifyServerNicknames(now, _botState.LasTimeServerNicknamesWereVerified))
+		{
+			return;
+		}
+
+		await VerifyServerNicknames(now);
+	}
+
+	private static bool ShouldVerifyServerNicknames(DateTime now, DateTime? lastUpdate)
+	{
+		// Run once per day, at or after 00:00, but only if not already run today.
+		return !lastUpdate.HasValue || lastUpdate.Value.Date != now.Date;
+	}
+
+	private async Task VerifyServerNicknames(DateTime now)
+	{
+		DateTime? lastSuccessfull = _botState.LasTimeServerNicknamesWereVerified; // Temporary store the last successful verification time.
+
+		try
+		{
+			_botState.LasTimeServerNicknamesWereVerified = now; // Update the last successful verification time to now to prevent multiple executions in parallel.
+			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
+
+			if (bottestChannel == null)
+			{
+				_logger.LogWarning("Could not find the bot test channel. Aborting user update.");
+				return;
+			}
+
+			IDiscordGuild guild = bottestChannel.Guild;
+			IDiscordRole memberRole = guild.GetRole(_options.MemberDefaultRoleId);
+
+			if (memberRole == null)
+			{
+				_logger.LogWarning("Could not find the default member role with id `{Id}`. Aborting user update.", _options.MemberDefaultRoleId);
+				return;
+			}
+
+			IReadOnlyCollection<IDiscordMember> members = await guild.GetAllMembersAsync();
+			List<IDiscordMember> invalidPlayerMatches = [];
+			Dictionary<IDiscordMember, string> invalidPlayerClanMatches = [];
+			List<IDiscordMember> validPlayerAndClanMatches = [];
+
+			foreach (IDiscordMember member in members)
+			{
+				await EvaluateMember(memberRole, invalidPlayerMatches, invalidPlayerClanMatches, validPlayerAndClanMatches, member);
+			}
+
+			await NotifyNicknameIssues(bottestChannel, guild, invalidPlayerMatches, invalidPlayerClanMatches);
+		}
+		catch (Exception ex)
+		{
+			_botState.LasTimeServerNicknamesWereVerified = lastSuccessfull; // Reset the last successful verification time to the last known good state.
+			_logger.LogError(ex, "An error occured while verifing all server nicknames.");
+		}
+	}
+
+	private async Task EvaluateMember(IDiscordRole memberRole, List<IDiscordMember> invalidPlayerMatches, Dictionary<IDiscordMember, string> invalidPlayerClanMatches, List<IDiscordMember> validPlayerAndClanMatches, IDiscordMember member)
+	{
+		if (member.IsBot || member.Roles == null || !member.Roles.Any(r => r.Id == memberRole.Id))
+		{
+			return;
+		}
+
+		WotbPlayerNameInfo playerNameInfo = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
+		IReadOnlyList<IWGAccount> wgAccounts = await _wgAccountService.SearchByName(SearchAccuracy.EXACT, playerNameInfo.PlayerName, _options.WarGamingAppId, false, true, false);
+
+		if (wgAccounts?.Count > 0)
+		{
+			IWGAccount account = wgAccounts[0];
+			string clanTag = account.Clan != null ? account.Clan.Tag : string.Empty;
+			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
+
+			if (account.Nickname != null && !member.DisplayName.Equals(expectedDisplayName))
+			{
+				invalidPlayerClanMatches.TryAdd(member, expectedDisplayName); // An exact match has been found using the player name, however, the clan tag does not match.
+			}
+			else if (member.DisplayName.Equals(expectedDisplayName))
+			{
+				validPlayerAndClanMatches.Add(member); // An exact match has been found using the player name and clan tag.
+			}
+		}
+		else
+		{
+			invalidPlayerMatches.Add(member); // No match has been found using the player name.
+		}
+	}
+
+	private async Task NotifyNicknameIssues(IDiscordChannel bottestChannel, IDiscordGuild guild, List<IDiscordMember> invalidPlayerMatches, Dictionary<IDiscordMember, string> invalidPlayerClanMatches)
+	{
+		if (invalidPlayerClanMatches.Count + invalidPlayerMatches.Count == 0)
+		{
+			await bottestChannel.SendMessageAsync("De gebruikersbijnamen zijn nagekeken; geen wijzigingen waren nodig.");
+			_logger.LogInformation("All nicknames have been reviewed; no changes were necessary.");
+		}
+
+		// Apply changes and notify users
+
+		foreach (KeyValuePair<IDiscordMember, string> memberChange in invalidPlayerClanMatches)
+		{
+			try
+			{
+				await _userService.ChangeMemberNickname(memberChange.Key, memberChange.Value);
+				await _messageService.SendMessage(bottestChannel, null, guild.Name, $"De gebruikersbijnaam van **{memberChange.Key.Username}** is aangepast van {memberChange.Key.DisplayName} naar **{memberChange.Value}**");
+				_logger.LogInformation("Nickname for `{Username}` updated from `{DisplayName}` to `{Value}`", memberChange.Key.Username, memberChange.Key.DisplayName, memberChange.Value);
+			}
+			catch (UnauthorizedAccessException ex)
+			{
+				await SendPrivateMessageToUpdateNickname(memberChange.Key, guild);
+				_logger.LogWarning(ex, "Failed to change nickname for user `{Username}`", memberChange.Key.Username);
+			}
+		}
+
+		foreach (IDiscordMember memberNotFound in invalidPlayerMatches)
+		{
+			await SendPrivateMessageToUpdateNickname(memberNotFound, guild);
+			await _messageService.SendMessage(bottestChannel, null, guild.Name, $"De gebruikersbijnaam **{memberNotFound.DisplayName}** van **{memberNotFound.Username}** komt niet overeen met een WoTB-spelersnaam. Er is een privébericht verstuurd met het verzoek tot correctie.");
+			_logger.LogWarning("Nickname `{DisplayName}` for user `{Username}` does not match any WoTB player name. A private message has been sent requesting correction.", memberNotFound.DisplayName, memberNotFound.Username);
+		}
+	}
+
+	private async Task SendPrivateMessageToUpdateNickname(IDiscordMember member, IDiscordGuild guild)
+	{
+		string message = "Hallo,\n\nVoor iedere gebruiker in de NLBE discord server wordt gecontroleerd of de ingestelde bijnaam overeenkomt met je WoTB spelersnaam.\nHelaas is dit voor jou niet het geval.\nWil je dit aanpassen?\nVoor meer informatie, zie het #regels kanaal.\n\nAlvast bedankt!\n- [NLBE] sjtubbers#4241";
+		await _messageService.SendPrivateMessage(member, guild.Name, message);
+	}
+
+	private static string FormatExpectedDisplayName(string nickname, string currentClanTag)
+	{
+		return $"[{currentClanTag}] {nickname}";
+	}
+}

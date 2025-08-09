@@ -1,7 +1,11 @@
 namespace NLBE_Bot.Tests.EventHandlers;
 
+using DSharpPlus.AsyncEvents;
+using DSharpPlus.CommandsNext;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
 using NSubstitute;
@@ -11,61 +15,84 @@ using System.Threading.Tasks;
 [TestClass]
 public class CommandEventHandlerTests
 {
+	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<CommandEventHandler>? _loggerMock;
-	private IErrorHandler? _errorHandlerMock;
 	private IDiscordMessageUtils? _discordMessageUtilsMock;
 	private CommandEventHandler? _handler;
 
 	[TestInitialize]
 	public void Setup()
 	{
+		_optionsMock = Substitute.For<IOptions<BotOptions>>();
+		_optionsMock.Value.Returns(new BotOptions()
+		{
+			ServerId = 1000000
+		});
 		_loggerMock = Substitute.For<ILogger<CommandEventHandler>>();
-		_errorHandlerMock = Substitute.For<IErrorHandler>();
 		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
-		_handler = new CommandEventHandler(_loggerMock, _errorHandlerMock, _discordMessageUtilsMock);
+		_handler = new CommandEventHandler(_loggerMock, _discordMessageUtilsMock, _optionsMock);
 	}
 
 	[TestMethod]
-	public async Task OnCommandExecuted_LogsCommandName()
+	public void Register_RegistersAllHandlersAndEvents()
 	{
 		// Arrange.
-		ICommand commandInfoMock = Substitute.For<ICommand>();
+		ICommandsNextExtension commandsNextExtension = Substitute.For<ICommandsNextExtension>();
+
+		// Act.
+		_handler!.Register(commandsNextExtension);
+
+		// Assert.
+		commandsNextExtension.Received(1).CommandExecuted += Arg.Any<AsyncEventHandler<CommandsNextExtension, CommandExecutionEventArgs>>();
+		commandsNextExtension.Received(1).CommandErrored += Arg.Any<AsyncEventHandler<CommandsNextExtension, CommandErrorEventArgs>>();
+	}
+
+	[TestMethod]
+	public async Task HandleCommandExecuted_LogsCommandName()
+	{
+		// Arrange.
+		IDiscordCommand commandInfoMock = Substitute.For<IDiscordCommand>();
 		commandInfoMock.Name.Returns("testcmd");
 
 		// Act.
 		await _handler!.HandleCommandExecuted(commandInfoMock);
 
 		// Assert.
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v != null && v.ToString().Contains("Command executed: testcmd")),
+			Arg.Is<object>(o => o.ToString()!.Contains("testcmd")),
 			null,
-			Arg.Any<Func<object, Exception?, string>>());
-#pragma warning restore CS8602
+			Arg.Any<Func<object, Exception?, string>>()
+		);
 	}
 
 	[TestMethod]
-	public async Task OnCommandErrored_IgnoresIfNotInAllowedGuilds()
+	public async Task HandleCommandErrored_IgnoresIfNotInAllowedGuilds()
 	{
 		// Arrange.
-		ICommandContext contextMock = Substitute.For<ICommandContext>();
+		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
 		contextMock.GuildId.Returns(123UL); // Not a valid guild ID
 
 		// Act.
 		await _handler!.HandleCommandError(contextMock, null, null);
 
 		// Assert.
-		await _errorHandlerMock!.DidNotReceiveWithAnyArgs().HandleErrorAsync(default!, default!);
+		_loggerMock!.DidNotReceive().Log(
+			Arg.Any<LogLevel>(),
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
 	}
 
 	[TestMethod]
-	public async Task OnCommandErrored_SendsUnauthorizedMessage()
+	public async Task HandleCommandError_SendsUnauthorizedMessage()
 	{
 		// Arrange.
-		ICommandContext contextMock = Substitute.For<ICommandContext>();
-		contextMock.GuildId.Returns(Constants.NLBE_SERVER_ID);
+		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
+		contextMock.GuildId.Returns(1000000UL);
 		contextMock.SendUnauthorizedMessageAsync().Returns(Task.CompletedTask);
 
 		// Act.
@@ -76,11 +103,11 @@ public class CommandEventHandlerTests
 	}
 
 	[TestMethod]
-	public async Task OnCommandErrored_HandlesCommandError()
+	public async Task HandleCommandError_HandlesCommandError()
 	{
 		// Arrange.
-		ICommandContext contextMock = Substitute.For<ICommandContext>();
-		contextMock.GuildId.Returns(Constants.NLBE_SERVER_ID);
+		IDiscordCommandContext contextMock = Substitute.For<IDiscordCommandContext>();
+		contextMock.GuildId.Returns(1000000UL);
 
 		IDiscordEmoji emojiInProgress = Substitute.For<IDiscordEmoji>();
 		IDiscordEmoji emojiError = Substitute.For<IDiscordEmoji>();
@@ -91,20 +118,22 @@ public class CommandEventHandlerTests
 		contextMock.DeleteInProgressReactionAsync(emojiInProgress).Returns(Task.CompletedTask);
 		contextMock.AddErrorReactionAsync(emojiError).Returns(Task.CompletedTask);
 
-		ICommand commandMock = Substitute.For<ICommand>();
+		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
 		commandMock.Name.Returns("testcmd");
-
-		_errorHandlerMock!.HandleErrorAsync(Arg.Any<string>(), Arg.Any<Exception>()).Returns(Task.CompletedTask);
+		Exception ex = new("Some error");
 
 		// Act.
-		await _handler!.HandleCommandError(contextMock, commandMock, new Exception("Some error"));
+		await _handler!.HandleCommandError(contextMock, commandMock, ex);
 
 		// Assert.
 		await contextMock.Received(1).DeleteInProgressReactionAsync(emojiInProgress);
 		await contextMock.Received(1).AddErrorReactionAsync(emojiError);
-		await _errorHandlerMock.Received(1).HandleErrorAsync(
-			Arg.Is<string>(s => s.Contains("testcmd")),
-			Arg.Any<Exception>());
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("testcmd")),
+			ex,
+			Arg.Any<Func<object, Exception?, string>>());
 	}
 }
 

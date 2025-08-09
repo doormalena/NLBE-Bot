@@ -1,34 +1,30 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using DSharpPlus;
 using DSharpPlus.Entities;
-using DSharpPlus.Interactivity;
-using DSharpPlus.Interactivity.Extensions;
 using FMWOTB.Tools.Replays;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
-internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IConfiguration configuration, IErrorHandler errorHandler, IBotState botState,
+internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IOptions<BotOptions> options, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,
 								IMapService mapService) : IMessageService
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<MessageService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 
-	public async Task<DiscordMessage> SendMessage(DiscordChannel channel, DiscordMember member, string guildName, string message)
+	public async Task<IDiscordMessage> SendMessage(IDiscordChannel channel, IDiscordMember member, string guildName, string message)
 	{
 		try
 		{
@@ -36,7 +32,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("[" + guildName + "] (" + channel.Name + ") Could not send message: ", ex);
+			_logger.LogError(ex, "Could not send message to channel {ChannelName} in guild {GuildName}: {Message}", channel.Name, guildName, message);
 
 			if (ex.Message.Contains("unauthorized", StringComparison.CurrentCultureIgnoreCase))
 			{
@@ -56,7 +52,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return null;
 	}
 
-	public async Task<bool> SendPrivateMessage(DiscordMember member, string guildName, string Message)
+	public async Task<bool> SendPrivateMessage(IDiscordMember member, string guildName, string Message)
 	{
 		try
 		{
@@ -65,13 +61,13 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("[" + guildName + "] Could not send private message: ", ex);
+			_logger.LogError(ex, "Could not send private message to member {MemberName} in guild {GuildName}: {Message}", member.DisplayName, guildName, Message);
 		}
 
 		return false;
 	}
 
-	public async Task<DiscordMessage> SayCannotBePlayedAt(DiscordChannel channel, DiscordMember member, string guildName, string roomType)
+	public async Task<IDiscordMessage> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType)
 	{
 		if (roomType.Length == 0)
 		{
@@ -80,43 +76,46 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		return await SendMessage(channel, member, guildName, "**De battle mag niet in een " + roomType + " room gespeeld zijn!**");
 	}
-	public async Task SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName)
+
+	public async Task SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName)
 	{
-		await SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis, probeer het opnieuw!**");
+		await SendMessage(channel, member, guildName, "**Er ging iets mis, probeer het opnieuw!**");
 	}
-	public async Task<DiscordMessage> SaySomethingWentWrong(DiscordChannel channel, DiscordMember member, string guildName, string text)
+
+	public Task<IDiscordMessage> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text)
 	{
-		return await SendMessage(channel, member, guildName, text);
+		return SendMessage(channel, member, guildName, text);
 	}
-	public async Task SayWrongAttachments(DiscordChannel channel, DiscordMember member, string guildName)
+
+	public async Task SayWrongAttachments(IDiscordChannel channel, IDiscordMember member, string guildName)
 	{
 		await SendMessage(channel, member, guildName, "**Geen bruikbare documenten in de bijlage gevonden!**");
 	}
-	public async Task SayNoAttachments(DiscordChannel channel, DiscordMember member, string guildName)
+	public async Task SayNoAttachments(IDiscordChannel channel, IDiscordMember member, string guildName)
 	{
 		await SendMessage(channel, member, guildName, "**Geen documenten in de bijlage gevonden!**");
 	}
-	public async Task SayNoResponse(DiscordChannel channel)
+	public async Task SayNoResponse(IDiscordChannel channel)
 	{
 		await channel.SendMessageAsync("`Time-out: Geen antwoord.`");
 	}
-	public async Task SayNoResponse(DiscordChannel channel, DiscordMember member, string guildName)
+	public async Task SayNoResponse(IDiscordChannel channel, IDiscordMember member, string guildName)
 	{
 		await SendMessage(channel, member, guildName, "`Time-out: Geen antwoord.`");
 	}
-	public async Task SayMustBeNumber(DiscordChannel channel)
+	public async Task SayMustBeNumber(IDiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Je moest een cijfer geven!**");
 	}
-	public async Task SayNumberTooSmall(DiscordChannel channel)
+	public async Task SayNumberTooSmall(IDiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Dat cijfer was te klein!**");
 	}
-	public async Task SayNumberTooBig(DiscordChannel channel)
+	public async Task SayNumberTooBig(IDiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Dat cijfer was te groot!**");
 	}
-	public async Task SayBeMoreSpecific(DiscordChannel channel)
+	public async Task SayBeMoreSpecific(IDiscordChannel channel)
 	{
 		EmbedOptions options = new()
 		{
@@ -125,68 +124,73 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		};
 		await CreateEmbed(channel, options);
 	}
-	public DiscordMessage SayMultipleResults(DiscordChannel channel, string description)
+	public IDiscordMessage SayMultipleResults(IDiscordChannel channel, string description)
 	{
 		try
 		{
-			DiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.adaptToDiscordChat(), DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.adaptToDiscordChat(), DiscordColor.Red);
 			return channel.SendMessageAsync(null, embed).Result;
 		}
 		catch (Exception ex)
 		{
-			_errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex).Wait();
-			return null;
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
+
+		return null;
 	}
-	public async Task SayNoResults(DiscordChannel channel, string description)
+	public async Task SayNoResults(IDiscordChannel channel, string description)
 	{
 		try
 		{
-			DiscordEmbed embed = CreateStandardEmbed("Geen resultaten gevonden", description.Replace('_', '▁'), DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Geen resultaten gevonden", description.Replace('_', '▁'), DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
-	public async Task SayTheUserIsNotAllowed(DiscordChannel channel)
+
+	public async Task SayTheUserIsNotAllowed(IDiscordChannel channel)
 	{
 		try
 		{
-			DiscordEmbed embed = CreateStandardEmbed("Geen toegang", ":raised_back_of_hand: Je hebt niet voldoende rechten om deze commando uit te voeren!", DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Geen toegang", ":raised_back_of_hand: Je hebt onvoldoende rechten om dit commando uit te voeren!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
-	public async Task SayBotNotAuthorized(DiscordChannel channel)
+
+	public async Task SayBotNotAuthorized(IDiscordChannel channel)
 	{
 		try
 		{
-			DiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: De bot heeft voldoende rechten om dit uit te voeren!", DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: De bot heeft onvoldoende rechten om dit uit te voeren!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
-	public async Task SayTooManyCharacters(DiscordChannel channel)
+
+	public async Task SayTooManyCharacters(IDiscordChannel channel)
 	{
 		try
 		{
-			DiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: Er zaten te veel characters in het bericht dat de bot wilde verzenden!", DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: Er zaten te veel characters in het bericht dat de bot wilde verzenden!", DiscordColor.Red);
 			await channel.SendMessageAsync(null, embed);
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+			_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 		}
 	}
-	public async Task<DiscordMessage> SayReplayNotWorthy(DiscordChannel channel, WGBattle battle, string extraDescription)
+
+	public async Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -211,12 +215,12 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
+					_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 				}
 				break;
 			}
 		}
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
+		IDiscordEmbed embed = new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
 
 		if (_botState.LastCreatedDiscordMessage != null)
 		{
@@ -226,17 +230,17 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+				_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 			}
 		}
 		else
 		{
-			return await channel.SendMessageAsync(embed: embed);
+			return await channel.SendMessageAsync(embed);
 		}
 		return null;
 	}
 
-	public async Task<DiscordMessage> SayReplayIsWorthy(DiscordChannel channel, WGBattle battle, string extraDescription, int position)
+	public async Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -261,55 +265,32 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
+					_logger.LogError(ex, "Something went wrong while trying to set the thumbnail for an embedded message.");
 				}
 				break;
 			}
 		}
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
+		IDiscordEmbed embed = new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
 		if (_botState.LastCreatedDiscordMessage != null)
 		{
 			try
 			{
-				return await _botState.LastCreatedDiscordMessage.RespondAsync(null, embed);
+				return await _botState.LastCreatedDiscordMessage.RespondAsync(embed);
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Something went wrong while trying to send an embedded message:", ex);
+				_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
 			}
 		}
 
-		return await channel.SendMessageAsync(embed: embed);
+		return await channel.SendMessageAsync(embed);
 	}
 
-	//no longer sends to thibeastmo. This used to be a method to send towards thibeastmo but since thibeastmo is no longer hosting this it's moved towards the test channel
-	public async Task SendThibeastmo(string message, string exceptionMessage = "", string stackTrace = "")
+	public async Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count)
 	{
-		DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
-		if (bottestChannel != null)
-		{
-			StringBuilder sb = new();
-			if (!string.IsNullOrEmpty(exceptionMessage) && !string.IsNullOrEmpty(stackTrace))
-			{
-				for (int i = 0; i < message.Length / 2; i++)
-				{
-					sb.Append('━');
-				}
-			}
-			StringBuilder firstMessage = new((sb.Length > 0 ? "**" + sb.ToString() + "**\n" : string.Empty) + message);
-			if (!string.IsNullOrEmpty(exceptionMessage))
-			{
-				firstMessage.Append("\n" + "`" + exceptionMessage + "`");
-			}
-			await bottestChannel.SendMessageAsync(firstMessage.ToString());
-		}
-	}
-
-	public async Task<int> WaitForReply(DiscordChannel channel, DiscordUser user, string description, int count)
-	{
-		DiscordMessage discMessage = SayMultipleResults(channel, description);
-		InteractivityExtension interactivity = _discordClient.GetInteractivity();
-		InteractivityResult<DiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == channel && x.Author == user);
+		IDiscordMessage discMessage = SayMultipleResults(channel, description);
+		IDiscordInteractivityExtension interactivity = _discordClient.GetInteractivity();
+		IDiscordInteractivityResult<IDiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == channel && x.Author == user);
 		if (!message.TimedOut)
 		{
 			bool isInt = false;
@@ -345,18 +326,18 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		else if (discMessage != null)
 		{
-			List<DiscordEmoji> reacted = [];
+			List<IDiscordEmoji> reacted = [];
 			for (int i = 1; i <= 10; i++)
 			{
 				IDiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
 				if (emoji != null)
 				{
-					IReadOnlyList<DiscordUser> users = discMessage.GetReactionsAsync(emoji.Inner).Result;
-					foreach (DiscordUser tempUser in users)
+					IReadOnlyList<IDiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;
+					foreach (IDiscordUser tempUser in users)
 					{
 						if (tempUser.Id.Equals(user.Id))
 						{
-							reacted.Add(emoji.Inner);
+							reacted.Add(emoji);
 						}
 					}
 				}
@@ -390,15 +371,15 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return -1;
 	}
 
-	public async Task<string> AskQuestion(DiscordChannel channel, DiscordUser user, DiscordGuild guild, string question)
+	public async Task<string> AskQuestion(IDiscordChannel channel, IDiscordUser user, IDiscordGuild guild, string question)
 	{
 		if (channel != null)
 		{
 			try
 			{
 				await channel.SendMessageAsync(question);
-				TimeSpan newPlayerWaitTime = TimeSpan.FromDays(int.TryParse(_configuration["NLBEBOT:NewPlayerWaitTimeInDays"], out int newPlayerWaitTimeInt) ? newPlayerWaitTimeInt : 0);
-				InteractivityResult<DiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
+				TimeSpan newPlayerWaitTime = TimeSpan.FromDays(_options.NewPlayerWaitTimeInDays);
+				IDiscordInteractivityResult<IDiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
 
 				if (!message.TimedOut)
 				{
@@ -407,7 +388,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				else
 				{
 					await SayNoResponse(channel);
-					DiscordMember member = await guild.GetMemberAsync(user.Id);
+					IDiscordMember member = await guild.GetMemberAsync(user.Id);
 					if (member != null)
 					{
 						try
@@ -422,10 +403,11 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 								await guild.BanMemberAsync(member);
 								isBanned = true;
 							}
-							catch
+							catch (Exception ex)
 							{
-								_logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
+								_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
 							}
+
 							if (isBanned)
 							{
 								try
@@ -438,20 +420,15 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 									{
 										await user.UnbanAsync(guild);
 									}
-									catch
+									catch (Exception ex)
 									{
-										_logger.LogWarning("{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
-										DiscordMember thibeastmo = await guild.GetMemberAsync(Constants.THIBEASTMO_ID);
-										if (thibeastmo != null)
-										{
-											await thibeastmo.SendMessageAsync("**Gebruiker [" + member.DisplayName + "(" + member.Username + "#" + member.Discriminator + ")] kon niet geünbanned worden!**");
-										}
+										_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
 									}
 								}
 							}
 						}
 					}
-					await _channelService.CleanChannel(guild.Id, channel.Id);
+					await _channelService.CleanChannel(channel.Id);
 				}
 			}
 			catch (Exception e)
@@ -463,11 +440,11 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		else
 		{
 			_logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			DiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
+			IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
 			bool roleWasGiven = false;
 			if (noobRole != null)
 			{
-				DiscordMember member = guild.GetMemberAsync(user.Id).Result;
+				IDiscordMember member = guild.GetMemberAsync(user.Id).Result;
 				if (member != null)
 				{
 					await member.GrantRoleAsync(noobRole);
@@ -482,31 +459,31 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return null;
 	}
 
-	public async Task ConfirmCommandExecuting(DiscordMessage message)
+	public async Task ConfirmCommandExecuting(IDiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
 	}
 
-	public async Task ConfirmCommandExecuted(DiscordMessage message)
+	public async Task ConfirmCommandExecuted(IDiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
+		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
 		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION).Inner);
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION));
 	}
 
-	public DiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color)
+	public IDiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color)
 	{
-		return new DiscordEmbedBuilder
+		return new DiscordEmbedWrapper(new DiscordEmbedBuilder
 		{
 			Title = title,
 			Description = description,
 			Color = color
-		}.Build();
+		}.Build());
 	}
 
-	public async Task<DiscordMessage> CreateEmbed(DiscordChannel channel, EmbedOptions options)
+	public async Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -523,7 +500,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", ex);
+				_logger.LogError(ex, "Could not set thumbnail for embed: {Thumbnail}", options.Thumbnail);
 			}
 		}
 		if (options.Author != null)
@@ -547,7 +524,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				}
 				catch (Exception innerEx)
 				{
-					await _errorHandler.HandleErrorAsync("Could not set imageurl for embed: ", innerEx);
+					_logger.LogError(innerEx, "Could not set image URL for embed: {ImageUrl}", options.ImageUrl);
 				}
 			}
 		}
@@ -564,7 +541,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 					}
 					catch (Exception ex)
 					{
-						await _errorHandler.HandleErrorAsync("Something went wrong while trying to add a field to an embedded message:", ex);
+						_logger.LogError(ex, "Could not add field to embed: {FieldName} - {FieldValue}", field.Name, field.Value);
 					}
 				}
 			}
@@ -577,18 +554,20 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			};
 			newDiscEmbedBuilder.Footer = embedFooter;
 		}
-		DiscordEmbed embed = newDiscEmbedBuilder.Build();
+
+		IDiscordEmbed embed = new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
+
 		try
 		{
-			DiscordMessage theMessage = options.IsForReplay
+			IDiscordMessage theMessage = options.IsForReplay
 				? _botState.LastCreatedDiscordMessage.RespondAsync(options.Content, embed).Result
-				: _discordClient.SendMessageAsync(channel, options.Content, embed).Result;
+				: await _discordClient.SendMessageAsync(channel, options.Content, embed);
 
 			try
 			{
 				if (options.Emojis != null)
 				{
-					foreach (DiscordEmoji anEmoji in options.Emojis)
+					foreach (IDiscordEmoji anEmoji in options.Emojis)
 					{
 						await theMessage.CreateReactionAsync(anEmoji);
 					}
@@ -596,7 +575,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			}
 			catch (Exception ex)
 			{
-				await _errorHandler.HandleErrorAsync("Error while adding emoji's:", ex);
+				_logger.LogError(ex, "Could not add emojis to message");
 			}
 			if (!string.IsNullOrEmpty(options.NextMessage))
 			{
@@ -606,8 +585,9 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Error in createEmbed:", ex);
+			_logger.LogError(ex, "Could not send embed message to channel {ChannelName} in guild {GuildName}: {EmbedTitle}", channel.Name, channel.Guild.Name, options.Title);
 		}
+
 		return null;
 	}
 }

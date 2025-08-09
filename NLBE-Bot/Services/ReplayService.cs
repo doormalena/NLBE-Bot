@@ -5,7 +5,9 @@ using DSharpPlus.Entities;
 using FMWOTB.Account;
 using FMWOTB.Tools;
 using FMWOTB.Tools.Replays;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -16,10 +18,10 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class ReplayService(IErrorHandler errorHandler, IConfiguration configuration, IWeeklyEventService weeklyEventHandler) : IReplayService
+internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions> options, IWeeklyEventService weeklyEventHandler) : IReplayService
 {
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly ILogger<ReplayService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
 
 	public async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
@@ -35,7 +37,7 @@ internal class ReplayService(IErrorHandler errorHandler, IConfiguration configur
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
+			_logger.LogError(ex, "Error while getting weekly event description for replay.");
 		}
 		sb.Append(GetSomeReplayInfoAsText(battle, position).Replace(Constants.REPLACEABLE_UNDERSCORE_CHAR, '_'));
 		return sb.ToString();
@@ -45,7 +47,7 @@ internal class ReplayService(IErrorHandler errorHandler, IConfiguration configur
 	{
 		string json = string.Empty;
 		bool playerIDFound = false;
-		IReadOnlyList<WGAccount> accountInfo = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, _configuration["NLBEBOT:WarGamingAppId"], false, true, false);
+		IReadOnlyList<WGAccount> accountInfo = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, _options.WarGamingAppId, false, true, false);
 		if (accountInfo != null)
 		{
 			if (accountInfo.Count > 0)
@@ -81,7 +83,7 @@ internal class ReplayService(IErrorHandler errorHandler, IConfiguration configur
 				attachUrl = attach.Url;
 			}
 
-			await _errorHandler.HandleErrorAsync("Initializing WGBattle object from (" + (!string.IsNullOrEmpty(url) ? url : attachUrl) + "):\n", ex);
+			_logger.LogError(ex, "Error while initializing WGBattle object from ({Url}): {Json}", !string.IsNullOrEmpty(url) ? url : attachUrl, json);
 		}
 		return null;
 	}
@@ -163,7 +165,7 @@ internal class ReplayService(IErrorHandler errorHandler, IConfiguration configur
 			List<FMWOTB.Achievement> achievementList = [];
 			for (int i = 0; i < battle.details.achievements.Count; i++)
 			{
-				FMWOTB.Achievement tempAchievement = FMWOTB.Achievement.getAchievement(_configuration["NLBEBOT:WarGamingAppId"], battle.details.achievements.ElementAt(i).t).Result;
+				FMWOTB.Achievement tempAchievement = FMWOTB.Achievement.getAchievement(_options.WarGamingAppId, battle.details.achievements.ElementAt(i).t).Result;
 				if (tempAchievement != null)
 				{
 					achievementList.Add(tempAchievement);

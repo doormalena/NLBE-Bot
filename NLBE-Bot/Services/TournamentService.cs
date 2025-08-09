@@ -6,6 +6,8 @@ using FMWOTB.Tournament;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -15,24 +17,23 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class TournamentService(ILogger<TournamentService> logger, IErrorHandler errorHandler, IConfiguration configuration, IUserService userService, IChannelService channelService, IMessageService messageService,
-		IDiscordMessageUtils discordMessageUtils, IGuildProvider guildProvider) : ITournamentService
+internal class TournamentService(ILogger<TournamentService> logger, IOptions<BotOptions> options, IUserService userService, IChannelService channelService, IMessageService messageService,
+		IDiscordMessageUtils discordMessageUtils, IDiscordClient discordClient) : ITournamentService
 {
 	private readonly ILogger<TournamentService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
-	private readonly IGuildProvider _guildProvider = guildProvider ?? throw new ArgumentNullException(nameof(guildProvider));
+	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 
-	public async Task GenerateLogMessage(DiscordMessage message, DiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji)
+	public async Task GenerateLogMessage(IDiscordMessage message, IDiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji)
 	{
 		bool addInLog = true;
 		if (message.Author != null)
 		{
-			if (!message.Author.Id.Equals(Constants.NLBE_BOT) && !message.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+			if (!message.Author.Id.Equals(Constants.NLBE_BOT))
 			{
 				addInLog = false;
 			}
@@ -44,32 +45,32 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 				try
 				{
 					bool botReactedWithThisEmoji = false;
-					IReadOnlyList<DiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji).Inner);
-					foreach (DiscordUser user in userListOfThisEmoji)
+					IReadOnlyList<IDiscordUser> userListOfThisEmoji = await message.GetReactionsAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji));
+					foreach (IDiscordUser user in userListOfThisEmoji)
 					{
-						if (user.Id.Equals(Constants.NLBE_BOT) || user.Id.Equals(Constants.TESTBEASTV2_BOT))
+						if (user.Id.Equals(Constants.NLBE_BOT))
 						{
 							botReactedWithThisEmoji = true;
 						}
 					}
 					if (botReactedWithThisEmoji)
 					{
-						DiscordMember member = await toernooiAanmeldenChannel.Guild.GetMemberAsync(userID);
+						IDiscordMember member = await toernooiAanmeldenChannel.Guild.GetMemberAsync(userID);
 						if (member != null)
 						{
 							string organisator = await GetOrganisator(await toernooiAanmeldenChannel.GetMessageAsync(message.Id));
 							string logMessage = "Teams|" + member.DisplayName.adaptToDiscordChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
-							await WriteInLog(toernooiAanmeldenChannel.Guild.Id, message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
+							await WriteInLog(message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
 						}
 					}
 					else
 					{
-						await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji).Inner);
+						await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(emojiAsEmoji));
 					}
 				}
 				catch (Exception ex)
 				{
-					await _errorHandler.HandleErrorAsync("While adding to log: ", ex);
+					_logger.LogError(ex, "Error while adding to log.");
 				}
 			}
 		}
@@ -77,7 +78,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 
 	public async Task<List<WGTournament>> InitialiseTournaments(bool all)
 	{
-		string tournamentJson = await Tournaments.tournamentsToString(_configuration["NLBEBOT:WarGamingAppId"]);
+		string tournamentJson = await Tournaments.tournamentsToString(_options.WarGamingAppId);
 		Json json = new(tournamentJson, "Tournaments");
 		List<WGTournament> tournamentsList = [];
 
@@ -94,9 +95,9 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 						{
 							if (tournaments.start_at.Value > DateTime.Now || all)
 							{
-								string wgTournamentJsonString = await WGTournament.tournamentsToString(_configuration["NLBEBOT:WarGamingAppId"], tournaments.tournament_id);
+								string wgTournamentJsonString = await WGTournament.tournamentsToString(_options.WarGamingAppId, tournaments.tournament_id);
 								Json wgTournamentJson = new(wgTournamentJsonString, "WGTournament");
-								WGTournament eenToernooi = new(wgTournamentJson, _configuration["NLBEBOT:WarGamingAppId"]);
+								WGTournament eenToernooi = new(wgTournamentJson, _options.WarGamingAppId);
 								tournamentsList.Add(eenToernooi);
 							}
 						}
@@ -108,7 +109,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 		return tournamentsList;
 	}
 
-	public async Task ShowTournamentInfo(DiscordChannel channel, WGTournament tournament, string titel)
+	public async Task ShowTournamentInfo(IDiscordChannel channel, WGTournament tournament, string titel)
 	{
 		List<DEF> deflist = [];
 		DEF newDef1 = new()
@@ -503,25 +504,25 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 		await _messageService.CreateEmbed(channel, options);
 	}
 
-	private async Task WriteInLog(ulong guildID, string date, string message)
+	private async Task WriteInLog(string date, string message)
 	{
-		DiscordChannel logChannel = await _channelService.GetLogChannel(guildID);
+		IDiscordChannel logChannel = await _channelService.GetLogChannel();
 		if (logChannel != null)
 		{
 			await logChannel.SendMessageAsync(date + "|" + message);
 		}
 		else
 		{
-			await _errorHandler.HandleErrorAsync("Could not find log channel, message: " + date + "|" + message);
+			_logger.LogError("Could not find log channel, message: {Date}|{Message}", date, message);
 		}
 	}
 
-	private async Task<string> GetOrganisator(DiscordMessage message)
+	private async Task<string> GetOrganisator(IDiscordMessage message)
 	{
-		IReadOnlyList<DiscordEmbed> embeds = message.Embeds;
+		IReadOnlyList<IDiscordEmbed> embeds = message.Embeds;
 		if (embeds.Count > 0)
 		{
-			foreach (DiscordEmbed anEmbed in embeds)
+			foreach (IDiscordEmbed anEmbed in embeds)
 			{
 				foreach (DiscordEmbedField field in anEmbed.Fields)
 				{
@@ -536,7 +537,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 		{
 			if (message.Author != null)
 			{
-				DiscordMember member = await _userService.GetDiscordMember(message.Channel.Guild, message.Author.Id);
+				IDiscordMember member = await _userService.GetDiscordMember(message.Channel.Guild, message.Author.Id);
 				if (member != null)
 				{
 					return member.DisplayName;
@@ -545,7 +546,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 		}
 		return string.Empty;
 	}
-	public async Task<List<Tier>> ReadTeams(DiscordChannel channel, DiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team)
+	public async Task<List<Tier>> ReadTeams(IDiscordChannel channel, IDiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team)
 	{
 		if (parameters_as_in_hoeveelste_team.Length <= 1)
 		{
@@ -585,30 +586,30 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 
 				if (goodNumber)
 				{
-					DiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(channel.Guild.Id);
+					IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
 					if (toernooiAanmeldenChannel != null)
 					{
-						List<DiscordMessage> messages = [];
+						List<IDiscordMessage> messages = [];
 						try
 						{
-							IReadOnlyList<DiscordMessage> xMessages = toernooiAanmeldenChannel.GetMessagesAsync(hoeveelste + 1).Result;
-							foreach (DiscordMessage message in xMessages)
+							IReadOnlyList<IDiscordMessage> xMessages = toernooiAanmeldenChannel.GetMessagesAsync(hoeveelste + 1).Result;
+							foreach (IDiscordMessage message in xMessages)
 							{
 								messages.Add(message);
 							}
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Could not load messages from " + toernooiAanmeldenChannel.Name + ":", ex);
+							_logger.LogError(ex, "Could not load messages from {ChannelName}:", toernooiAanmeldenChannel.Name);
 						}
 						if (messages.Count == hoeveelste + 1)
 						{
-							DiscordMessage theMessage = messages[hoeveelste];
+							IDiscordMessage theMessage = messages[hoeveelste];
 							if (theMessage != null)
 							{
-								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT) || theMessage.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 								{
-									IDiscordChannel logChannel = new DiscordChannelWrapper(await _channelService.GetLogChannel(channel.Guild.Id));
+									IDiscordChannel logChannel = await _channelService.GetLogChannel();
 
 									if (logChannel.Inner != null)
 									{
@@ -675,13 +676,12 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 									}
 									else
 									{
-										await _errorHandler.HandleErrorAsync("Could not find log channel!");
+										_logger.LogError("Could not find log channel for reading teams.");
 									}
 								}
 								else
 								{
-									IDiscordMessage message = new DiscordMessageWrapper(theMessage);
-									Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = _discordMessageUtils.SortReactions(message);
+									Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = _discordMessageUtils.SortReactions(theMessage);
 
 									List<Tier> teams = [];
 									foreach (KeyValuePair<IDiscordEmoji, List<IDiscordUser>> reaction in reactions)
@@ -690,7 +690,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 										foreach (IDiscordUser user in reaction.Value)
 										{
 											string displayName = user.Inner.Username;
-											DiscordMember memberx = toernooiAanmeldenChannel.Guild.GetMemberAsync(user.Inner.Id).Result;
+											IDiscordMember memberx = await toernooiAanmeldenChannel.Guild.GetMemberAsync(user.Id);
 											if (memberx != null)
 											{
 												displayName = memberx.DisplayName;
@@ -699,11 +699,11 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 										}
 										if (aTeam.Organisator.Equals(string.Empty))
 										{
-											foreach (KeyValuePair<ulong, IDiscordGuild> aGuild in _guildProvider.Guilds)
+											foreach (KeyValuePair<ulong, IDiscordGuild> aGuild in _discordClient.Guilds)
 											{
-												if (aGuild.Key.Equals(Constants.NLBE_SERVER_ID))
+												if (aGuild.Key == _options.ServerId)
 												{
-													DiscordMember theMemberAuthor = await _userService.GetDiscordMember(aGuild.Value.Inner, theMessage.Author.Id);
+													IDiscordMember theMemberAuthor = await _userService.GetDiscordMember(aGuild.Value, theMessage.Author.Id);
 													if (theMemberAuthor != null)
 													{
 														aTeam.Organisator = theMemberAuthor.DisplayName;
@@ -742,7 +742,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 										foreach (Tuple<ulong, string> user in aTeam.Deelnemers)
 										{
 											string tempName = string.Empty;
-											DiscordMember tempUser = await channel.Guild.GetMemberAsync(user.Item1);
+											IDiscordMember tempUser = await channel.Guild.GetMemberAsync(user.Item1);
 											tempName = tempUser != null ? tempUser.DisplayName : user.Item2;
 											sb.AppendLine(counter + ". " + tempName);
 											counter++;
@@ -845,7 +845,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 			return teams;
 		}
 	}
-	public async Task<List<Tuple<ulong, string>>> GetIndividualParticipants(List<Tier> teams, DiscordGuild guild)
+	public async Task<List<Tuple<ulong, string>>> GetIndividualParticipants(List<Tier> teams, IDiscordGuild guild)
 	{
 		List<Tuple<ulong, string>> participants = [];
 		if (teams != null)
@@ -860,7 +860,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 						string temp = string.Empty;
 						try
 						{
-							DiscordMember tempMember = await guild.GetMemberAsync(participant.Item1);
+							IDiscordMember tempMember = await guild.GetMemberAsync(participant.Item1);
 							if (tempMember != null && tempMember.DisplayName != null && tempMember.DisplayName.Length > 0)
 							{
 								temp = tempMember.DisplayName;
@@ -916,7 +916,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 	}
 	public async Task<List<string>> GetMentions(List<Tuple<ulong, string>> memberList, ulong guildID)
 	{
-		IDiscordGuild guild = await _guildProvider.GetGuild(guildID);
+		IDiscordGuild guild = await _discordClient.GetGuildAsync(guildID);
 		if (guild != null)
 		{
 			List<string> mentionList = [];
@@ -925,7 +925,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 				bool addByString = true;
 				if (member.Item1 > 1)
 				{
-					DiscordMember tempMember = await guild.GetMemberAsync(member.Item1);
+					IDiscordMember tempMember = await guild.GetMemberAsync(member.Item1);
 					if (tempMember != null)
 					{
 						if (tempMember.Mention != null)
@@ -941,10 +941,10 @@ internal class TournamentService(ILogger<TournamentService> logger, IErrorHandle
 				if (addByString)
 				{
 					bool added = false;
-					IReadOnlyCollection<DiscordMember> usersList = await guild.GetAllMembersAsync();
+					IReadOnlyCollection<IDiscordMember> usersList = await guild.GetAllMembersAsync();
 					if (usersList != null)
 					{
-						foreach (DiscordMember memberItem in usersList)
+						foreach (IDiscordMember memberItem in usersList)
 						{
 							if (memberItem.DisplayName != null)
 							{

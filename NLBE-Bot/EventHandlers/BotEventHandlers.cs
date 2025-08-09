@@ -3,40 +3,46 @@ namespace NLBE_Bot.EventHandlers;
 using DSharpPlus;
 using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLBE_Bot;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
-internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMemberEventHandler guildMemberHandler, IMessageEventHandler messageHandler,
-								IUserService userService, IWeeklyEventService weeklyEventService, ILogger<BotEventHandlers> logger,
-								IErrorHandler errorHandler) : IBotEventHandlers
+internal class BotEventHandlers(ICommandEventHandler commandHandler,
+								IGuildMemberEventHandler guildMemberHandler,
+								IMessageEventHandler messageHandler,
+								IJob<VerifyServerNicknamesJob> verifyServerNicknamesJob,
+								IJob<AnnounceWeeklyWinnerJob> announceWeeklyWinnerJob,
+								ILogger<BotEventHandlers> logger,
+								IOptions<BotOptions> options) : IBotEventHandlers
 {
 	private readonly ICommandEventHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
 	private readonly IGuildMemberEventHandler _guildMemberHandler = guildMemberHandler ?? throw new ArgumentNullException(nameof(guildMemberHandler));
 	private readonly IMessageEventHandler _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));
-	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService ?? throw new ArgumentNullException(nameof(weeklyEventService));
+	private readonly IJob<VerifyServerNicknamesJob> _verifyServerNicknamesJob = verifyServerNicknamesJob ?? throw new ArgumentNullException(nameof(verifyServerNicknamesJob));
+	private readonly IJob<AnnounceWeeklyWinnerJob> _announceWeeklyWinnerJob = announceWeeklyWinnerJob ?? throw new ArgumentNullException(nameof(announceWeeklyWinnerJob));
 	private readonly ILogger<BotEventHandlers> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
-	private IBotState _botState;
 	private int _heartBeatCounter;
 
 	public void Register(IDiscordClient client, IBotState botState)
 	{
 		_ = client ?? throw new ArgumentNullException(nameof(client));
-		_botState = botState ?? throw new ArgumentNullException(nameof(botState));
+		_ = botState ?? throw new ArgumentNullException(nameof(botState));
 
 		// Commands
 		ICommandsNextExtension commands = client.GetCommandsNext();
 		_commandHandler.Register(commands);
 
 		// Guild member events
-		_guildMemberHandler.Register(client);
+		_guildMemberHandler.Register(client, botState);
 
 		// Message events
 		_messageHandler.Register(client);
@@ -44,6 +50,19 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		// Generic events
 		client.Heartbeated += OnHeartbeated;
 		client.Ready += OnReady;
+		client.ClientErrored += OnClientErrored;
+		client.SocketClosed += OnSocketClosed;
+	}
+
+	private Task OnClientErrored(DiscordClient sender, ClientErrorEventArgs e)
+	{
+		HandleClienErrored(e.EventName, e.Exception);
+		return Task.CompletedTask;
+	}
+
+	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs e)
+	{
+		return HandleHeartbeated(e.Ping, e.Timestamp, DateTime.Now);
 	}
 
 	private Task OnReady(DiscordClient discordClient, ReadyEventArgs _)
@@ -51,28 +70,20 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 		return HandleReady(new DiscordClientWrapper(discordClient));
 	}
 
-	internal Task HandleReady(IDiscordClient discordClient)
+	private Task OnSocketClosed(DiscordClient sender, SocketCloseEventArgs e)
 	{
-		foreach (KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds)
-		{
-			if (!guild.Key.Equals(Constants.NLBE_SERVER_ID) && !guild.Key.Equals(Constants.DA_BOIS_ID)) // TODO: move to config.
-			{
-				guild.Value.LeaveAsync();
-			}
-		}
-
-		_logger.LogInformation("Client (v{Version}) is ready to process events.", Constants.Version);
-
-		return Task.CompletedTask;
+		return HandleSocketClosed(e.CloseCode, e.CloseMessage);
 	}
 
-	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs __)
+	internal void HandleClienErrored(string eventName, Exception exception)
 	{
-		return HandleHeartbeated(DateTime.Now);
+		_logger.LogError(exception, "An error occurred in the Discord client event: {EventName}.", eventName);
 	}
 
-	internal async Task HandleHeartbeated(DateTime now)
+	internal async Task HandleHeartbeated(int ping, DateTimeOffset timestamp, DateTime now)
 	{
+		_logger.LogDebug("Received heartbeat. Ping: {Ping}. Timestamp: {Timestamp}.", ping, timestamp);
+
 		_heartBeatCounter++;
 
 		if (_heartBeatCounter == 1) // Skip the first heartbeat, as it is triggered on startup.
@@ -80,70 +91,41 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler, IGuildMembe
 			return;
 		}
 
-		if (_botState.IgnoreEvents)
-		{
-			return;
-		}
-
-		if (ShouldUpdateUsernames(now, _botState.LasTimeNamesWereUpdated))
-		{
-			await UpdateUsernames();
-		}
-
-		if (ShouldAnnounceWeeklyWinner(now, _botState.LastWeeklyWinnerAnnouncement))
-		{
-			await _weeklyEventService.AnnounceWeeklyWinner();
-			_botState.LastWeeklyWinnerAnnouncement = now;
-		}
+		await _verifyServerNicknamesJob.Execute(now);
+		await _announceWeeklyWinnerJob.Execute(now);
 	}
 
-	private static bool ShouldUpdateUsernames(DateTime now, DateTime? lastUpdate)
+	internal async Task HandleReady(IDiscordClient discordClient)
 	{
-		// Run once per day, at or after 00:00, but only if not already run today.
-		return !lastUpdate.HasValue || lastUpdate.Value.Date != now.Date;
-	}
-
-	private static bool ShouldAnnounceWeeklyWinner(DateTime now, DateTime? lastAnnouncement)
-	{
-		// Run once per week, on Monday at or after 14:00, but only if not already run this week.
-		bool isMondayAtOrAfter14 = now.DayOfWeek == DayOfWeek.Monday && now.Hour >= 14;
-		bool notAlreadyAnnouncedThisWeek = !lastAnnouncement.HasValue ||
-			CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(lastAnnouncement.Value, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday)
-			!= CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(now, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday);
-
-		return isMondayAtOrAfter14 && notAlreadyAnnouncedThisWeek;
-	}
-
-	private async Task UpdateUsernames()
-	{
-		bool update = false;
-		DateTime now = DateTime.Now;
-
-		if (_botState.LasTimeNamesWereUpdated.HasValue)
+		try
 		{
-			if (_botState.LasTimeNamesWereUpdated.Value.DayOfYear != now.DayOfYear)
+			foreach (KeyValuePair<ulong, IDiscordGuild> guild in from KeyValuePair<ulong, IDiscordGuild> guild in discordClient.Guilds
+																 where !guild.Key.Equals(_options.ServerId)
+																 select guild)
 			{
-				update = true;
+				_logger.LogWarning("Bot is not configured to handle guild {GuildId}. Leaving the guild.", guild.Key);
+				await guild.Value.LeaveAsync();
 			}
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "An error occurred while handling the Ready event. Could not leave non-whitelisted guilds.");
+		}
+
+		_logger.LogInformation("Client (v{Version}) is ready to process events.", Constants.Version);
+	}
+
+	internal Task HandleSocketClosed(int closeCode, string closeMessage)
+	{
+		if (closeCode != 1000) // Abnormal closure
+		{
+			_logger.LogError("Socket closed unexpectedly. Code: {CloseCode}. Reason: {CloseMessage}.", closeCode, closeMessage);
 		}
 		else
 		{
-			update = true;
+			_logger.LogInformation("Socket closed normally. Code: {CloseCode}. Reason: {CloseMessage}.", closeCode, closeMessage);
 		}
 
-		if (update)
-		{
-			_botState.LasTimeNamesWereUpdated = now;
-
-			try
-			{
-				await _userService.UpdateUsers();
-			}
-			catch (Exception ex)
-			{
-				string message = "\nERROR updating users:\n" + ex.Message;
-				await _errorHandler.HandleErrorAsync(message, ex);
-			}
-		}
+		return Task.CompletedTask;
 	}
 }

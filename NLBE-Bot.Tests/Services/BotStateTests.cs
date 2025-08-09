@@ -1,12 +1,133 @@
 namespace NLBE_Bot.Tests.Services;
 
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using NSubstitute;
 
 [TestClass]
 public class BotStateTests
 {
+	[TestMethod]
+	public async Task SaveAsync_CreatesFileWithCorrectContent()
+	{
+		// Arrange.		
+		string tempFile = Path.GetTempFileName(); // Use a unique file for testing.
+		BotState state = new(tempFile, autoSave: false)
+		{
+			IgnoreCommands = true,
+			IgnoreEvents = true,
+			WeeklyEventWinner = new WeeklyEventWinner { UserId = 42, LastEventDate = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc) },
+			LasTimeServerNicknamesWereVerified = new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc),
+			LastWeeklyWinnerAnnouncement = new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc)
+		};
+
+		try
+		{
+			// Act.
+			await state.SaveAsync();
+
+			// Assert.
+			Assert.IsTrue(File.Exists(tempFile), "State file should exist after SaveAsync.");
+			string json = await File.ReadAllTextAsync(tempFile);
+			Assert.IsTrue(json.Contains("IgnoreCommands"));
+			Assert.IsTrue(json.Contains("IgnoreEvents"));
+			Assert.IsTrue(json.Contains("WeeklyEventWinner"));
+		}
+		finally
+		{
+			File.Delete(tempFile);
+		}
+	}
+
+	[TestMethod]
+	public async Task LoadAsync_LoadsStateCorrectly()
+	{
+		// Arrange.
+		string tempFile = Path.GetTempFileName();
+		string json = """
+        {
+            "IgnoreCommands": true,
+            "IgnoreEvents": false,
+            "WeeklyEventWinner": { "UserId": 99, "LastEventDate": "2024-01-01T00:00:00" },
+            "LasTimeServerNicknamesWereVerified": "2024-02-02T00:00:00",
+            "LastWeeklyWinnerAnnouncement": "2024-03-03T00:00:00"
+        }
+        """;
+		await File.WriteAllTextAsync(tempFile, json);
+		BotState state = new(tempFile);
+
+
+		try
+		{
+			// Act.
+			await state.LoadAsync();
+
+			// Assert.
+			Assert.IsTrue(state.IgnoreCommands);
+			Assert.IsFalse(state.IgnoreEvents);
+			Assert.AreEqual(99UL, state.WeeklyEventWinner.UserId);
+			Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.WeeklyEventWinner.LastEventDate);
+			Assert.AreEqual(new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
+			Assert.AreEqual(new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);
+		}
+		finally
+		{
+			File.Delete(tempFile);
+		}
+	}
+
+	[TestMethod]
+	public async Task LoadAsync_LoadsDefaults_WhenFileDoesNotExist()
+	{
+		// Arrange.
+		string tempFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+		BotState state = new(tempFile)
+		{
+			IgnoreCommands = false,
+			IgnoreEvents = false,
+			WeeklyEventWinner = new WeeklyEventWinner { UserId = 1, LastEventDate = DateTime.UtcNow },
+			LasTimeServerNicknamesWereVerified = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+			LastWeeklyWinnerAnnouncement = new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc)
+		};
+
+		// Act.
+		await state.LoadAsync(); // Should not throw, should not change state
+
+		// Assert.
+		Assert.IsFalse(state.IgnoreCommands);
+		Assert.IsFalse(state.IgnoreEvents);
+		Assert.AreEqual(1UL, state.WeeklyEventWinner.UserId);
+		Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
+		Assert.AreEqual(new DateTime(2024, 1, 2, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);
+	}
+
+	[TestMethod]
+	public async Task LoadAsync_LoadsDefaults_WhenJsonIsEmpty()
+	{
+		// Arrange.
+		string tempFile = Path.GetTempFileName();
+		await File.WriteAllTextAsync(tempFile, "");
+		BotState state = new(tempFile);
+
+		try
+		{
+			// Act.
+			await state.LoadAsync();
+
+			// Assert.
+			Assert.IsFalse(state.IgnoreCommands, "IgnoreCommands should be false by default.");
+			Assert.IsFalse(state.IgnoreEvents, "IgnoreEvents should be false by default.");
+			Assert.IsNull(state.WeeklyEventWinner, "WeeklyEventWinner should not be null.");
+			Assert.IsNull(state.LasTimeServerNicknamesWereVerified, "LasTimeServerNicknamesWereVerified should be null by default.");
+			Assert.IsNull(state.LastWeeklyWinnerAnnouncement, "LastWeeklyWinnerAnnouncement should be null by default.");
+		}
+		finally
+		{
+			File.Delete(tempFile);
+		}
+	}
+
 	[TestMethod]
 	public void IgnoreCommands_GetSet_Works()
 	{
@@ -36,12 +157,16 @@ public class BotStateTests
 	[TestMethod]
 	public void WeeklyEventWinner_GetSet_Works()
 	{
-		Tuple<ulong, DateTime> tuple = new(123UL, DateTime.UtcNow);
+		WeeklyEventWinner weeklyEventWinner = new()
+		{
+			UserId = 123UL,
+			LastEventDate = DateTime.UtcNow
+		};
 		BotState state = new()
 		{
-			WeeklyEventWinner = tuple
+			WeeklyEventWinner = weeklyEventWinner
 		};
-		Assert.AreEqual(tuple, state.WeeklyEventWinner);
+		Assert.AreEqual(weeklyEventWinner, state.WeeklyEventWinner);
 	}
 
 	[TestMethod]
@@ -59,12 +184,12 @@ public class BotStateTests
 		DateTime now = DateTime.UtcNow;
 		BotState state = new()
 		{
-			LasTimeNamesWereUpdated = now
+			LasTimeServerNicknamesWereVerified = now
 		};
-		Assert.AreEqual(now, state.LasTimeNamesWereUpdated);
+		Assert.AreEqual(now, state.LasTimeServerNicknamesWereVerified);
 
-		state.LasTimeNamesWereUpdated = null;
-		Assert.IsNull(state.LasTimeNamesWereUpdated);
+		state.LasTimeServerNicknamesWereVerified = null;
+		Assert.IsNull(state.LasTimeServerNicknamesWereVerified);
 	}
 
 	[TestMethod]
@@ -98,6 +223,39 @@ public class BotStateTests
 				else
 				{
 					_ = state.IgnoreCommands;
+				}
+			}
+			catch
+			{
+				Interlocked.Increment(ref exceptions);
+			}
+		});
+
+		Assert.AreEqual(0, exceptions, "No exceptions should be thrown during concurrent access.");
+	}
+
+	[TestMethod]
+	public void WeeklyEventWinner_IsThreadSafe()
+	{
+		BotState state = new();
+		int exceptions = 0;
+		WeeklyEventWinner winner = new()
+		{
+			UserId = 1,
+			LastEventDate = DateTime.UtcNow
+		};
+
+		Parallel.For(0, 10000, i =>
+		{
+			try
+			{
+				if (i % 2 == 0)
+				{
+					state.WeeklyEventWinner = winner;
+				}
+				else
+				{
+					_ = state.WeeklyEventWinner;
 				}
 			}
 			catch

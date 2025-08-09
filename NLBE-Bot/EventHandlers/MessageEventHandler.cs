@@ -7,12 +7,12 @@ using DSharpPlus.EventArgs;
 using FMWOTB.Tools.Replays;
 using FMWOTB.Vehicles;
 using JsonObjectConverter;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
-using NLBE_Bot.Services;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -20,12 +20,20 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class MessageEventHandler(IConfiguration configuration, IErrorHandler errorHandler, IBotState botState, ILogger<MessageEventHandler> logger,
-								IChannelService channelService, IUserService userService, IDiscordMessageUtils discordMessageUtils, IWeeklyEventService weeklyEventHandler,
-								IMapService mapService, IReplayService replayService, ITournamentService tournamentService, IHallOfFameService hallOfFameService, IMessageService messageService) : IMessageEventHandler
+internal class MessageEventHandler(IOptions<BotOptions> options,
+								   IBotState botState,
+								   ILogger<MessageEventHandler> logger,
+								   IChannelService channelService,
+								   IUserService userService,
+								   IDiscordMessageUtils discordMessageUtils,
+								   IWeeklyEventService weeklyEventHandler,
+								   IMapService mapService,
+								   IReplayService replayService,
+								   ITournamentService tournamentService,
+								   IHallOfFameService hallOfFameService,
+								   IMessageService messageService) : IMessageEventHandler
 {
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
-	private readonly IConfiguration _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
@@ -46,18 +54,31 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 		client.MessageReactionRemoved += OnMessageReactionRemoved;
 	}
 
-	internal async Task OnMessageCreated(DiscordClient sender, MessageCreateEventArgs e)
+	private Task OnMessageCreated(DiscordClient sender, MessageCreateEventArgs e)
+	{
+		return HandleMessageCreated(new DiscordClientWrapper(sender), new DiscordChannelWrapper(e.Channel), new DiscordMessageWrapper(e.Message), new DiscordUserWrapper(e.Author), new DiscordGuildWrapper(e.Guild));
+	}
+
+	internal async Task HandleMessageCreated(IDiscordClient client, IDiscordChannel channel, IDiscordMessage message, IDiscordUser author, IDiscordGuild guild)
 	{
 		if (_botState.IgnoreEvents)
 		{
 			return;
 		}
 
-		if (false && e.Message.Content.StartsWith(Constants.Prefix))
+		ICommandsNextExtension commandsNext = client.GetCommandsNext();
+
+		if (commandsNext == null)
+		{
+			_logger.LogInformation("CommandsNext is not enabled.");
+			return;
+		}
+
+		if (false && message.Content.StartsWith(Constants.Prefix))
 		// VOOR IN HET GEVAL DAT OOIT JE COMMANDS MOET MAKEN OP BASIS VAN DE MESSAGE CREATED EVENT
 		{
 			// Remove the prefix and split the message into command and arguments
-			string content = e.Message.Content[Constants.Prefix.Length..];
+			string content = message.Content[Constants.Prefix.Length..];
 			string[] parts = content.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
 			if (parts.Length == 0)
@@ -69,12 +90,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			string commandName = parts[0];
 			string args = content.Substring(Constants.Prefix.Length, content.Length - Constants.Prefix.Length);
 
-			CommandsNextExtension commandsNext = sender.GetCommandsNext();
-			if (commandsNext == null)
-			{
-				_logger.LogInformation("CommandsNext is not enabled.");
-				return;
-			}
+
 
 			Command command = commandsNext.FindCommand(commandName, out string rawArguments);
 			if (command == null)
@@ -83,7 +99,7 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 				return;
 			}
 
-			CommandContext ctx = commandsNext.CreateContext(e.Message, Constants.Prefix, command, args);
+			CommandContext ctx = commandsNext.CreateContext(message, Constants.Prefix, command, args);
 
 			try
 			{
@@ -102,53 +118,43 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			// Handle the command
 			return;
 		}
-		if (!e.Author.IsBot && e.Channel.Guild != null)
+		if (!author.IsBot && channel.Guild != null)
 		{
 			bool validChannel = false;
-			DiscordChannel masteryChannel = await _channelService.GetMasteryReplaysChannel(e.Guild.Id);
-			if (masteryChannel != null)
+			IDiscordChannel masteryChannel = await _channelService.GetMasteryReplaysChannel();
+
+			if (masteryChannel != null && masteryChannel.Equals(channel))
 			{
-				if (masteryChannel.Equals(e.Channel) || e.Channel.Id.Equals(Constants.BOTTEST_ID))
-				{
-					validChannel = true;
-				}
+				validChannel = true;
 			}
+
 			if (!validChannel)
 			{
-				masteryChannel = await _channelService.GetBottestChannel();
-				if (masteryChannel != null && masteryChannel.Equals(e.Channel))
+				masteryChannel = await _channelService.GetBotTestChannel();
+				if (masteryChannel != null && masteryChannel.Equals(channel))
 				{
 					validChannel = true;
 				}
 				if (!validChannel)
 				{
 					masteryChannel = await _channelService.GetReplayResultsChannel();
-					if (masteryChannel != null)
+					if (masteryChannel != null && masteryChannel.Equals(channel))
 					{
-						if (masteryChannel.Equals(e.Channel))
-						{
-							validChannel = true;
-						}
+						validChannel = true;
 					}
 					if (!validChannel)
 					{
 						masteryChannel = await _channelService.GetReplayResultsChannel();
-						if (masteryChannel != null)
+						if (masteryChannel != null && masteryChannel.Equals(channel))
 						{
-							if (masteryChannel.Equals(e.Channel))
-							{
-								validChannel = true;
-							}
+							validChannel = true;
 						}
 						if (!validChannel)
 						{
 							masteryChannel = await _channelService.GetTestChannel();
-							if (masteryChannel != null)
+							if (masteryChannel != null && masteryChannel.Equals(channel))
 							{
-								if (masteryChannel.Equals(e.Channel))
-								{
-									validChannel = true;
-								}
+								validChannel = true;
 							}
 						}
 					}
@@ -156,36 +162,31 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			}
 			if (validChannel)
 			{
-				_botState.LastCreatedDiscordMessage = new DiscordMessageWrapper(e.Message);
-				DiscordMember member = await e.Guild.GetMemberAsync(e.Author.Id);
+				_botState.LastCreatedDiscordMessage = message;
+				IDiscordMember member = await guild.GetMemberAsync(author.Id);
 
-				if (e.Channel.Id.Equals(Constants.PRIVE_ID) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))) || (member.Roles.Contains(e.Guild.GetRole(Constants.NLBE2_ROLE)) && (e.Channel.Id.Equals(Constants.MASTERY_REPLAYS_ID) || e.Channel.Id.Equals(Constants.BOTTEST_ID))))
+				if ((member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) && (channel.Id.Equals(Constants.MASTERY_REPLAYS_ID))) ||
+					(member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE)) && (channel.Id.Equals(Constants.MASTERY_REPLAYS_ID))))
 				{
 					//MasteryChannel (komt wel in HOF)
-					if (e.Message.Attachments.Count > 0)
+					if (message.Attachments.Count > 0)
 					{
-						foreach (DiscordAttachment attachment in e.Message.Attachments)
+						foreach (DiscordAttachment attachment in message.Attachments)
 						{
 							if (attachment.FileName.EndsWith(".wotbreplay"))
 							{
-								Tuple<string, DiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, attachment, e.Channel, e.Guild.Name, e.Guild.Id, null, await e.Guild.GetMemberAsync(e.Author.Id));
-								await _hallOfFameService.HofAfterUpload(returnedTuple, e.Message);
+								Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, attachment, channel, guild.Name, guild.Id, null, await guild.GetMemberAsync(author.Id));
+								await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 								break;
 							}
 						}
 					}
-					else
+					else if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
 					{
-						if (e.Message != null)
-						{
-							if (e.Message.Content.StartsWith("http") && e.Message.Content.Contains("wotinspector"))
-							{
-								string[] splitted = e.Message.Content.Split(' ');
-								string url = splitted[0];
-								Tuple<string, DiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, null, e.Channel, e.Guild.Name, e.Guild.Id, url, await e.Guild.GetMemberAsync(e.Author.Id));
-								await _hallOfFameService.HofAfterUpload(returnedTuple, e.Message);
-							}
-						}
+						string[] splitted = message.Content.Split(' ');
+						string url = splitted[0];
+						Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, null, channel, guild.Name, guild.Id, url, await guild.GetMemberAsync(author.Id));
+						await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 					}
 				}
 				else
@@ -193,30 +194,25 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 					//ReplayResults die niet in HOF komen
 					WGBattle replayInfo = new(string.Empty);
 					bool wasReplay = false;
-					if (e.Message.Attachments.Count > 0)
+
+					if (message.Attachments.Count > 0)
 					{
-						foreach (DiscordAttachment attachment in e.Message.Attachments)
+						foreach (DiscordAttachment attachment in from DiscordAttachment attachment in message.Attachments
+																 where attachment.FileName.EndsWith(".wotbreplay")
+																 select attachment)
 						{
-							if (attachment.FileName.EndsWith(".wotbreplay"))
-							{
-								await _messageService.ConfirmCommandExecuting(e.Message);
-								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetIGNFromMember(member.DisplayName).Item2, null);
-							}
+							await _messageService.ConfirmCommandExecuting(message);
+							wasReplay = true;
+							replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, null);
 						}
 					}
-					else
+					else if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
 					{
-						if (e.Message != null)
-						{
-							if (e.Message.Content.StartsWith("http") && e.Message.Content.Contains("wotinspector"))
-							{
-								await _messageService.ConfirmCommandExecuting(e.Message);
-								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetIGNFromMember(member.DisplayName).Item2, e.Message.Content);
-							}
-						}
+						await _messageService.ConfirmCommandExecuting(message);
+						wasReplay = true;
+						replayInfo = await _replayService.GetReplayInfo(string.Empty, null, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, message.Content);
 					}
+
 					if (wasReplay && replayInfo != null)
 					{
 						string thumbnail = string.Empty;
@@ -227,50 +223,52 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Tijdens het nakijken van het wekelijkse event: ", ex);
+							_logger.LogError(ex, "Error while getting weekly event description for replay.");
 						}
-						List<Tuple<string, string>> images = await _mapService.GetAllMaps(e.Guild.Id);
-						foreach (Tuple<string, string> map in images)
+
+						List<Tuple<string, string>> images = await _mapService.GetAllMaps(guild.Id);
+
+						foreach (Tuple<string, string> map in from Tuple<string, string> map in images
+															  where replayInfo.map_name.ToLower().Contains(map.Item1.ToLower())
+															  select map)
 						{
-							if (replayInfo.map_name.ToLower().Contains(map.Item1.ToLower()))
+							try
 							{
-								try
+								if (map.Item1 != string.Empty)
 								{
-									if (map.Item1 != string.Empty)
-									{
-										thumbnail = map.Item2;
-									}
+									thumbnail = map.Item2;
 								}
-								catch (Exception ex)
-								{
-									await _errorHandler.HandleErrorAsync("Could not set thumbnail for embed:", ex);
-								}
-								break;
+							}
+							catch (Exception ex)
+							{
+								_logger.LogError(ex, "Could not set thumbnail for embed.");
+								thumbnail = string.Empty;
 							}
 						}
-						EmbedOptions options = new()
+
+						EmbedOptions embedOptions = new()
 						{
 							Thumbnail = thumbnail,
 							Title = "Resultaat",
 							Description = await _replayService.GetDescriptionForReplay(replayInfo, -1, eventDescription),
 							IsForReplay = true,
 						};
-						await _messageService.CreateEmbed(e.Channel, options);
-						await _messageService.ConfirmCommandExecuted(e.Message);
+						await _messageService.CreateEmbed(channel, embedOptions);
+						await _messageService.ConfirmCommandExecuted(message);
 					}
 					else if (wasReplay)
 					{
-						await e.Message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION).Inner);
-						await e.Message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION).Inner);
+						await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+						await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION));
 					}
 				}
 			}
 
 			_botState.LastCreatedDiscordMessage = null;
 		}
-		else if (e.Channel.IsPrivate)
+		else if (channel.IsPrivate)
 		{
-			await HandleWeeklyEventDM(e.Channel, e.Message);
+			await HandleWeeklyEventDM(channel, message);
 		}
 	}
 
@@ -281,15 +279,15 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			return;
 		}
 
-		DiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(e.Guild.Id);
+		IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
 		if (e.Channel.Equals(toernooiAanmeldenChannel))
 		{
 			DateTime timeStamp = e.Message.Timestamp.LocalDateTime;
-			DiscordChannel logChannel = await _channelService.GetLogChannel(e.Guild.Id);
+			IDiscordChannel logChannel = await _channelService.GetLogChannel();
 			if (logChannel != null)
 			{
-				IReadOnlyList<DiscordMessage> messages = await logChannel.GetMessagesAsync(100);
-				foreach (DiscordMessage message in messages)
+				IReadOnlyList<IDiscordMessage> messages = await logChannel.GetMessagesAsync(100);
+				foreach (IDiscordMessage message in messages)
 				{
 					string[] splitted = message.Content.Split('|');
 
@@ -303,85 +301,89 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 		}
 	}
 
-	internal async Task OnMessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
+	private async Task OnMessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
+	{
+		await HandleMessageReactionAdded(new DiscordMessageWrapper(e.Message), new DiscordGuildWrapper(e.Guild), new DiscordChannelWrapper(e.Channel),
+										 new DiscordUserWrapper(e.User), new DiscordEmojiWrapper(e.Emoji));
+	}
+
+	internal async Task HandleMessageReactionAdded(IDiscordMessage message, IDiscordGuild guild, IDiscordChannel channel, IDiscordUser user, IDiscordEmoji emoji)
 	{
 		if (_botState.IgnoreEvents)
 		{
 			return;
 		}
 
-		if (!e.User.IsBot && e.Guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
+		if (!user.IsBot && guild.Id == _options.ServerId)
 		{
-			DiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(e.Guild.Id);
-			if (toernooiAanmeldenChannel != null && e.Channel.Equals(toernooiAanmeldenChannel))
+			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
+			if (toernooiAanmeldenChannel != null && channel.Equals(toernooiAanmeldenChannel))
 			{
-				DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-				await _tournamentService.GenerateLogMessage(message, toernooiAanmeldenChannel, e.User.Id, _discordMessageUtils.GetDiscordEmoji(e.Emoji.Name).ToString());
+				IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
+				await _tournamentService.GenerateLogMessage(messageTmp, toernooiAanmeldenChannel, user.Id, _discordMessageUtils.GetDiscordEmoji(emoji.Name).ToString());
 			}
 			else
 			{
-				DiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
-				if (regelsChannel != null && e.Channel.Equals(regelsChannel))
+				IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
+				if (regelsChannel != null && channel.Equals(regelsChannel))
 				{
 					string rulesReadEmoji = ":ok:";
-					if (e.Emoji.GetDiscordName().Equals(rulesReadEmoji))
+					if (emoji.GetDiscordName().Equals(rulesReadEmoji))
 					{
-						IReadOnlyList<DiscordUser> users = await e.Message.GetReactionsAsync(e.Emoji);
+						IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(emoji);
 
-						foreach (DiscordUser aUser in users)
+						foreach (IDiscordUser aUser in users)
 						{
 							if (!aUser.IsBot)
 							{
-								await e.Message.DeleteReactionAsync(e.Emoji, aUser);
-								DiscordMember member = await e.Guild.GetMemberAsync(aUser.Id);
+								await message.DeleteReactionAsync(emoji, aUser);
+								IDiscordMember member = await guild.GetMemberAsync(aUser.Id);
 								if (member != null)
 								{
 									bool hadRulesNotReadrole = false;
 									if (member.Roles != null)
 									{
-										foreach (DiscordRole memberRole in member.Roles)
+										foreach (IDiscordRole memberRole in from IDiscordRole memberRole in member.Roles
+																			where memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE)
+																			select memberRole)
 										{
-											if (memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE))
-											{
-												hadRulesNotReadrole = true;
-												await member.RevokeRoleAsync(memberRole);//een oorzaak
-												break;
-											}
+											hadRulesNotReadrole = true;
+											await member.RevokeRoleAsync(memberRole);
 										}
 									}
-									if (hadRulesNotReadrole || member.Roles == null || member.Roles.Count() == 0)
+									if (hadRulesNotReadrole || member.Roles == null || member.Roles.Any())
 									{
 										if (member.DisplayName.Split(']').Length > 1)
 										{
 											if (member.DisplayName.Split(']').Length > 2)
 											{
 												string[] splitted = member.DisplayName.Split(']');
-												string tempName = splitted[splitted.Length - 1].Trim(' ');
-												await _userService.ChangeMemberNickname(member, "[] " + tempName);//een oorzaak
+												string tempName = splitted[^1].Trim(' ');
+												await _userService.ChangeMemberNickname(member, "[] " + tempName);
 
 											}
 											else if (member.DisplayName.Contains("[NLBE]"))
 											{
-												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE]", string.Empty).Trim(' '));//een oorzaak
+												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE]", string.Empty).Trim(' '));
 											}
 											else if (member.DisplayName.Contains("[NLBE2]"))
 											{
-												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE2]", string.Empty).Trim(' '));//een oorzaak
+												await _userService.ChangeMemberNickname(member, "[] " + member.DisplayName.Replace("[NLBE2]", string.Empty).Trim(' '));
 											}
 										}
 										else
 										{
-											await _userService.ChangeMemberNickname(member, "[] " + member.Username);//een oorzaak
+											await _userService.ChangeMemberNickname(member, "[] " + member.Username);
 										}
-										DiscordRole ledenRole = e.Guild.GetRole(Constants.LEDEN_ROLE);
+										IDiscordRole ledenRole = guild.GetRole(_options.MemberDefaultRoleId);
 										if (ledenRole != null)
 										{
-											await member.GrantRoleAsync(ledenRole);//een oorzaak
+											await member.GrantRoleAsync(ledenRole);
 										}
-										DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();//een oorzaak
+										IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 										if (algemeenChannel != null)
 										{
-											await algemeenChannel.SendMessageAsync(e.User.Mention + " , welkom op de NLBE discord server. GLHF!");
+											await algemeenChannel.SendMessageAsync(user.Mention + " , welkom op de NLBE discord server. GLHF!");
 										}
 									}
 								}
@@ -390,12 +392,12 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 					}
 					else
 					{
-						IReadOnlyList<DiscordUser> users = await e.Message.GetReactionsAsync(e.Emoji);
-						foreach (DiscordUser user in users)
+						IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(emoji);
+						foreach (IDiscordUser u in users)
 						{
-							if (!user.IsBot)
+							if (!u.IsBot)
 							{
-								await e.Message.DeleteReactionAsync(e.Emoji, user);
+								await message.DeleteReactionAsync(emoji, u);
 							}
 						}
 					}
@@ -403,93 +405,95 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			}
 		}
 	}
+	private Task OnMessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
+	{
+		return HandleMessageReactionRemoved(new DiscordMessageWrapper(e.Message), new DiscordGuildWrapper(e.Guild), new DiscordChannelWrapper(e.Channel),
+										 new DiscordUserWrapper(e.User), new DiscordEmojiWrapper(e.Emoji));
+	}
 
-	internal async Task OnMessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
+	internal async Task HandleMessageReactionRemoved(IDiscordMessage message, IDiscordGuild guild, IDiscordChannel channel, IDiscordUser user, IDiscordEmoji emoji)
 	{
 		if (_botState.IgnoreEvents)
 		{
 			return;
 		}
 
-		if (e.Guild.Id is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID)
+		if (guild.Id == _options.ServerId)
 		{
-			DiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel(e.Guild.Id);
-			if (toernooiAanmeldenChannel != null)
+			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
+			if (toernooiAanmeldenChannel != null && channel.Equals(toernooiAanmeldenChannel))
 			{
-				if (e.Channel.Equals(toernooiAanmeldenChannel))
+				bool removeInLog = true;
+				IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
+				if (messageTmp.Author != null && !messageTmp.Author.Id.Equals(Constants.NLBE_BOT))
 				{
-					bool removeInLog = true;
-					DiscordMessage message = await toernooiAanmeldenChannel.GetMessageAsync(e.Message.Id);
-					if (message.Author != null && !message.Author.Id.Equals(Constants.NLBE_BOT) && !message.Author.Id.Equals(Constants.TESTBEASTV2_BOT))
+					removeInLog = false;
+				}
+				if (removeInLog)
+				{
+					//check if reaction has to be added by bot (from 0 reactions to 1 reaction)
+					IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(emoji);
+					if (users == null || users.Count == 0)
 					{
-						removeInLog = false;
+						await message.CreateReactionAsync(emoji);
 					}
-					if (removeInLog)
+
+					//remove in log
+					IDiscordChannel logChannel = await _channelService.GetLogChannel();
+
+					if (logChannel.Inner != null)
 					{
-						//check if reaction has to be added by bot (from 0 reactions to 1 reaction)
-						IReadOnlyList<DiscordUser> users = await e.Message.GetReactionsAsync(e.Emoji);
-						if (users == null || users.Count == 0)
+						IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+						Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
+						foreach (KeyValuePair<DateTime, List<IDiscordMessage>> messageList in sortedMessages)
 						{
-							await e.Message.CreateReactionAsync(e.Emoji);
-						}
-
-						//remove in log
-						IDiscordChannel logChannel = new DiscordChannelWrapper(await _channelService.GetLogChannel(e.Guild.Id));
-
-						if (logChannel.Inner != null)
-						{
-							IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-							Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
-							foreach (KeyValuePair<DateTime, List<IDiscordMessage>> messageList in sortedMessages)
+							try
 							{
-								try
+								if (message.CreationTimestamp.LocalDateTime.CompareDateTime(messageList.Key))
 								{
-									if (e.Message.CreationTimestamp.LocalDateTime.CompareDateTime(messageList.Key))
+									foreach (IDiscordMessage aMessage in messageList.Value)
 									{
-										foreach (IDiscordMessage aMessage in messageList.Value)
+										IDiscordMember member = await _userService.GetDiscordMember(guild, user.Id);
+										if (member != null)
 										{
-											DiscordMember member = await _userService.GetDiscordMember(e.Guild, e.User.Id);
-											if (member != null)
+											string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
+											string theEmoji = _discordMessageUtils.GetEmojiAsString(emoji.Name);
+											if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && _discordMessageUtils.GetEmojiAsString(splitted[3]).Equals(theEmoji))
 											{
-												string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
-												string theEmoji = _discordMessageUtils.GetEmojiAsString(e.Emoji.Name);
-												if (splitted[2].Replace("\\", string.Empty).ToLower().Equals(member.DisplayName.ToLower()) && _discordMessageUtils.GetEmojiAsString(splitted[3]).Equals(theEmoji))
-												{
-													await aMessage.Inner.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
-												}
+												await aMessage.Inner.DeleteAsync("Log updated: reaction was removed from message in Toernooi-aanmelden for this user.");
 											}
 										}
 									}
 								}
-								catch (Exception ex)
-								{
-									await _errorHandler.HandleErrorAsync("Could not compare TimeStamps in MessageReactionRemoved:", ex);
-								}
+							}
+							catch (Exception ex)
+							{
+								_logger.LogError(ex, "Error while comparing timestamps in MessageReactionRemoved.");
 							}
 						}
-						else
-						{
-							await _errorHandler.HandleErrorAsync("Could not find log channel at MessageReactionRemoved!");
-						}
+					}
+					else
+					{
+						_logger.LogError("Could not find log channel at MessageReactionRemoved.");
 					}
 				}
 			}
 		}
 	}
 
-	private async Task HandleWeeklyEventDM(DiscordChannel Channel, DiscordMessage lastMessage)
+	private async Task HandleWeeklyEventDM(IDiscordChannel channel, IDiscordMessage lastMessage)
 	{
-		if (!Channel.IsPrivate || _botState.WeeklyEventWinner == null || _botState.WeeklyEventWinner.Item1 == 0)
+		if (!channel.IsPrivate || _botState.WeeklyEventWinner == null || _botState.WeeklyEventWinner.UserId == 0)
 		{
 			return;
 		}
 
-		if (lastMessage.Author.IsBot || Channel.Guild != null || lastMessage.CreationTimestamp <= _botState.WeeklyEventWinner.Item2)
+		if (lastMessage.Author.IsBot || channel.Guild != null || lastMessage.CreationTimestamp <= _botState.WeeklyEventWinner.LastEventDate)
 		{
 			return;
 		}
 
-		string vehiclesInString = await WGVehicle.vehiclesToString(_configuration["NLBEBOT:WarGamingAppId"], ["name"]);
+		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WarGamingAppId, ["name"]);
 		Json json = new(vehiclesInString, string.Empty);
 		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
 
@@ -501,11 +505,11 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 			IEnumerable<string> containsStringList = tanks.Where(tank => tank.Contains(lastMessage.Content, StringComparison.OrdinalIgnoreCase));
 			if (containsStringList.Count() > 20)
 			{
-				await Channel.SendMessageAsync("Wees iets specifieker want er werden te veel resultaten gevonden!");
+				await channel.SendMessageAsync("Wees iets specifieker want er werden te veel resultaten gevonden!");
 			}
 			else if (!containsStringList.Any())
 			{
-				await Channel.SendMessageAsync("Die tank kon niet gevonden worden! Zoekterm: `" + lastMessage.Content + "`");
+				await channel.SendMessageAsync("Die tank kon niet gevonden worden! Zoekterm: `" + lastMessage.Content + "`");
 			}
 			else
 			{
@@ -516,16 +520,16 @@ internal class MessageEventHandler(IConfiguration configuration, IErrorHandler e
 					sb.Append(tank + Environment.NewLine);
 				}
 				sb.AppendLine("```");
-				await Channel.SendMessageAsync("Deze tanks bevatten je zoekterm. **Kopieer** de naam van de tank en stuur hem naar mij door om zo de juiste te selecteren. (**Hoofdlettergevoelig**):");
-				await Channel.SendMessageAsync(sb.ToString());
+				await channel.SendMessageAsync("Deze tanks bevatten je zoekterm. **Kopieer** de naam van de tank en stuur hem naar mij door om zo de juiste te selecteren. (**Hoofdlettergevoelig**):");
+				await channel.SendMessageAsync(sb.ToString());
 			}
 		}
 		else
 		{
 			//tank was chosen
-			await Channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
+			await channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
 			await _weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await _channelService.GetWeeklyEventChannel());
-			_botState.WeeklyEventWinner = new Tuple<ulong, DateTime>(0, DateTime.Now);//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
+			_botState.WeeklyEventWinner = null;//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
 		}
 	}
 }

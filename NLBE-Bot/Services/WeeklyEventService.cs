@@ -1,27 +1,27 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using DSharpPlus.Entities;
 using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
-using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class WeeklyEventService(IChannelService channelService, IUserService userService, IGuildProvider guildProvider, IBotState botState, ILogger<BotEventHandlers> logger, IErrorHandler errorHandler) : IWeeklyEventService
+internal class WeeklyEventService(IChannelService channelService,
+								  IUserService userService,
+								  IBotState botState,
+								  ILogger<WeeklyEventService> _logger) : IWeeklyEventService
 {
-	private readonly IErrorHandler _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
+	private readonly ILogger<WeeklyEventService> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly IGuildProvider _guildProvider = guildProvider;
-	private readonly ILogger<BotEventHandlers> _logger = logger;
 
-	public DiscordMessage DiscordMessage
+	public IDiscordMessage DiscordMessage
 	{
 		get; set;
 	} //The last message in Weekly events
@@ -31,68 +31,30 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 		get; set;
 	}
 
-	public async Task AnnounceWeeklyWinner()
-	{
-		DateTime now = DateTime.Now;
-		StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
-
-		try
-		{
-			_logger.LogInformation(winnerMessage.ToString());
-
-			await ReadWeeklyEvent();
-
-			if (WeeklyEvent.StartDate.DayOfYear == now.DayOfYear - 7)
-			{
-				winnerMessage.AppendLine("Na 1 week...");
-				WeeklyEventItem weeklyEventItemMostDMG = WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
-
-				if (weeklyEventItemMostDMG.Player != null && weeklyEventItemMostDMG.Player.Length > 0)
-				{
-					foreach (KeyValuePair<ulong, DiscordGuild> guild in from KeyValuePair<ulong, DiscordGuild> guild in _guildProvider.Guilds
-																		where guild.Key is Constants.NLBE_SERVER_ID or Constants.DA_BOIS_ID
-																		select guild)
-					{
-						await WeHaveAWinner(guild.Value, weeklyEventItemMostDMG, WeeklyEvent.Tank);
-					}
-				}
-			}
-
-			DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
-			await bottestChannel.SendMessageAsync(winnerMessage.ToString());
-		}
-		catch (Exception ex)
-		{
-			string message = winnerMessage + "\nERROR:\n" + ex.Message;
-			await _errorHandler.HandleErrorAsync(message, ex);
-		}
-	}
-	public async Task WeHaveAWinner(DiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
+	public async Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
 		bool userNotFound = true;
-		IReadOnlyCollection<DiscordMember> members = await guild.GetAllMembersAsync();
+		IReadOnlyCollection<IDiscordMember> members = await guild.GetAllMembersAsync();
 		if (weeklyEventItemMostDMG.Player != null)
 		{
 			string weeklyEventItemMostDMGPlayer = weeklyEventItemMostDMG.Player
 				.Replace("\\", string.Empty)
 				.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 				.ToLower();
-			foreach (DiscordMember member in members)
+			foreach (IDiscordMember member in members)
 			{
 				if (!member.IsBot)
 				{
-					Tuple<string, string> gebruiker = _userService.GetIGNFromMember(member.DisplayName);
-					string x = gebruiker.Item2
+					WotbPlayerNameInfo playerInfo = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
+					string x = playerInfo.PlayerName
 						.Replace("\\", string.Empty)
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();
-					if (x == weeklyEventItemMostDMGPlayer
-						|| (member.Id == Constants.THIBEASTMO_ID
-							&& guild.Id == Constants.DA_BOIS_ID))
+					if (x == weeklyEventItemMostDMGPlayer)
 					{
 						userNotFound = false;
 
-						_botState.WeeklyEventWinner = new Tuple<ulong, DateTime>(member.Id, DateTime.Now);
+						_botState.WeeklyEventWinner = new WeeklyEventWinner { UserId = member.Id, LastEventDate = DateTime.Now };
 
 						try
 						{
@@ -104,11 +66,11 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Could not send private message towards winner of weekly event.", ex);
+							_logger.LogError(ex, "Could not send private message to weekly event winner {PlayerName}.", member.DisplayName);
 						}
 						try
 						{
-							DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 							if (algemeenChannel != null)
 							{
 								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').adaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
@@ -120,7 +82,7 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 						}
 						catch (Exception ex)
 						{
-							await _errorHandler.HandleErrorAsync("Could not send message in algemeen channel for weekly event winner announcement.", ex);
+							_logger.LogError(ex, "Could not send message in algemeen channel for weekly event winner announcement.");
 						}
 						break;
 					}
@@ -129,44 +91,41 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 		}
 		else
 		{
-			DiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+			IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 			if (algemeenChannel != null)
 			{
 				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 			}
 		}
-		DiscordChannel bottestChannel = await _channelService.GetBottestChannel();
+
+		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
+
+		Debug.Assert(bottestChannel != null, "bottestChannel should not be null at this point.");
+
 		if (userNotFound)
 		{
-			string message = "Weekly event winnaar was niet gevonden! Je zal het zelf moeten regelen met het `weekly` commando.";
-			if (bottestChannel != null)
-			{
-				await bottestChannel.SendMessageAsync(message);
-			}
-			else
-			{
-				await _errorHandler.HandleErrorAsync(message);
-			}
+			string message = "Een weekly event winnaar was niet gevonden. Je zal handmatig een nieuw weekly event moeten aanmaken middels het `weekly` commando.";
+			await bottestChannel.SendMessageAsync(message);
+
+			_logger.LogWarning("A weekly event winner was not found. You will have setup a new weeky event using the `weekly` command.");
 		}
 		else
 		{
 			string message = "Weekly event winnaar gevonden!";
-			if (bottestChannel != null)
-			{
-				await bottestChannel.SendMessageAsync(message);
-			}
-			else
-			{
-				await _errorHandler.HandleErrorAsync(message);
-			}
+			await bottestChannel.SendMessageAsync(message);
+
+			_logger.LogInformation("Weekly event winner found and notified.");
 		}
 	}
 
 	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WGBattle battle)
 	{
 		List<WeeklyEventType> weeklyEventTypes = [];
+
 		if (battle.vehicle == WeeklyEvent.Tank)
 		{
+			//TODO: refactor into a switch statement
+
 			if (WeeklyEvent.WeeklyEventItems[0].Value < battle.details.damage_made)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_damage);
@@ -202,57 +161,60 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 				weeklyEventTypes.Add(WeeklyEventType.Most_hits);
 				WeeklyEvent.WeeklyEventItems[6] = new WeeklyEventItem(battle.details.shots_pen, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
+
 			await UpdateLastWeeklyEvent();
 		}
+
 		return weeklyEventTypes;
 	}
 	public async Task<string> GetStringForWeeklyEvent(WGBattle battle)
 	{
 		string content = string.Empty;
 		await ReadWeeklyEvent();
-		if (WeeklyEvent != null && WeeklyEvent.Tank == battle.vehicle && DiscordMessage != null)
+
+		if (WeeklyEvent != null && WeeklyEvent.Tank == battle.vehicle && DiscordMessage != null && battle.room_type is 1 or 5 or 7 or 4 && battle.battle_start_time.HasValue && WeeklyEvent.StartDate < battle.battle_start_time.Value && WeeklyEvent.StartDate.AddDays(7) > battle.battle_start_time.Value)
 		{
-			if (battle.room_type is 1 or 5 or 7 or 4)
+			List<WeeklyEventType> weeklyEventTypes = await CheckAndHandleWeeklyEvent(battle);
+
+			if (weeklyEventTypes.Count > 0)
 			{
-				if (battle.battle_start_time.HasValue && WeeklyEvent.StartDate < battle.battle_start_time.Value && WeeklyEvent.StartDate.AddDays(7) > battle.battle_start_time.Value)
+				if (weeklyEventTypes.Count > 1)
 				{
-					List<WeeklyEventType> weeklyEventTypes = await CheckAndHandleWeeklyEvent(battle);
-					if (weeklyEventTypes.Count > 0)
+					StringBuilder sb = new();
+					sb.Append("Proficiat, je hebt de beste score voor meerdere onderdelen van het wekelijkse event:\n");
+					foreach (WeeklyEventType weeklyEventType in weeklyEventTypes)
 					{
-						if (weeklyEventTypes.Count > 1)
-						{
-							StringBuilder sb = new();
-							sb.Append("Proficiat, je hebt de beste score voor meerdere onderdelen van het wekelijkse event:\n");
-							foreach (WeeklyEventType weeklyEventType in weeklyEventTypes)
-							{
-								sb.Append("• ");
-								sb.Append(weeklyEventType.ToString().Replace('_', ' '));
-								sb.Append('\n');
-							}
-							content = sb.ToString();
-						}
-						else
-						{
-							content = "Proficiat, je hebt de beste score voor `" + weeklyEventTypes[0].ToString().Replace('_', ' ').ToLower() + "` van het wekelijkse event.";
-						}
+						sb.Append("• ");
+						sb.Append(weeklyEventType.ToString().Replace('_', ' '));
+						sb.Append('\n');
 					}
+					content = sb.ToString();
+				}
+				else
+				{
+					content = "Proficiat, je hebt de beste score voor `" + weeklyEventTypes[0].ToString().Replace('_', ' ').ToLower() + "` van het wekelijkse event.";
 				}
 			}
 		}
+
 		return content + (content.Length > 0 ? Environment.NewLine : string.Empty);
 	}
+
 	public async Task ReadWeeklyEvent()
 	{
 		try
 		{
-			DiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannel();
+			IDiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannel();
+
 			if (weeklyEventChannel != null)
 			{
-				IReadOnlyList<DiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
+				IReadOnlyList<IDiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
+
 				if (msgs.Count > 0)
 				{
 					//hier lastmessage bij dm
-					DiscordMessage message = msgs[0];
+					IDiscordMessage message = msgs[0];
+
 					if (message != null)
 					{
 						DiscordMessage = message;
@@ -260,7 +222,7 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 					}
 					else
 					{
-						await _errorHandler.HandleErrorAsync("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
+						_logger.LogError("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
 					}
 				}
 			}
@@ -269,7 +231,7 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 		{
 			if (ex.Message != "Not found: 404")
 			{
-				await _errorHandler.HandleErrorAsync("Something went wrong at ReadWeeklyEvent:", ex);
+				_logger.LogError(ex, "Error while reading the last message in weekly event channel.");
 			}
 		}
 	}
@@ -282,11 +244,11 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
+			_logger.LogError(ex, "Error while updating the last message in weekly event channel.");
 		}
 	}
 
-	public async Task CreateNewWeeklyEvent(string tank, DiscordChannel weeklyEventChannel)
+	public async Task CreateNewWeeklyEvent(string tank, IDiscordChannel weeklyEventChannel)
 	{
 		List<WeeklyEventItem> weeklyEventItems = [];
 
@@ -299,11 +261,11 @@ internal class WeeklyEventService(IChannelService channelService, IUserService u
 
 		try
 		{
-			await weeklyEventChannel.SendMessageAsync(embed: weeklyEvent.GenerateEmbed());
+			await weeklyEventChannel.SendMessageAsync(weeklyEvent.GenerateEmbed());
 		}
 		catch (Exception ex)
 		{
-			await _errorHandler.HandleErrorAsync("While editing HOF message: ", ex);
+			_logger.LogError(ex, "Error while sending new weekly event message to the weekly event channel.");
 		}
 	}
 }
