@@ -1,10 +1,11 @@
 namespace NLBE_Bot.Services;
-using DiscordHelper;
+
 using DSharpPlus;
 using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -486,7 +487,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 						// ▁
 						sb.AppendLine(i + 1 + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
 					}
-					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().AdaptToDiscordChat());
+					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().AdaptToChat());
 				}
 			}
 

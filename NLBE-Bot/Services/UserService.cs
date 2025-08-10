@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.Net.Models;
@@ -309,14 +308,14 @@ internal class UserService(ILogger<UserService> logger,
 			DEF newDef1 = new()
 			{
 				Name = "Gebruiker",
-				Value = (discordMember.Username + "#" + discordMember.Discriminator).AdaptToDiscordChat(),
+				Value = (discordMember.Username + "#" + discordMember.Discriminator).AdaptToChat(),
 				Inline = true
 			};
 			deflist.Add(newDef1);
 			DEF newDef2 = new()
 			{
 				Name = "Bijnaam",
-				Value = discordMember.DisplayName.AdaptToDiscordChat(),
+				Value = discordMember.DisplayName.AdaptToChat(),
 				Inline = true
 			};
 			deflist.Add(newDef2);
@@ -349,7 +348,7 @@ internal class UserService(ILogger<UserService> logger,
 			{
 				sbRoles.Append("`Had geen rol`");
 			}
-			newDef4.Value = sbRoles.ToString().AdaptToDiscordChat();
+			newDef4.Value = sbRoles.ToString().AdaptToChat();
 			newDef4.Inline = true;
 			deflist.Add(newDef4);
 			DEF newDef5 = new()
@@ -389,7 +388,7 @@ internal class UserService(ILogger<UserService> logger,
 
 			EmbedOptions embedOptions = new()
 			{
-				Title = "Info over " + discordMember.DisplayName.AdaptToDiscordChat() + (discordMember.IsBot ? " [BOT]" : ""),
+				Title = "Info over " + discordMember.DisplayName.AdaptToChat() + (discordMember.IsBot ? " [BOT]" : ""),
 				Fields = deflist,
 				Author = newAuthor,
 			};
@@ -405,7 +404,7 @@ internal class UserService(ILogger<UserService> logger,
 				DEF newDef1 = new()
 				{
 					Name = "Gebruikersnaam",
-					Value = account.Nickname.AdaptToDiscordChat(),
+					Value = account.Nickname.AdaptToChat(),
 					Inline = true
 				};
 				deflist.Add(newDef1);
@@ -414,14 +413,14 @@ internal class UserService(ILogger<UserService> logger,
 					DEF newDef2 = new()
 					{
 						Name = "Clan",
-						Value = accountClanInfo.Clan.Tag.AdaptToDiscordChat(),
+						Value = accountClanInfo.Clan.Tag.AdaptToChat(),
 						Inline = true
 					};
 					deflist.Add(newDef2);
 					DEF newDef4 = new()
 					{
 						Name = "Rol",
-						Value = accountClanInfo.Role.ToString().AdaptToDiscordChat(),
+						Value = accountClanInfo.Role.ToString().AdaptToChat(),
 						Inline = true
 					};
 					deflist.Add(newDef4);
@@ -508,7 +507,7 @@ internal class UserService(ILogger<UserService> logger,
 
 				EmbedOptions embedOptions = new()
 				{
-					Title = "Info over " + account.Nickname.AdaptToDiscordChat(),
+					Title = "Info over " + account.Nickname.AdaptToChat(),
 					Fields = deflist,
 					Color = Constants.BOT_COLOR,
 					NextMessage = account.BlitzStars
@@ -521,7 +520,7 @@ internal class UserService(ILogger<UserService> logger,
 		{
 			DiscordEmbedBuilder.EmbedAuthor newAuthor = new()
 			{
-				Name = discordUser.Username.AdaptToDiscordChat(),
+				Name = discordUser.Username.AdaptToChat(),
 				IconUrl = discordUser.AvatarUrl
 			};
 
@@ -529,7 +528,7 @@ internal class UserService(ILogger<UserService> logger,
 			DEF newDef1 = new()
 			{
 				Name = "Gebruikersnaam",
-				Value = discordUser.Username.AdaptToDiscordChat(),
+				Value = discordUser.Username.AdaptToChat(),
 				Inline = true
 			};
 			deflist.Add(newDef1);
@@ -585,7 +584,7 @@ internal class UserService(ILogger<UserService> logger,
 					DEF newDef7 = new()
 					{
 						Name = "Custom status",
-						Value = (discordUser.Presence.Activity.CustomStatus.Emoji != null ? discordUser.Presence.Activity.CustomStatus.Emoji.Name : string.Empty) + discordUser.Presence.Activity.CustomStatus.Name.AdaptToDiscordChat(),
+						Value = (discordUser.Presence.Activity.CustomStatus.Emoji != null ? discordUser.Presence.Activity.CustomStatus.Emoji.Name : string.Empty) + discordUser.Presence.Activity.CustomStatus.Name.AdaptToChat(),
 						Inline = true
 					};
 					deflist.Add(newDef7);
@@ -620,7 +619,7 @@ internal class UserService(ILogger<UserService> logger,
 					DEF newDef7 = new()
 					{
 						Name = "Recente activiteiten",
-						Value = sb.ToString().AdaptToDiscordChat(),
+						Value = sb.ToString().AdaptToChat(),
 						Inline = true
 					};
 					deflist.Add(newDef7);
@@ -709,7 +708,7 @@ internal class UserService(ILogger<UserService> logger,
 
 			EmbedOptions embedOptions = new()
 			{
-				Title = "Info over " + discordUser.Username.AdaptToDiscordChat() + "#" + discordUser.Discriminator + (discordUser.IsBot ? " [BOT]" : ""),
+				Title = "Info over " + discordUser.Username.AdaptToChat() + "#" + discordUser.Discriminator + (discordUser.IsBot ? " [BOT]" : ""),
 				Fields = deflist,
 				Author = newAuthor,
 			};
@@ -738,7 +737,7 @@ internal class UserService(ILogger<UserService> logger,
 				{
 					if (searchTerm.ToLower().Contains('b'))
 					{
-						sbs[columnCounter].AppendLine(memberList[0].DisplayName.AdaptToDiscordChat());
+						sbs[columnCounter].AppendLine(memberList[0].DisplayName.AdaptToChat());
 					}
 					else
 					{
@@ -773,7 +772,7 @@ internal class UserService(ILogger<UserService> logger,
 			{
 				if (item.Length > 0)
 				{
-					string defValue = item.ToString().AdaptToDiscordChat();
+					string defValue = item.ToString().AdaptToChat();
 					if (defValue.Length > 1024)
 					{
 						return ListInMemberEmbed(columns + 1, backupMemberList, searchTerm);
@@ -802,7 +801,7 @@ internal class UserService(ILogger<UserService> logger,
 					DEF newDef = new()
 					{
 						Inline = true,
-						Name = defName.AdaptToDiscordChat(),
+						Name = defName.AdaptToChat(),
 						Value = defValue
 					};
 					deflist.Add(newDef);
@@ -873,12 +872,12 @@ internal class UserService(ILogger<UserService> logger,
 					}
 					if (!found)
 					{
-						sbs[columnCounter].AppendLine("**" + nameList[0].AdaptToDiscordChat() + "**");
+						sbs[columnCounter].AppendLine("**" + nameList[0].AdaptToChat() + "**");
 					}
 				}
 				else
 				{
-					sbs[columnCounter].AppendLine(nameList[0].AdaptToDiscordChat());
+					sbs[columnCounter].AppendLine(nameList[0].AdaptToChat());
 				}
 
 				nameList.RemoveAt(0);
@@ -939,7 +938,7 @@ internal class UserService(ILogger<UserService> logger,
 				DEF newDef = new()
 				{
 					Inline = true,
-					Name = defName.AdaptToDiscordChat(),
+					Name = defName.AdaptToChat(),
 					Value = item.ToString()
 				};
 				deflist.Add(newDef);
@@ -962,7 +961,7 @@ internal class UserService(ILogger<UserService> logger,
 				foreach (WotbAccountListItem account in searchResults)
 				{
 					counter++;
-					sb.AppendLine(counter + ". " + account.Nickname.AdaptToDiscordChat());
+					sb.AppendLine(counter + ". " + account.Nickname.AdaptToChat());
 				}
 				index = await _messageService.WaitForReply(channel, user, sb.ToString(), searchResults.Count);
 			}
@@ -980,7 +979,7 @@ internal class UserService(ILogger<UserService> logger,
 		}
 		else
 		{
-			await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam.AdaptToDiscordChat() + "`**) kon niet gevonden worden!**");
+			await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam.AdaptToChat() + "`**) kon niet gevonden worden!**");
 		}
 
 		return null;

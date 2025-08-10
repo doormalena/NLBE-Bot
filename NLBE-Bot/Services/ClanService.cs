@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
@@ -15,12 +14,10 @@ using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 
 internal class ClanService(IMessageService messageService,
-						   IClansRepository clanRepository,
-						   ILogger<ClanService> logger) : IClanService
+						   IClansRepository clanRepository) : IClanService
 {
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
-	private readonly ILogger<ClanService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 	public async Task ShowClanInfo(IDiscordChannel channel, WotbClanInfo clan)
 	{
@@ -28,7 +25,7 @@ internal class ClanService(IMessageService messageService,
 		DEF newDef1 = new()
 		{
 			Name = "Clannaam",
-			Value = clan.Name.AdaptToDiscordChat(),
+			Value = clan.Name.AdaptToChat(),
 			Inline = true
 		};
 		deflist.Add(newDef1);
@@ -49,7 +46,7 @@ internal class ClanService(IMessageService messageService,
 		DEF newDef4 = new()
 		{
 			Name = "ClanTag",
-			Value = clan.Tag.AdaptToDiscordChat(),
+			Value = clan.Tag.AdaptToChat(),
 			Inline = true
 		};
 		deflist.Add(newDef4);
@@ -67,21 +64,21 @@ internal class ClanService(IMessageService messageService,
 		DEF newDef6 = new()
 		{
 			Name = "Clan motto",
-			Value = clan.Motto.AdaptDiscordLink().AdaptToDiscordChat(),
+			Value = clan.Motto.AdaptLink().AdaptToChat(),
 			Inline = false
 		};
 		deflist.Add(newDef6);
 		DEF newDef7 = new()
 		{
 			Name = "Clan beschrijving",
-			Value = clan.Description.AdaptDiscordLink().AdaptToDiscordChat(),
+			Value = clan.Description.AdaptLink().AdaptToChat(),
 			Inline = false
 		};
 		deflist.Add(newDef7);
 
 		EmbedOptions embedOptions = new()
 		{
-			Title = "Info over " + clan.Name.AdaptToDiscordChat(),
+			Title = "Info over " + clan.Name.AdaptToChat(),
 			Fields = deflist,
 		};
 		await _messageService.CreateEmbed(channel, embedOptions);

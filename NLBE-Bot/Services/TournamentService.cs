@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using DSharpPlus.Entities;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
@@ -59,7 +58,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						if (member != null)
 						{
 							string organisator = await GetOrganisator(await toernooiAanmeldenChannel.GetMessageAsync(message.Id));
-							string logMessage = "Teams|" + member.DisplayName.AdaptToDiscordChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
+							string logMessage = "Teams|" + member.DisplayName.AdaptToChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
 							await WriteInLog(message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
 						}
 					}
@@ -366,7 +365,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 				}
 				if (voegToe)
 				{
-					string tempRules = tournament.rules.AdaptDiscordLink().AdaptToDiscordChat().AdaptMutlipleLines();
+					string tempRules = tournament.rules.AdaptLink().AdaptToChat().AdaptMutlipleLines();
 					if (tempRules.Length > 1024)
 					{
 						StringBuilder sbRules = new();
@@ -383,8 +382,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 									{
 										DEF newDefx = new()
 										{
-											Name = splitted[i].AdaptToDiscordChat(),
-											Value = sbTemp.ToString().AdaptDiscordLink().AdaptToDiscordChat(),
+											Name = splitted[i].AdaptToChat(),
+											Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 											Inline = true
 										};
 										deflist.Add(newDefx);
@@ -403,8 +402,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 									{
 										DEF newDefx = new()
 										{
-											Name = splitted[i].AdaptToDiscordChat(),
-											Value = sbTemp.ToString().AdaptDiscordLink().AdaptToDiscordChat(),
+											Name = splitted[i].AdaptToChat(),
+											Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 											Inline = true
 										};
 										deflist.Add(newDefx);
@@ -417,7 +416,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 								sbRules.AppendLine(splitted[i]);
 							}
 						}
-						tempRules = sbRules.ToString().AdaptDiscordLink().AdaptToDiscordChat().AdaptMutlipleLines();
+						tempRules = sbRules.ToString().AdaptLink().AdaptToChat().AdaptMutlipleLines();
 
 					}
 					DEF newDef4 = new()
@@ -430,7 +429,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 				}
 			}
 		}
-		string tempDescription = tournament.description.AdaptDiscordLink().AdaptToDiscordChat().AdaptMutlipleLines();
+		string tempDescription = tournament.description.AdaptLink().AdaptToChat().AdaptMutlipleLines();
 		if (tempDescription.Length > 1024)
 		{
 			StringBuilder sbDescription = new();
@@ -447,8 +446,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							DEF newDefx = new()
 							{
-								Name = splitted[i].AdaptToDiscordChat(),
-								Value = sbTemp.ToString().AdaptDiscordLink().AdaptToDiscordChat(),
+								Name = splitted[i].AdaptToChat(),
+								Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 								Inline = true
 							};
 							deflist.Add(newDefx);
@@ -467,8 +466,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							DEF newDefx = new()
 							{
-								Name = splitted[i].AdaptToDiscordChat(),
-								Value = sbTemp.ToString().AdaptDiscordLink().AdaptToDiscordChat(),
+								Name = splitted[i].AdaptToChat(),
+								Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 								Inline = true
 							};
 							deflist.Add(newDefx);
@@ -481,7 +480,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 					sbDescription.AppendLine(splitted[i]);
 				}
 			}
-			tempDescription = sbDescription.ToString().AdaptDiscordLink().AdaptToDiscordChat().AdaptMutlipleLines();
+			tempDescription = sbDescription.ToString().AdaptLink().AdaptToChat().AdaptMutlipleLines();
 
 		}
 		if (tempDescription.Length <= 1024)

@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -73,7 +73,7 @@ internal class WeeklyEventService(IChannelService channelService,
 							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 							if (algemeenChannel != null)
 							{
-								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
+								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
 																	   "\n" +
 																	   "`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
 																	   "\n\n" +

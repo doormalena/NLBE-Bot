@@ -1,10 +1,10 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -128,7 +128,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		try
 		{
-			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.AdaptToDiscordChat(), DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.AdaptToChat(), DiscordColor.Red);
 			return channel.SendMessageAsync(null, embed).Result;
 		}
 		catch (Exception ex)

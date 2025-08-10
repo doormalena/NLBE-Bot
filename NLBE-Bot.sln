@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorldOfTanksBlitzApi", "Wor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsonObjectConverter", "JsonObjectConverter\JsonObjectConverter.csproj", "{89385A6A-D25F-4721-92D2-8E995EDABCC3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiscordHelper", "DiscordHelper\DiscordHelper.csproj", "{7E610050-A449-4D46-800E-1B1AF4B0D12D}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorldOfTanksBlitzApi.Tests", "WorldOfTanksBlitzApi.Tests\WorldOfTanksBlitzApi.Tests.csproj", "{95F8F033-C77E-461C-8C75-8DF9690E8FE6}"
 EndProject
 Global
@@ -37,10 +35,6 @@ Global
 		{89385A6A-D25F-4721-92D2-8E995EDABCC3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{89385A6A-D25F-4721-92D2-8E995EDABCC3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{89385A6A-D25F-4721-92D2-8E995EDABCC3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7E610050-A449-4D46-800E-1B1AF4B0D12D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7E610050-A449-4D46-800E-1B1AF4B0D12D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7E610050-A449-4D46-800E-1B1AF4B0D12D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7E610050-A449-4D46-800E-1B1AF4B0D12D}.Release|Any CPU.Build.0 = Release|Any CPU
 		{95F8F033-C77E-461C-8C75-8DF9690E8FE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{95F8F033-C77E-461C-8C75-8DF9690E8FE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{95F8F033-C77E-461C-8C75-8DF9690E8FE6}.Release|Any CPU.ActiveCfg = Release|Any CPU

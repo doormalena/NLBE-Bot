@@ -1,10 +1,10 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -136,8 +136,8 @@ internal class ReplayService(ILogger<ReplayService> logger,
 	private string GetSomeReplayInfoAsText(WGBattle battle, int position)
 	{
 		StringBuilder sb = new();
-		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.AdaptToDiscordChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.AdaptToDiscordChat() + ")", false));
-		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.AdaptToDiscordChat()));
+		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.AdaptToChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.AdaptToChat() + ")", false));
+		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.AdaptToChat()));
 		sb.AppendLine(GetInfoInFormat("Clan", battle.details.clan_tag));
 		sb.AppendLine(GetInfoInFormat("Tank", battle.vehicle));
 		sb.AppendLine(GetInfoInFormat("Tier", Emoj.GetName(battle.vehicle_tier), false));

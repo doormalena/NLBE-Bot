@@ -1,11 +1,11 @@
-namespace DiscordHelper;
+namespace NLBE_Bot.Helpers;
 
 using System.Text;
 using System.Text.RegularExpressions;
 
-public static class StringHelper
+public static class DiscordStringExtensions
 {
-	public static string AdaptToDiscordChat(this string text)
+	public static string AdaptToChat(this string text)
 	{
 		while (text.Contains("\\_"))
 		{
@@ -15,7 +15,7 @@ public static class StringHelper
 		return text.Replace("_", "\\_");
 	}
 
-	public static string AdaptDiscordLink(this string text)
+	public static string AdaptLink(this string text)
 	{
 		StringBuilder sb = new();
 		string[] splitted = text.Split('\n');
