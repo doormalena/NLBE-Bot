@@ -74,11 +74,10 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 			IReadOnlyCollection<IDiscordMember> members = await guild.GetAllMembersAsync();
 			List<IDiscordMember> invalidPlayerMatches = [];
 			Dictionary<IDiscordMember, string> invalidPlayerClanMatches = [];
-			List<IDiscordMember> validPlayerAndClanMatches = [];
 
 			foreach (IDiscordMember member in members)
 			{
-				await EvaluateMember(memberRole, invalidPlayerMatches, invalidPlayerClanMatches, validPlayerAndClanMatches, member);
+				await EvaluateMember(memberRole, invalidPlayerMatches, invalidPlayerClanMatches, member);
 			}
 
 			await NotifyNicknameIssues(bottestChannel, guild, invalidPlayerMatches, invalidPlayerClanMatches);
@@ -90,7 +89,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		}
 	}
 
-	private async Task EvaluateMember(IDiscordRole memberRole, List<IDiscordMember> invalidPlayerMatches, Dictionary<IDiscordMember, string> invalidPlayerClanMatches, List<IDiscordMember> validPlayerAndClanMatches, IDiscordMember member)
+	private async Task EvaluateMember(IDiscordRole memberRole, List<IDiscordMember> invalidPlayerMatches, Dictionary<IDiscordMember, string> invalidPlayerClanMatches, IDiscordMember member)
 	{
 		if (member.IsBot || member.Roles == null || !member.Roles.Any(r => r.Id == memberRole.Id))
 		{
@@ -112,13 +111,9 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 			string clanTag = accountClanInfo?.Clan.Tag;
 			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
 
-			if (account.Nickname != null && !member.DisplayName.Equals(expectedDisplayName))
+			if (!member.DisplayName.Equals(expectedDisplayName))
 			{
 				invalidPlayerClanMatches.TryAdd(member, expectedDisplayName); // An exact match has been found using the player name, however, the clan tag does not match.
-			}
-			else if (member.DisplayName.Equals(expectedDisplayName))
-			{
-				validPlayerAndClanMatches.Add(member); // An exact match has been found using the player name and clan tag.
 			}
 		}
 	}
