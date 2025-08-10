@@ -15,7 +15,8 @@ public class UserServiceTests
 {
 	private IMessageService? _messageServcieMock;
 	private ILogger<UserService>? _loggerMock;
-	private IAccountsRepository? _accountRepositoryMock;
+	private IAccountsRepository? _accountsRepositoryMock;
+	private IClansRepository? _clansRepositoryMock;
 	private UserService? _userService;
 
 	[TestInitialize]
@@ -23,8 +24,9 @@ public class UserServiceTests
 	{
 		_messageServcieMock = Substitute.For<IMessageService>();
 		_loggerMock = Substitute.For<ILogger<UserService>>();
-		_accountRepositoryMock = Substitute.For<IAccountsRepository>();
-		_userService = new UserService(_loggerMock, _messageServcieMock, _accountRepositoryMock);
+		_accountsRepositoryMock = Substitute.For<IAccountsRepository>();
+		_clansRepositoryMock = Substitute.For<IClansRepository>();
+		_userService = new UserService(_loggerMock, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock);
 	}
 
 	[TestMethod]

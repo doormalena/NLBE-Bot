@@ -99,6 +99,7 @@ public static class Program
 				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
 				services.AddHttpClient<IApiRequester, ApiRequester>();
 				services.AddSingleton<IAccountsRepository, AccountsRepository>();
+				services.AddSingleton<IClansRepository, ClansRepository>();
 			});
 	}
 

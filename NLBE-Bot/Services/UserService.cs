@@ -4,11 +4,11 @@ using DiscordHelper;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.Net.Models;
+using FMWOTB;
 using FMWOTB.Clans;
 using FMWOTB.Exceptions;
 using FMWOTB.Interfaces;
 using FMWOTB.Models;
-using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -24,11 +24,13 @@ using System.Threading.Tasks;
 
 internal class UserService(ILogger<UserService> logger,
 						   IMessageService messageService,
-						   IAccountsRepository accountRepository) : IUserService
+						   IAccountsRepository accountRepository,
+						   IClansRepository clanRepository) : IUserService
 {
 	private readonly ILogger<UserService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 
 	public async Task<IDiscordMember> GetDiscordMember(IDiscordGuild guild, ulong userID)
 	{
@@ -397,32 +399,39 @@ internal class UserService(ILogger<UserService> logger,
 			};
 			await _messageService.CreateEmbed(channel, embedOptions);
 		}
-		else if (gebruiker is PlayerInfo account)
+		else if (gebruiker is WotbAccountInfo account)
 		{
+			WotbClanInfo clanInfo = null;
+			if (account.ClanId > 0)
+			{
+				clanInfo = await _clanRepository.GetByIdAsync(account.ClanId.Value);
+			}
+
 			List<DEF> deflist = [];
-			PlayerInfo member = account;
 			try
 			{
+				WotbClanMember clanMember = clanInfo?.Members.FirstOrDefault(m => m.AccountId == account.AccountId);
+
 				DEF newDef1 = new()
 				{
 					Name = "Gebruikersnaam",
-					Value = member.Nickname.AdaptToDiscordChat(),
+					Value = account.Nickname.AdaptToDiscordChat(),
 					Inline = true
 				};
 				deflist.Add(newDef1);
-				if (member.Clan != null && member.Clan.tag != null)
+				if (clanInfo != null && clanInfo.Tag != null)
 				{
 					DEF newDef2 = new()
 					{
 						Name = "Clan",
-						Value = member.Clan.tag.AdaptToDiscordChat(),
+						Value = clanInfo.Tag.AdaptToDiscordChat(),
 						Inline = true
 					};
 					deflist.Add(newDef2);
 					DEF newDef4 = new()
 					{
 						Name = "Rol",
-						Value = member.Clan.role.ToString().AdaptToDiscordChat(),
+						Value = clanMember?.Role.ToString().AdaptToDiscordChat(),
 						Inline = true
 					};
 					deflist.Add(newDef4);
@@ -430,7 +439,7 @@ internal class UserService(ILogger<UserService> logger,
 					{
 						Name = "Clan gejoined op"
 					};
-					string[] splitted = member.Clan.joined_at.Value.ConvertToDate().Split(' ');
+					string[] splitted = clanMember?.JoinedAt.Value.ConvertToDate().Split(' ');
 					newDef5.Value = splitted[0] + " " + splitted[1];
 					newDef5.Inline = true;
 					deflist.Add(newDef5);
@@ -445,62 +454,62 @@ internal class UserService(ILogger<UserService> logger,
 				DEF newDef3 = new()
 				{
 					Name = "SpelerID",
-					Value = member.AccountId.ToString(),
+					Value = account.AccountId.ToString(),
 					Inline = true
 				};
 				deflist.Add(newDef3);
-				if (member.CreatedAt.HasValue)
+				if (account.CreatedAt.HasValue)
 				{
 					DEF newDef6 = new()
 					{
 						Name = "Gestart op",
-						Value = member.CreatedAt.Value.ConvertToDate(),
+						Value = account.CreatedAt.Value.ConvertToDate(),
 						Inline = true
 					};
 					deflist.Add(newDef6);
 				}
-				if (member.LastBattleTime.HasValue)
+				if (account.LastBattleTime.HasValue)
 				{
 					DEF newDef6 = new()
 					{
 						Name = "Laatst actief",
-						Value = member.LastBattleTime.Value.ConvertToDate(),
+						Value = account.LastBattleTime.Value.ConvertToDate(),
 						Inline = true
 					};
 					deflist.Add(newDef6);
 				}
-				if (member.Statistics != null)
+				if (account.Statistics != null)
 				{
-					if (member.Statistics.rating != null)
+					if (account.Statistics.rating != null)
 					{
 						DEF newDef4 = new()
 						{
 							Name = "Rating (WR)",
-							Value = member.Statistics.rating.battles > 0 ? string.Format("{0:.##}", CalculateWinRate(member.Statistics.rating.wins, member.Statistics.rating.battles)) : "Nog geen rating gespeeld",
+							Value = account.Statistics.rating.battles > 0 ? string.Format("{0:.##}", CalculateWinRate(account.Statistics.rating.wins, account.Statistics.rating.battles)) : "Nog geen rating gespeeld",
 							Inline = true
 						};
 						deflist.Add(newDef4);
 					}
-					if (member.Statistics.all != null)
+					if (account.Statistics.all != null)
 					{
 						DEF newDef5 = new()
 						{
 							Name = "Winrate",
-							Value = string.Format("{0:.##}", CalculateWinRate(member.Statistics.all.wins, member.Statistics.all.battles)),
+							Value = string.Format("{0:.##}", CalculateWinRate(account.Statistics.all.wins, account.Statistics.all.battles)),
 							Inline = true
 						};
 						deflist.Add(newDef5);
 						DEF newDef6 = new()
 						{
 							Name = "Gem. damage",
-							Value = (member.Statistics.all.damage_dealt / member.Statistics.all.battles).ToString(),
+							Value = (account.Statistics.all.damage_dealt / account.Statistics.all.battles).ToString(),
 							Inline = true
 						};
 						deflist.Add(newDef6);
 						DEF newDef7 = new()
 						{
 							Name = "Battles",
-							Value = member.Statistics.all.battles.ToString(),
+							Value = account.Statistics.all.battles.ToString(),
 							Inline = true
 						};
 						deflist.Add(newDef7);
@@ -509,10 +518,10 @@ internal class UserService(ILogger<UserService> logger,
 
 				EmbedOptions embedOptions = new()
 				{
-					Title = "Info over " + member.Nickname.AdaptToDiscordChat(),
+					Title = "Info over " + account.Nickname.AdaptToDiscordChat(),
 					Fields = deflist,
 					Color = Constants.BOT_COLOR,
-					NextMessage = member.BlitzStars
+					NextMessage = account.BlitzStars
 				};
 
 				await _messageService.CreateEmbed(channel, embedOptions);
@@ -814,7 +823,7 @@ internal class UserService(ILogger<UserService> logger,
 		return [];
 	}
 
-	public async Task<List<DEF>> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, IDiscordGuild guild)
+	public async Task<List<DEF>> ListInPlayerEmbed(int columns, List<WotbClanMember> memberList, string searchTerm, IDiscordGuild guild)
 	{
 		if (memberList.Count == 0)
 		{
@@ -825,14 +834,14 @@ internal class UserService(ILogger<UserService> logger,
 
 		if (searchTerm.Contains('d'))
 		{
-			List<PlayerInfo> wgAccountList = [.. memberList.Select(member => _accountRepository.GetByIdAsync(member.account_id, false, false, false).Result)
-													  .OrderBy(p => p.LastBattleTime).Reverse()];
+			IEnumerable<Task<WotbAccountInfo>> tasks = memberList.Select(member => _accountRepository.GetByIdAsync(member.AccountId));
+			List<WotbAccountInfo> wgAccountList = [.. (await Task.WhenAll(tasks)).OrderByDescending(p => p.LastBattleTime)];
 
 			nameList = [.. wgAccountList.Select(member => member.Nickname)];
 		}
 		else
 		{
-			nameList = [.. memberList.Select(member => member.account_name)];
+			nameList = [.. memberList.Select(member => member.AccountName)];
 		}
 
 		List<StringBuilder> sbs = [];
@@ -948,19 +957,20 @@ internal class UserService(ILogger<UserService> logger,
 		}
 		return deflist;
 	}
-	public async Task<PlayerInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
+	public async Task<WotbAccountInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
 	{
 		try
 		{
-			IReadOnlyList<PlayerInfo> searchResults = await _accountRepository.SearchByNameAsync(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, naam, true, false, true);
+			IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, naam); // TODO: missing clan members and statistics
 			StringBuilder sb = new();
 			int index = 0;
+
 			if (searchResults != null)
 			{
 				if (searchResults.Count > 1)
 				{
 					int counter = 0;
-					foreach (PlayerInfo account in searchResults)
+					foreach (WotbAccountListItem account in searchResults)
 					{
 						counter++;
 						sb.AppendLine(counter + ". " + account.Nickname.AdaptToDiscordChat());
@@ -970,7 +980,7 @@ internal class UserService(ILogger<UserService> logger,
 
 				if (index >= 0 && searchResults.Count >= 1)
 				{
-					PlayerInfo account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId, false, true, true);
+					WotbAccountInfo account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId); // TODO: missing clan and statistics
 					await ShowMemberInfo(channel, account);
 					return account;
 				}

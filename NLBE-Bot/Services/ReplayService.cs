@@ -2,10 +2,10 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus.Entities;
+using FMWOTB;
 using FMWOTB.Account;
 using FMWOTB.Interfaces;
 using FMWOTB.Models;
-using FMWOTB.Tools;
 using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -54,20 +54,17 @@ internal class ReplayService(ILogger<ReplayService> logger,
 		string json = string.Empty;
 		bool playerIDFound = false;
 
-		IReadOnlyList<PlayerInfo> accountInfo = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, ign, false, true, false);
+		IReadOnlyList<WotbAccountListItem> accountInfo = await _accountRepository.SearchByNameAsync(SearchType.Exact, ign);
 
-		if (accountInfo != null)
+		if (accountInfo != null && accountInfo.Count > 0)
 		{
-			if (accountInfo.Count > 0)
+			playerIDFound = true;
+			if (attachment != null)
 			{
-				playerIDFound = true;
-				if (attachment != null)
-				{
-					DiscordAttachment attach = (DiscordAttachment) attachment;
-					url = attach.Url;
-				}
-				json = await ReplayToString(url, titel, accountInfo[0].AccountId);
+				DiscordAttachment attach = (DiscordAttachment) attachment;
+				url = attach.Url;
 			}
+			json = await ReplayToString(url, titel, accountInfo[0].AccountId);
 		}
 		if (!playerIDFound)
 		{

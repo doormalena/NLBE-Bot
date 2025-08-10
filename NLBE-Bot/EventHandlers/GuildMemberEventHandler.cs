@@ -2,9 +2,9 @@ namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.EventArgs;
+using FMWOTB;
 using FMWOTB.Interfaces;
 using FMWOTB.Models;
-using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot;
@@ -23,7 +23,8 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 									   IChannelService channelService,
 									   IUserService userService,
 									   IMessageService messageService,
-									   IAccountsRepository accountRepository) : IGuildMemberEventHandler
+									   IAccountsRepository accountRepository,
+									   IClansRepository clanRepository) : IGuildMemberEventHandler
 {
 	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -31,6 +32,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 
 	private IBotState _botState;
 
@@ -91,7 +93,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
 			await welkomChannel.SendMessageAsync(member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.");
 
-			IReadOnlyList<PlayerInfo> searchResults = [];
+			IReadOnlyList<WotbAccountListItem> searchResults = [];
 			bool resultFound = false;
 			StringBuilder sbDescription = new();
 			int counter = 0;
@@ -110,28 +112,39 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				}
 
 				string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
-				searchResults = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, ign, false, true, false);
+				searchResults = await _accountRepository.SearchByNameAsync(SearchType.Exact, ign);
 
-				if (searchResults != null && searchResults.Count > 0)
+				if (searchResults == null || searchResults.Count <= 0)
 				{
-					resultFound = true;
-					foreach (PlayerInfo tempAccount in searchResults)
+					continue;
+				}
+
+				resultFound = true;
+				foreach (WotbAccountListItem tempAccount in searchResults)
+				{
+					WotbAccountInfo accountInfo = await _accountRepository.GetByIdAsync(searchResults[0].AccountId);
+
+					if (accountInfo == null)
 					{
-						string tempClanName = string.Empty;
-						if (tempAccount.Clan != null)
+						_logger.LogWarning("Account info not found for account ID {AccountId} while processing member {MemberName} ({MemberId})", searchResults[0].AccountId, member.DisplayName, member.Id);
+						continue;
+					}
+
+					string tempClanName = string.Empty;
+					if (accountInfo.ClanId > 0)
+					{
+						WotbClanInfo clanInfo = await _clanRepository.GetByIdAsync(accountInfo.ClanId.Value);
+
+						if (clanInfo == null)
 						{
-							tempClanName = tempAccount.Clan.tag;
+							_logger.LogWarning("Clan info not found for clan ID {ClanId} while processing account {AccountId}", accountInfo.ClanId, searchResults[0].AccountId);
+							continue;
 						}
 
-						try
-						{
-							sbDescription.AppendLine(++counter + ". " + tempAccount.Nickname + " " + (tempClanName.Length > 0 ? '`' + tempClanName + '`' : string.Empty));
-						}
-						catch (Exception ex)
-						{
-							_logger.LogWarning(ex, "Error while looking for basicInfo for {Ign}:\n {StackTrace}", ign, ex.StackTrace);
-						}
+						tempClanName = clanInfo.Tag;
 					}
+
+					sbDescription.AppendLine(++counter + ". " + accountInfo.Nickname + " " + (tempClanName.Length > 0 ? '`' + tempClanName + '`' : string.Empty));
 				}
 			}
 
@@ -145,18 +158,25 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				}
 			}
 
-			PlayerInfo account = searchResults[selectedAccount];
+			WotbAccountListItem account = searchResults[selectedAccount];
+			WotbAccountInfo accountInfo2 = await _accountRepository.GetByIdAsync(account.AccountId);
 
 			string clanName = string.Empty;
-			if (account.Clan != null && account.Clan.tag != null)
+
+			if (accountInfo2.ClanId > 0)
 			{
-				if (account.Clan.clan_id.Equals(Constants.NLBE_CLAN_ID) || account.Clan.clan_id.Equals(Constants.NLBE2_CLAN_ID))
+				WotbClanInfo clanInfo2 = await _clanRepository.GetByIdAsync(accountInfo2.ClanId.Value);
+
+				if (clanInfo2.Tag != null)
 				{
-					await member.SendMessageAsync("Indien je echt van **" + account.Clan.tag + "** bent dan moet je even vragen of iemand jouw de **" + account.Clan.tag + "** rol wilt geven.");
-				}
-				else
-				{
-					clanName = account.Clan.tag;
+					if (clanInfo2.ClanId.Equals(Constants.NLBE_CLAN_ID) || clanInfo2.ClanId.Equals(Constants.NLBE2_CLAN_ID))
+					{
+						await member.SendMessageAsync("Indien je echt van **" + clanInfo2.Tag + "** bent dan moet je even vragen of iemand jouw de **" + clanInfo2.Tag + "** rol wilt geven.");
+					}
+					else
+					{
+						clanName = clanInfo2.Tag;
+					}
 				}
 			}
 

@@ -67,5 +67,6 @@ public class ProgramTests
 		Assert.IsNotNull(services.GetService<IPublicIpAddress>());
 		Assert.IsNotNull(services.GetService<IApiRequester>());
 		Assert.IsNotNull(services.GetService<IAccountsRepository>());
+		Assert.IsNotNull(services.GetService<IClansRepository>());
 	}
 }

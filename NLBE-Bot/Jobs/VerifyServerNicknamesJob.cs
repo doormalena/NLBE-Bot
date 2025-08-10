@@ -1,8 +1,8 @@
 namespace NLBE_Bot.Jobs;
 
-using FMWOTB.Models;
+using FMWOTB;
 using FMWOTB.Interfaces;
-using FMWOTB.Tools;
+using FMWOTB.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -17,6 +17,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 								 IChannelService channelService,
 								 IMessageService messageService,
 								 IAccountsRepository accountRepository,
+								 IClansRepository clanRepository,
 								 IOptions<BotOptions> options,
 								 IBotState botState,
 								 ILogger<VerifyServerNicknamesJob> logger) : IJob<VerifyServerNicknamesJob>
@@ -25,6 +26,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -96,12 +98,29 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		}
 
 		WotbPlayerNameInfo playerNameInfo = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
-		IReadOnlyList<PlayerInfo> wgAccounts = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, playerNameInfo.PlayerName, false, true, false);
+		IReadOnlyList<WotbAccountListItem> wotbAccounts = await _accountRepository.SearchByNameAsync(SearchType.Exact, playerNameInfo.PlayerName, 1);
 
-		if (wgAccounts?.Count > 0)
+		if (wotbAccounts.Count <= 0)
 		{
-			PlayerInfo account = wgAccounts[0];
-			string clanTag = account.Clan != null ? account.Clan.tag : string.Empty;
+			invalidPlayerMatches.Add(member); // No match has been found using the player name.
+		}
+		else
+		{
+			WotbAccountListItem account = wotbAccounts[0];
+			WotbAccountInfo accountInfo = await _accountRepository.GetByIdAsync(account.AccountId);
+
+			string clanTag = string.Empty;
+
+			if (accountInfo.ClanId > 0)
+			{
+				WotbClanInfo clanInfo = await _clanRepository.GetByIdAsync(accountInfo.ClanId.Value);
+
+				if (clanInfo != null)
+				{
+					clanTag = clanInfo.Tag;
+				}
+			}
+
 			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
 
 			if (account.Nickname != null && !member.DisplayName.Equals(expectedDisplayName))
@@ -112,10 +131,6 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 			{
 				validPlayerAndClanMatches.Add(member); // An exact match has been found using the player name and clan tag.
 			}
-		}
-		else
-		{
-			invalidPlayerMatches.Add(member); // No match has been found using the player name.
 		}
 	}
 

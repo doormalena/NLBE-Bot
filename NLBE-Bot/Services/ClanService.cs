@@ -1,9 +1,9 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using FMWOTB.Clans;
-using FMWOTB.Exceptions;
-using FMWOTB.Tools;
+using FMWOTB;
+using FMWOTB.Interfaces;
+using FMWOTB.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -12,55 +12,56 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-internal class ClanService(IOptions<BotOptions> options,
-						   IMessageService messageService,
+internal class ClanService(IMessageService messageService,
+						   IClansRepository clanRepository,
 						   ILogger<ClanService> logger) : IClanService
 {
-	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
+	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 	private readonly ILogger<ClanService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public async Task ShowClanInfo(IDiscordChannel channel, WGClan clan)
+	public async Task ShowClanInfo(IDiscordChannel channel, WotbClanInfo clan)
 	{
 		List<DEF> deflist = [];
 		DEF newDef1 = new()
 		{
 			Name = "Clannaam",
-			Value = clan.name.AdaptToDiscordChat(),
+			Value = clan.Name.AdaptToDiscordChat(),
 			Inline = true
 		};
 		deflist.Add(newDef1);
 		DEF newDef2 = new()
 		{
 			Name = "Aantal leden",
-			Value = clan.members_count.ToString(),
+			Value = clan.MembersCount.ToString(),
 			Inline = true
 		};
 		deflist.Add(newDef2);
 		DEF newDef3 = new()
 		{
 			Name = "ClanID",
-			Value = clan.clan_id.ToString(),
+			Value = clan.ClanId.ToString(),
 			Inline = true
 		};
 		deflist.Add(newDef3);
 		DEF newDef4 = new()
 		{
 			Name = "ClanTag",
-			Value = clan.tag.AdaptToDiscordChat(),
+			Value = clan.Tag.AdaptToDiscordChat(),
 			Inline = true
 		};
 		deflist.Add(newDef4);
-		if (clan.created_at.HasValue)
+		if (clan.CreatedAt.HasValue)
 		{
 			DEF newDef5 = new()
 			{
 				Name = "Gemaakt op"
 			};
-			string[] splitted = clan.created_at.Value.ConvertToDate().Split(' ');
+			string[] splitted = clan.CreatedAt.Value.ConvertToDate().Split(' ');
 			newDef5.Value = splitted[0] + " " + splitted[1];
 			newDef5.Inline = true;
 			deflist.Add(newDef5);
@@ -68,75 +69,64 @@ internal class ClanService(IOptions<BotOptions> options,
 		DEF newDef6 = new()
 		{
 			Name = "Clan motto",
-			Value = clan.motto.AdaptDiscordLink().AdaptToDiscordChat(),
+			Value = clan.Motto.AdaptDiscordLink().AdaptToDiscordChat(),
 			Inline = false
 		};
 		deflist.Add(newDef6);
 		DEF newDef7 = new()
 		{
 			Name = "Clan beschrijving",
-			Value = clan.description.AdaptDiscordLink().AdaptToDiscordChat(),
+			Value = clan.Description.AdaptDiscordLink().AdaptToDiscordChat(),
 			Inline = false
 		};
 		deflist.Add(newDef7);
 
-		EmbedOptions options = new()
+		EmbedOptions embedOptions = new()
 		{
-			Title = "Info over " + clan.name.AdaptToDiscordChat(),
+			Title = "Info over " + clan.Name.AdaptToDiscordChat(),
 			Fields = deflist,
 		};
-		await _messageService.CreateEmbed(channel, options);
+		await _messageService.CreateEmbed(channel, embedOptions);
 	}
 
-	public async Task<WGClan> SearchForClan(IDiscordChannel channel, IDiscordMember member, string guildName, string clan_naam, bool loadMembers, IDiscordUser user, IDiscordCommand command)
-	{
-		try
-		{
-			IReadOnlyList<WGClan> clans = await WGClan.searchByName(SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE, clan_naam, _options.WotbApi.ApplicationId, loadMembers);
-			int aantalClans = clans.Count;
-			List<WGClan> clanList = [];
-			foreach (WGClan clan in clans)
-			{
-				if (clan_naam.ToLower().Equals(clan.tag.ToLower()))
-				{
-					clanList.Add(clan);
-				}
-			}
+	public async Task<WotbClanListItem> SearchForClan(IDiscordChannel channel, IDiscordMember member, string guildName, string name, bool loadMembers, IDiscordUser user, IDiscordCommand command)
+{
+		IReadOnlyList<WotbClanListItem> clans = await _clanRepository.SearchByNameAsync(SearchType.StartsWith, name, loadMembers);
+		int aantalClans = clans.Count;
+		List<WotbClanListItem> clanList = [];
+		clanList.AddRange(from WotbClanListItem clan in clans
+						  where name.ToLower().Equals(clan.Tag.ToLower())
+						  select clan);
 
-			if (clanList.Count > 1)
-			{
-				StringBuilder sbFound = new();
-				for (int i = 0; i < clanList.Count; i++)
-				{
-					sbFound.AppendLine(i + 1 + ". `" + clanList[i].tag + "`");
-				}
-				if (sbFound.Length < 1024)
-				{
-					int index = await _messageService.WaitForReply(channel, user, clan_naam, clanList.Count);
-					if (index >= 0)
-					{
-						return clanList[index];
-					}
-				}
-				else
-				{
-					await _messageService.SayBeMoreSpecific(channel);
-				}
-			}
-			else if (clanList.Count == 1)
-			{
-				return clanList[0];
-			}
-			else if (clanList.Count == 0)
-			{
-				await _messageService.SendMessage(channel, member, guildName, "**Clan(" + clan_naam + ") is niet gevonden! (In een lijst van " + aantalClans + " clans)**");
-			}
-		}
-		catch (TooManyResultsException ex)
+		if (clanList.Count > 1)
 		{
-			_logger.LogWarning("({Command}) {Message}", command.Name, ex.Message);
-			await _messageService.SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
+			StringBuilder sbFound = new();
+			for (int i = 0; i < clanList.Count; i++)
+			{
+				sbFound.AppendLine(i + 1 + ". `" + clanList[i].Tag + "`");
+			}
+			if (sbFound.Length < 1024)
+			{
+				int index = await _messageService.WaitForReply(channel, user, name, clanList.Count);
+				if (index >= 0)
+				{
+					return clanList[index];
+				}
+			}
+			else
+			{
+				await _messageService.SayBeMoreSpecific(channel);
+			}
 		}
+		else if (clanList.Count == 1)
+		{
+			return clanList[0];
+		}
+		else if (clanList.Count == 0)
+		{
+			await _messageService.SendMessage(channel, member, guildName, "**Clan(" + name + ") is niet gevonden! (In een lijst van " + aantalClans + " clans)**");
+		}
+
 		return null;
 	}
 }

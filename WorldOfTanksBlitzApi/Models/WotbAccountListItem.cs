@@ -1,7 +1,7 @@
 namespace FMWOTB.Models;
 using System.Text.Json.Serialization;
 
-public class PlayerListItem
+public class WotbAccountListItem
 {
 	[JsonPropertyName("nickname")]
 	public string Nickname

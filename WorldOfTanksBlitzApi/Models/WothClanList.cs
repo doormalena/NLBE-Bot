@@ -3,10 +3,10 @@ namespace FMWOTB.Models;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-public class PlayerList
+public class WotbClanList
 {
 	[JsonPropertyName("data")]
-	public List<PlayerListItem> Data
+	public List<WotbClanListItem> Data
 	{
 		get; set;
 	}

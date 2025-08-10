@@ -8,7 +8,6 @@ using FMWOTB.Models;
 using FMWOTB.Clans;
 using FMWOTB.Exceptions;
 using FMWOTB.Interfaces;
-using FMWOTB.Tools;
 using FMWOTB.Tournament;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,6 +22,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FMWOTB.Account;
+using FMWOTB;
 
 internal class BotCommands(IDiscordClient discordClient,
 						   ILogger<BotCommands> logger,
@@ -32,6 +32,7 @@ internal class BotCommands(IDiscordClient discordClient,
 						   IDiscordMessageUtils discordMessageUtils,
 						   IBotState botState,
 						   IAccountsRepository accountRepository,
+						   IClansRepository clanRepository,
 						   IChannelService channelService,
 						   IUserService userService,
 						   IMessageService messageService,
@@ -50,6 +51,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
@@ -576,10 +578,11 @@ internal class BotCommands(IDiscordClient discordClient,
 					sb.Append(optioneel_clan_naam_indien_nieuwe_kandidaat[i]);
 				}
 				IDiscordChannel deputiesPollsChannel = await _channelService.GetPollsChannel(true);
-				//https://www.blitzstars.com/player/eu/
+
 				bool goodOption = true;
 				IDiscordRole deputiesNLBERole = ctx.Guild.GetRole(Constants.DEPUTY_NLBE_ROLE);
 				IDiscordRole deputiesNLBE2Role = ctx.Guild.GetRole(Constants.DEPUTY_NLBE2_ROLE);
+
 				switch (tag.ToLower())
 				{
 					case "nlbe":
@@ -629,7 +632,7 @@ internal class BotCommands(IDiscordClient discordClient,
 						bool hasConfirmed = false;
 						bool firstTime = true;
 
-						PlayerInfo account = await _accountRepository.GetByIdAsync(552887317, false, true, false);
+						WotbAccountInfo account = await _accountRepository.GetByIdAsync(552887317); // TODO: why hardcoded the account of THIBEASTMO?
 
 						while (true)
 						{
@@ -698,6 +701,15 @@ internal class BotCommands(IDiscordClient discordClient,
 								{
 									if (account.Nickname.Length > 0)
 									{
+										WotbClanInfo clanInfo = null;
+										WotbClanMember clanMember = null;
+
+										if (account.ClanId > 0)
+										{
+											clanInfo = await _clanRepository.GetByIdAsync(account.ClanId.Value);
+											clanMember = clanInfo?.Members.FirstOrDefault(m => m.AccountId == account.AccountId);
+										}
+
 										bool allGood = true;
 										goodOption = true;
 										string link = "www.blitzstars.com/player/eu/" + account.Nickname;
@@ -707,9 +719,9 @@ internal class BotCommands(IDiscordClient discordClient,
 										{
 											subject = subject.Replace("<dd-mm-jjjj>", account.LastBattleTime.Value.Day + "-" + account.LastBattleTime.Value.Month + "-" + account.LastBattleTime.Value.Year);
 										}
-										if (account.Clan != null && account.Clan.joined_at.HasValue)
+										if (clanMember != null && clanMember.JoinedAt.HasValue)
 										{
-											subject = subject.Replace("<dd-mm-yyyy>", account.Clan.joined_at.Value.Day + "-" + account.Clan.joined_at.Value.Month + "-" + account.Clan.joined_at.Value.Year);
+											subject = subject.Replace("<dd-mm-yyyy>", clanMember.JoinedAt.Value.Day + "-" + clanMember.JoinedAt.Value.Month + "-" + clanMember.JoinedAt.Value.Year);
 										}
 										int amountOfBattles90 = _handler.Get90DayBattles(account.AccountId);
 										subject = subject.Replace("<90>", amountOfBattles90.ToString());
@@ -728,10 +740,10 @@ internal class BotCommands(IDiscordClient discordClient,
 										else
 										{
 											bool clanFound = false;
-											if (account.Clan != null && account.Clan.tag != null)
+											if (clanInfo != null && clanInfo.Tag != null)
 											{
 												clanFound = true;
-												subject = subject.Replace("<clan>", " van **" + account.Clan.tag + "**");
+												subject = subject.Replace("<clan>", " van **" + clanInfo.Tag + "**");
 											}
 											if (!clanFound)
 											{
@@ -1615,31 +1627,43 @@ internal class BotCommands(IDiscordClient discordClient,
 						tempIGNName = splitted[0].ToString().Trim();
 					}
 
-					IReadOnlyList<PlayerInfo> searchResults = await _accountRepository.SearchByNameAsync(SearchAccuracy.EXACT, tempIGNName, false, false, false);
+					IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.Exact, tempIGNName);
+
 					if (searchResults != null)
 					{
 						if (searchResults.Count > 0)
 						{
 							bool used = false;
-							foreach (PlayerInfo account in searchResults)
+							foreach (WotbAccountListItem account in searchResults)
 							{
-								if (account.Nickname.ToLower().Equals(tempIGNName.ToLower()))
+								if (string.Equals(account.Nickname, tempIGNName, StringComparison.OrdinalIgnoreCase))
 								{
 									try
 									{
+										WotbAccountInfo accountInfo = await _accountRepository.GetByIdAsync(account.AccountId);
+
 										if (searchTerm.Contains('o'))
 										{
-											if (account.CreatedAt != null && account.CreatedAt.HasValue)
+											if (accountInfo.CreatedAt != null && accountInfo.CreatedAt.HasValue)
 											{
-												dateMemberList.Add(account.CreatedAt.Value.ConvertToDateTime(), member);
+												dateMemberList.Add(accountInfo.CreatedAt.Value.ConvertToDateTime(), member); // TODO:why convert to datetime here?
 												used = true;
 											}
 										}
 										else
 										{
-											if (account.Clan != null && account.Clan.joined_at.HasValue)
+											WotbClanInfo clanInfo = null;
+											WotbClanMember clanMember = null;
+
+											if (accountInfo.ClanId > 0)
 											{
-												dateMemberList.Add(account.Clan.joined_at.Value.ConvertToDateTime(), member);
+												clanInfo = await _clanRepository.GetByIdAsync(accountInfo.ClanId.Value);
+												clanMember = clanInfo?.Members.FirstOrDefault(m => m.AccountId == account.AccountId);
+											}
+
+											if (clanMember != null && clanMember.JoinedAt.HasValue)
+											{
+												dateMemberList.Add(clanMember.JoinedAt.Value.ConvertToDateTime(), member);
 												used = true;
 											}
 										}
@@ -1714,28 +1738,24 @@ internal class BotCommands(IDiscordClient discordClient,
 		return HandleClan(new CommandContextWrapper(ctx), clan_naam);
 	}
 
-	internal async Task HandleClan(IDiscordCommandContext ctx, string clan_naam)
+	internal async Task HandleClan(IDiscordCommandContext ctx, string name)
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			try
+
+			WotbClanListItem clan = await _clanService.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, name, false, ctx.User, ctx.Command);
+
+			if (clan != null)
 			{
-				WGClan clan = await _clanService.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, clan_naam, false, ctx.User, ctx.Command);
-				if (clan != null)
-				{
-					await _clanService.ShowClanInfo(ctx.Channel, clan);
-				}
-				else
-				{
-					await _messageService.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
-				}
+				WotbClanInfo clanInfo = await _clanRepository.GetByIdAsync(clan.ClanId);
+				await _clanService.ShowClanInfo(ctx.Channel, clanInfo);
 			}
-			catch (TooManyResultsException ex)
+			else
 			{
-				_logger.LogWarning(ex, "Too many results found for clan search with name {ClanName}. Cause: {Message}", clan_naam, ex.Message);
-				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Te veel resultaten waren gevonden, wees specifieker!**");
+				await _messageService.SayNoResults(ctx.Channel, "Geen clan gevonden met deze naam");
 			}
+
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		});
 	}
@@ -1762,10 +1782,12 @@ internal class BotCommands(IDiscordClient discordClient,
 			}
 			conditie = temp[1];
 
-			WGClan clan = await _clanService.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, conditie, true, ctx.User, ctx.Command);
+			WotbClanListItem clan = await _clanService.SearchForClan(ctx.Channel, ctx.Member, ctx.Guild.Name, conditie, true, ctx.User, ctx.Command);
+
 			if (clan != null)
 			{
-				List<Members> playersList = !searchTerm.Contains('d') ? clan.members.OrderBy(p => p.account_name.ToLower()).ToList() : clan.members;
+				WotbClanInfo clanInfo = await _clanRepository.GetByIdAsync(clan.ClanId, true);
+				List<WotbClanMember> playersList = !searchTerm.Contains('d') ? clanInfo.Members.OrderBy(p => p.AccountName.ToLower()).ToList() : clanInfo.Members;
 
 				List<DEF> defList = await _userService.ListInPlayerEmbed(3, playersList, searchTerm, ctx.Guild);
 				string sorting = "alfabetisch";
@@ -1775,7 +1797,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				}
 				EmbedOptions embedOptions = new()
 				{
-					Title = "Clanmembers van [" + clan.tag.AdaptToDiscordChat() + "] (Gevonden: " + clan.members.Count + ") (Gesorteerd: " + sorting + ")",
+					Title = "Clanmembers van [" + clan.Tag.AdaptToDiscordChat() + "] (Gevonden: " + clan.MembersCount + ") (Gesorteerd: " + sorting + ")",
 					Fields = defList
 				};
 				await _messageService.CreateEmbed(ctx.Channel, embedOptions);
@@ -1817,7 +1839,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				{
 					try
 					{
-						PlayerInfo account = await _accountRepository.GetByIdAsync(id, false, true, true);
+						WotbAccountInfo account = await _accountRepository.GetByIdAsync(id); // todo: missing clan and statistics.
 						await _userService.ShowMemberInfo(ctx.Channel, account);
 					}
 					catch (Exception ex)

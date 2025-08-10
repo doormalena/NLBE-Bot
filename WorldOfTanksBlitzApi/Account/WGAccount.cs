@@ -8,9 +8,8 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-internal class WGAccount // TODO: phase out this class and use the new FMWOTB.Account instead
+internal class WGAccount // TODO: phase out this class and use the new FMWOTB.WotbAccountInfo instead
 {
-	private static int MAX_RESULTS = 20;
 	public long account_id
 	{
 		get; private set;

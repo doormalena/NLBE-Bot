@@ -1,5 +1,4 @@
 using FMWOTB.Exceptions;
-using FMWOTB.Tools;
 using JsonObjectConverter;
 using System;
 using System.Collections;
@@ -9,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace FMWOTB.Clans
 {
-	public class WGClan
+	internal class WGClan // TODO: phase out this class and use the new FMWOTB.WotbClanInfo instead
 	{
 		private static int MAX_RESULTS = 20;
 		public int clan_id
@@ -277,7 +276,7 @@ namespace FMWOTB.Clans
 			}
 			return await response.Content.ReadAsStringAsync();
 		}
-		public static async Task<IReadOnlyList<WGClan>> searchByName(SearchAccuracy accuracy, string term, string wg_application_key, bool loadMembers)
+		public static async Task<IReadOnlyList<WGClan>> searchByName(SearchType accuracy, string term, string wg_application_key, bool loadMembers)
 		{
 			string jsonText = await WGClan.searchAccountByString(wg_application_key, term);
 			List<WGClan> clanList = new List<WGClan>();
@@ -299,30 +298,30 @@ namespace FMWOTB.Clans
 							//Check nickname
 							switch (accuracy)
 							{
-								case SearchAccuracy.EXACT:
+								case SearchType.Exact:
 									if (subJson.tupleList[3].Item2.Item1.Trim(' ').Trim('\"').Equals(term))
 									{
 										addToList = true;
 									}
 									break;
-								case SearchAccuracy.STARTS_WITH:
+								case SearchType.StartsWith:
 									if (subJson.tupleList[3].Item2.Item1.Trim(' ').Trim('\"').StartsWith(term))
 									{
 										addToList = true;
 									}
 									break;
-								case SearchAccuracy.EXACT_CASE_INSENSITIVE:
+								/*case SearchType.Exact:
 									if (subJson.tupleList[3].Item2.Item1.Trim(' ').Trim('\"').ToLower().Equals(term.ToLower()))
 									{
 										addToList = true;
 									}
 									break;
-								case SearchAccuracy.STARTS_WITH_CASE_INSENSITIVE:
+								case SearchType.StartsWith:
 									if (subJson.tupleList[3].Item2.Item1.Trim(' ').Trim('\"').ToLower().StartsWith(term.ToLower()))
 									{
 										addToList = true;
 									}
-									break;
+									break;*/
 							}
 							if (addToList)
 							{

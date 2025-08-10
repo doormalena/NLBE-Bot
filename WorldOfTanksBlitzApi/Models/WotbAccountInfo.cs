@@ -1,20 +1,13 @@
 namespace FMWOTB.Models;
 
 using FMWOTB.Account.Statistics;
-using FMWOTB.Clans;
 using System;
 using System.Text.Json.Serialization;
 
-public class PlayerInfo
+public class WotbAccountInfo : WotbAccountListItem
 {
-	[JsonPropertyName("account_id")]
-	public long AccountId
-	{
-		get; set;
-	}
-
 	[JsonPropertyName("clan_id")]
-	public long ClanId
+	public long? ClanId
 	{
 		get; set;
 	}
@@ -31,12 +24,6 @@ public class PlayerInfo
 		get; set;
 	}
 
-	[JsonPropertyName("nickname")]
-	public string Nickname
-	{
-		get; set;
-	}
-
 	[JsonPropertyName("updated_at")]
 	public DateTime? UpdatedAt
 	{
@@ -45,11 +32,6 @@ public class PlayerInfo
 
 	[JsonPropertyName("statistics")]
 	public Statistics Statistics
-	{
-		get; set;
-	}
-
-	public WGClan Clan // TODO: move this to a separate repository.
 	{
 		get; set;
 	}

@@ -18,9 +18,9 @@ internal interface IUserService
 
 	public Task ShowMemberInfo(IDiscordChannel channel, object gebruiker);
 
-	public Task<List<DEF>> ListInPlayerEmbed(int columns, List<Members> memberList, string searchTerm, IDiscordGuild guild);
+	public Task<List<DEF>> ListInPlayerEmbed(int columns, List<WotbClanMember> memberList, string searchTerm, IDiscordGuild guild);
 
 	public List<DEF> ListInMemberEmbed(int columns, List<IDiscordMember> memberList, string searchTerm);
 
-	public Task<PlayerInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam);
+	public Task<WotbAccountInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam);
 }
