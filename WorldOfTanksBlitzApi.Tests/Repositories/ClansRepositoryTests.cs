@@ -113,4 +113,5 @@ public class ClansRepositoryTests
 		// Assert.
 		Assert.IsNull(result);
 	}
+	public async Task GetAccountClanInfoAsync_ReturnsAccountClanInfo_WhenDataIsPresent()
 }
