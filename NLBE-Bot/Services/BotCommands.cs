@@ -701,14 +701,7 @@ internal class BotCommands(IDiscordClient discordClient,
 								{
 									if (account.Nickname.Length > 0)
 									{
-										WotbClanInfo clanInfo = null;
-										WotbClanMember clanMember = null;
-
-										if (account.ClanId > 0)
-										{
-											clanInfo = await _clanRepository.GetByIdAsync(account.ClanId.Value);
-											clanMember = clanInfo?.Members.FirstOrDefault(m => m.AccountId == account.AccountId);
-										}
+										WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
 										bool allGood = true;
 										goodOption = true;
@@ -719,9 +712,9 @@ internal class BotCommands(IDiscordClient discordClient,
 										{
 											subject = subject.Replace("<dd-mm-jjjj>", account.LastBattleTime.Value.Day + "-" + account.LastBattleTime.Value.Month + "-" + account.LastBattleTime.Value.Year);
 										}
-										if (clanMember != null && clanMember.JoinedAt.HasValue)
+										if (accountClanInfo != null && accountClanInfo.JoinedAt.HasValue)
 										{
-											subject = subject.Replace("<dd-mm-yyyy>", clanMember.JoinedAt.Value.Day + "-" + clanMember.JoinedAt.Value.Month + "-" + clanMember.JoinedAt.Value.Year);
+											subject = subject.Replace("<dd-mm-yyyy>", accountClanInfo.JoinedAt.Value.Day + "-" + accountClanInfo.JoinedAt.Value.Month + "-" + accountClanInfo.JoinedAt.Value.Year);
 										}
 										int amountOfBattles90 = _handler.Get90DayBattles(account.AccountId);
 										subject = subject.Replace("<90>", amountOfBattles90.ToString());
@@ -740,10 +733,10 @@ internal class BotCommands(IDiscordClient discordClient,
 										else
 										{
 											bool clanFound = false;
-											if (clanInfo != null && clanInfo.Tag != null)
+											if (accountClanInfo != null && accountClanInfo.Clan.Tag != null)
 											{
 												clanFound = true;
-												subject = subject.Replace("<clan>", " van **" + clanInfo.Tag + "**");
+												subject = subject.Replace("<clan>", " van **" + accountClanInfo.Clan.Tag + "**");
 											}
 											if (!clanFound)
 											{
@@ -1646,24 +1639,17 @@ internal class BotCommands(IDiscordClient discordClient,
 										{
 											if (accountInfo.CreatedAt != null && accountInfo.CreatedAt.HasValue)
 											{
-												dateMemberList.Add(accountInfo.CreatedAt.Value.ConvertToDateTime(), member); // TODO:why convert to datetime here?
+												dateMemberList.Add(accountInfo.CreatedAt.Value, member);
 												used = true;
 											}
 										}
 										else
 										{
-											WotbClanInfo clanInfo = null;
-											WotbClanMember clanMember = null;
+											WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
-											if (accountInfo.ClanId > 0)
+											if (accountClanInfo != null && accountClanInfo.JoinedAt.HasValue)
 											{
-												clanInfo = await _clanRepository.GetByIdAsync(accountInfo.ClanId.Value);
-												clanMember = clanInfo?.Members.FirstOrDefault(m => m.AccountId == account.AccountId);
-											}
-
-											if (clanMember != null && clanMember.JoinedAt.HasValue)
-											{
-												dateMemberList.Add(clanMember.JoinedAt.Value.ConvertToDateTime(), member);
+												dateMemberList.Add(accountClanInfo.JoinedAt.Value, member);
 												used = true;
 											}
 										}

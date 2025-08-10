@@ -107,20 +107,9 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		else
 		{
 			WotbAccountListItem account = wotbAccounts[0];
-			WotbAccountInfo accountInfo = await _accountRepository.GetByIdAsync(account.AccountId);
+			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
-			string clanTag = string.Empty;
-
-			if (accountInfo.ClanId > 0)
-			{
-				WotbClanInfo clanInfo = await _clanRepository.GetByIdAsync(accountInfo.ClanId.Value);
-
-				if (clanInfo != null)
-				{
-					clanTag = clanInfo.Tag;
-				}
-			}
-
+			string clanTag = accountClanInfo?.Clan.Tag;
 			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
 
 			if (account.Nickname != null && !member.DisplayName.Equals(expectedDisplayName))

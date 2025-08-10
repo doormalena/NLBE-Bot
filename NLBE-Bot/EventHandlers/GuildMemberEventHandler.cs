@@ -130,21 +130,10 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 						continue;
 					}
 
-					string tempClanName = string.Empty;
-					if (accountInfo.ClanId > 0)
-					{
-						WotbClanInfo clanInfo = await _clanRepository.GetByIdAsync(accountInfo.ClanId.Value);
+					WotbAccountClanInfo tempAccountClanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
+					string tempClanName = tempAccountClanInfo?.Clan.Tag;
 
-						if (clanInfo == null)
-						{
-							_logger.LogWarning("Clan info not found for clan ID {ClanId} while processing account {AccountId}", accountInfo.ClanId, searchResults[0].AccountId);
-							continue;
-						}
-
-						tempClanName = clanInfo.Tag;
-					}
-
-					sbDescription.AppendLine(++counter + ". " + accountInfo.Nickname + " " + (tempClanName.Length > 0 ? '`' + tempClanName + '`' : string.Empty));
+					sbDescription.AppendLine(++counter + ". " + accountInfo.Nickname + " " + (!string.IsNullOrEmpty(tempClanName) ? '`' + tempClanName + '`' : string.Empty));
 				}
 			}
 
@@ -159,24 +148,19 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			}
 
 			WotbAccountListItem account = searchResults[selectedAccount];
-			WotbAccountInfo accountInfo2 = await _accountRepository.GetByIdAsync(account.AccountId);
+			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
 			string clanName = string.Empty;
 
-			if (accountInfo2.ClanId > 0)
+			if (accountClanInfo.Clan != null && accountClanInfo.Clan.Tag != null)
 			{
-				WotbClanInfo clanInfo2 = await _clanRepository.GetByIdAsync(accountInfo2.ClanId.Value);
-
-				if (clanInfo2.Tag != null)
+				if (accountClanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || accountClanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID))
 				{
-					if (clanInfo2.ClanId.Equals(Constants.NLBE_CLAN_ID) || clanInfo2.ClanId.Equals(Constants.NLBE2_CLAN_ID))
-					{
-						await member.SendMessageAsync("Indien je echt van **" + clanInfo2.Tag + "** bent dan moet je even vragen of iemand jouw de **" + clanInfo2.Tag + "** rol wilt geven.");
-					}
-					else
-					{
-						clanName = clanInfo2.Tag;
-					}
+					await member.SendMessageAsync("Indien je echt van **" + accountClanInfo.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + accountClanInfo.Clan.Tag + "** rol wilt geven.");
+				}
+				else
+				{
+					clanName = accountClanInfo.Clan.Tag;
 				}
 			}
 

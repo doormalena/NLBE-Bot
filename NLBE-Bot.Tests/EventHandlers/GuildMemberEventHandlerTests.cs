@@ -110,22 +110,26 @@ public class GuildMemberEventHandlerTests
 
 		_userServiceMock!.ChangeMemberNickname(member, Arg.Any<string>()).Returns(Task.CompletedTask);
 
-		WotbAccountInfo playerInfo = new()
+		WotbAccountInfo accountInfo = new()
 		{
 			Nickname = "WargamingUser",
-			AccountId = 12345,
-			ClanId = Constants.NLBE2_CLAN_ID
+			AccountId = 12345
 		};
-		WotbClanInfo clanInfo = new()
+		WotbAccountClanInfo accountClanInfo = new()
 		{
+			AccountId = accountInfo.AccountId,
+			AccountName = accountInfo.Nickname,
 			ClanId = Constants.NLBE2_CLAN_ID,
-			Tag = "NLBE2"
+			Clan = new WotbClanInfo
+			{
+				ClanId = Constants.NLBE2_CLAN_ID,
+				Tag = "NLBE2"
+			}
 		};
 
-		_accountsRepository!.SearchByNameAsync(SearchType.Exact, playerInfo.Nickname)
-			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([playerInfo]));
-		_accountsRepository!.GetByIdAsync(playerInfo.AccountId).Returns(Task.FromResult(playerInfo));
-		_clansRepository!.GetByIdAsync(clanInfo.ClanId).Returns(Task.FromResult(clanInfo));
+		_accountsRepository!.SearchByNameAsync(SearchType.Exact, accountInfo.Nickname)
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo]));
+		_clansRepository!.GetAccountClanInfoAsync(accountInfo.AccountId).Returns(Task.FromResult(accountClanInfo));
 
 		IDiscordRole rulesNotReadRole = Substitute.For<IDiscordRole>();
 		rulesNotReadRole.Id.Returns(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
@@ -145,7 +149,7 @@ public class GuildMemberEventHandlerTests
 		await member.Received().SendMessageAsync(Arg.Is<string>(msg => msg.Contains("regels")));
 		await member.Received().GrantRoleAsync(rulesNotReadRole);
 		await member.Received().RevokeRoleAsync(noobRole);
-		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name.Contains(playerInfo.Nickname)));
+		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name.Contains(accountInfo.Nickname)));
 	}
 
 	[TestMethod]

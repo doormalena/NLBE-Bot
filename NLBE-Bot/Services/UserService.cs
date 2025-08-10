@@ -401,17 +401,11 @@ internal class UserService(ILogger<UserService> logger,
 		}
 		else if (gebruiker is WotbAccountInfo account)
 		{
-			WotbClanInfo clanInfo = null;
-			if (account.ClanId > 0)
-			{
-				clanInfo = await _clanRepository.GetByIdAsync(account.ClanId.Value);
-			}
+			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
 			List<DEF> deflist = [];
 			try
 			{
-				WotbClanMember clanMember = clanInfo?.Members.FirstOrDefault(m => m.AccountId == account.AccountId);
-
 				DEF newDef1 = new()
 				{
 					Name = "Gebruikersnaam",
@@ -419,19 +413,19 @@ internal class UserService(ILogger<UserService> logger,
 					Inline = true
 				};
 				deflist.Add(newDef1);
-				if (clanInfo != null && clanInfo.Tag != null)
+				if (accountClanInfo != null && accountClanInfo.Clan.Tag != null)
 				{
 					DEF newDef2 = new()
 					{
 						Name = "Clan",
-						Value = clanInfo.Tag.AdaptToDiscordChat(),
+						Value = accountClanInfo.Clan.Tag.AdaptToDiscordChat(),
 						Inline = true
 					};
 					deflist.Add(newDef2);
 					DEF newDef4 = new()
 					{
 						Name = "Rol",
-						Value = clanMember?.Role.ToString().AdaptToDiscordChat(),
+						Value = accountClanInfo.Role.ToString().AdaptToDiscordChat(),
 						Inline = true
 					};
 					deflist.Add(newDef4);
@@ -439,7 +433,7 @@ internal class UserService(ILogger<UserService> logger,
 					{
 						Name = "Clan gejoined op"
 					};
-					string[] splitted = clanMember?.JoinedAt.Value.ConvertToDate().Split(' ');
+					string[] splitted = accountClanInfo.JoinedAt.Value.ConvertToDate().Split(' ');
 					newDef5.Value = splitted[0] + " " + splitted[1];
 					newDef5.Inline = true;
 					deflist.Add(newDef5);

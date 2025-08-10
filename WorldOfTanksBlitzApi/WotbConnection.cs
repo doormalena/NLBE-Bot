@@ -20,7 +20,7 @@ public class WotbConnection(HttpClient client, string applicationId, string base
 		// Always add the application_id to the form
 		form.Add(new StringContent(_applicationId), "application_id");
 
-		string url = _baseUri.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + relativeUrl.TrimStart(Path.DirectorySeparatorChar);
+		string url = _baseUri.TrimEnd(Path.AltDirectorySeparatorChar) + Path.AltDirectorySeparatorChar + relativeUrl.TrimStart(Path.AltDirectorySeparatorChar);
 
 		HttpResponseMessage response = await _client.PostAsync(url, form);
 

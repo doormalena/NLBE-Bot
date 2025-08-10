@@ -2,7 +2,6 @@ namespace NLBE_Bot.Tests.Jobs;
 
 using DSharpPlus;
 using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Clans;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
@@ -163,21 +162,25 @@ public class VerifyServerNicknamesJobTests
 
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new WotbPlayerNameInfo("[NLBE]", "Player"));
 
-		WotbAccountInfo playerInfo = new()
+		WotbAccountInfo accountInfo = new()
 		{
 			Nickname = "Player",
-			AccountId = 12345,
-			ClanId = 67890,
+			AccountId = 12345
 		};
-		WotbClanInfo clanInfo = new()
+		WotbAccountClanInfo accountClanInfo = new()
 		{
+			AccountId = accountInfo.AccountId,
+			AccountName = accountInfo.Nickname,
 			ClanId = 67890,
-			Tag = "NLBE"
+			Clan = new WotbClanInfo
+			{
+				ClanId = 67890,
+				Tag = "NLBE"
+			}
 		};
-		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, "Player", 1)
-			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([playerInfo]));
-		_accountsRepositoryMock!.GetByIdAsync(12345).Returns(Task.FromResult(playerInfo));
-		_clansRepositoryMock!.GetByIdAsync(67890).Returns(Task.FromResult(clanInfo));
+		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, accountInfo.Nickname, 1)
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo]));
+		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo.AccountId).Returns(Task.FromResult(accountClanInfo));
 
 		// Act.
 		await _job!.Execute(DateTime.Today);
@@ -224,37 +227,45 @@ public class VerifyServerNicknamesJobTests
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member1.DisplayName).Returns(new WotbPlayerNameInfo("", "Player1"));
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(member2.DisplayName).Returns(new WotbPlayerNameInfo("[NLBE2]", "Player2"));
 
-		WotbClanInfo clan1 = new()
-		{
-			Tag = "NLBE",
-			ClanId = 43210
-		};
-		WotbClanInfo clan2 = new()
-		{
-			Tag = "TAG",
-			ClanId = 98765
-		};
-		WotbAccountInfo playerInfo1 = new()
+		WotbAccountInfo accountInfo1 = new()
 		{
 			Nickname = "Player1",
-			AccountId = 12345,
-			ClanId = clan1.ClanId,
+			AccountId = 12345
 		};
-		WotbAccountInfo playerInfo2 = new()
+		WotbAccountClanInfo accountClanInfo1 = new()
+		{
+			AccountId = accountInfo1.AccountId,
+			AccountName = accountInfo1.Nickname,
+			ClanId = 43210,
+			Clan = new WotbClanInfo
+			{
+				ClanId = 67890,
+				Tag = "NLBE"
+			}
+		};
+		WotbAccountInfo accountInfo2 = new()
 		{
 			Nickname = "Player2",
-			AccountId = 67890,
-			ClanId = clan2.ClanId,
+			AccountId = 67890
+		};
+		WotbAccountClanInfo accountClanInfo2 = new()
+		{
+			AccountId = accountInfo2.AccountId,
+			AccountName = accountInfo2.Nickname,
+			ClanId = 98765,
+			Clan = new WotbClanInfo
+			{
+				ClanId = 67890,
+				Tag = "TAG"
+			}
 		};
 
-		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, playerInfo1.Nickname, 1)
-			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([playerInfo1]));
-		_accountsRepositoryMock!.GetByIdAsync(playerInfo1.AccountId).Returns(Task.FromResult(playerInfo1));
-		_clansRepositoryMock!.GetByIdAsync(clan1.ClanId).Returns(Task.FromResult(clan1));
-		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, playerInfo2.Nickname, 1)
-			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([playerInfo2]));
-		_accountsRepositoryMock!.GetByIdAsync(playerInfo2.AccountId).Returns(Task.FromResult(playerInfo2));
-		_clansRepositoryMock!.GetByIdAsync(clan2.ClanId).Returns(Task.FromResult(clan2));
+		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, accountInfo1.Nickname, 1)
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo1]));
+		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo1.AccountId).Returns(Task.FromResult(accountClanInfo1));
+		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, accountInfo2.Nickname, 1)
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo2]));
+		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo2.AccountId).Returns(Task.FromResult(accountClanInfo2));
 
 		// Act.
 		await _job!.Execute(DateTime.Today);
@@ -262,7 +273,7 @@ public class VerifyServerNicknamesJobTests
 		// Assert.
 		await _userServiceMock!.Received(2).ChangeMemberNickname(
 			Arg.Any<IDiscordMember>(),
-			Arg.Is<string>(s => s.Contains(playerInfo1.Nickname) || s.Contains(playerInfo2.Nickname))
+			Arg.Is<string>(s => s.Contains(accountInfo1.Nickname) || s.Contains(accountInfo2.Nickname))
 		);
 		await _messageServcieMock!.Received(2).SendMessage(
 			testChannel,

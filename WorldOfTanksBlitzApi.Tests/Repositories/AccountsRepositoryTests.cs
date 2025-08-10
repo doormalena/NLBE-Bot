@@ -65,7 +65,6 @@ public class AccountsRepositoryTests
 				""123"": {
 					""nickname"": ""TestUser"",
 					""account_id"": 123,
-					""clan_id"": 456,
 					""created_at"": 1673218661,
 					""last_battle_time"": 1735266208,
 					""updated_at"": 1735481708
@@ -81,7 +80,6 @@ public class AccountsRepositoryTests
 		Assert.IsNotNull(result);
 		Assert.AreEqual("TestUser", result.Nickname);
 		Assert.AreEqual(123, result.AccountId);
-		Assert.AreEqual(456, result.ClanId);
 		Assert.AreEqual(new DateTime(2023, 1, 8, 22, 57, 41, DateTimeKind.Utc), result.CreatedAt);
 		Assert.AreEqual(new DateTime(2024, 12, 27, 2, 23, 28, DateTimeKind.Utc), result.LastBattleTime);
 		Assert.AreEqual(new DateTime(2024, 12, 29, 14, 15, 08, DateTimeKind.Utc), result.UpdatedAt);

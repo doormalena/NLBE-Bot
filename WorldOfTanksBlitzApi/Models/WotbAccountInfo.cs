@@ -7,12 +7,6 @@ using WorldOfTanksBlitzApi.Tools;
 
 public class WotbAccountInfo : WotbAccountListItem
 {
-	[JsonInclude, JsonPropertyName("clan_id")]
-	public long? ClanId
-	{
-		get; internal set;
-	}
-
 	[JsonInclude, JsonPropertyName("created_at")]
 	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? CreatedAt

@@ -43,9 +43,41 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 		return null;
 	}
 
+	public async Task<WotbAccountClanInfo> GetAccountClanInfoAsync(long accountId)
+	{
+		string accountClanJson = await GetAccountClanInfo(accountId);
+
+		// The API returns: { "status": "...", "data": { "account_id": { ...account-clan fields... } } }
+		JsonNode rootNode = JsonNode.Parse(accountClanJson);
+		JsonNode dataNode = rootNode?["data"];
+
+		if (dataNode != null)
+		{
+			JsonNode accountClanNode = dataNode[accountId.ToString()];
+
+			if (accountClanNode != null && accountClanNode.ToJsonString() != "null")
+			{
+				return JsonSerializer.Deserialize<WotbAccountClanInfo>(accountClanNode.ToJsonString());
+			}
+		}
+
+		return null;
+	}
+
+	private async Task<string> GetAccountClanInfo(long accountId)
+	{
+		const string relativeUrl = "/clans/accountinfo/";
+
+		MultipartFormDataContent form = [];
+		form.Add(new StringContent(accountId.ToString()), "account_id");
+		form.Add(new StringContent("clan"), "extra");
+
+		return await _connection.PostAsync(relativeUrl, form);
+	}
+
 	private async Task<string> SearchByName(string searchTerm, SearchType searchType, int limit)
 	{
-		const string relativeUrl = "/clan/list/";
+		const string relativeUrl = "/clans/list/";
 
 		MultipartFormDataContent form = [];
 		form.Add(new StringContent(searchTerm), "search");
@@ -57,7 +89,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 
 	private async Task<string> GetById(long clanId, bool loadMembers)
 	{
-		const string relativeUrl = "/clan/info/";
+		const string relativeUrl = "/clans/info/";
 
 		MultipartFormDataContent form = [];
 		form.Add(new StringContent(clanId.ToString()), "clan_id");
