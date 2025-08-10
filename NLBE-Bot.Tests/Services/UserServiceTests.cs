@@ -30,6 +30,7 @@ public class UserServiceTests
 	[TestMethod]
 	[DataRow("[TAG] PlayerName", "[TAG]", "PlayerName")]
 	[DataRow("[NLBE] JohnDoe", "[NLBE]", "JohnDoe")]
+	[DataRow("[] NoClanTagName", "[]", "NoClanTagName")]
 	[DataRow("NoClanTagName", "", "NoClanTagName")]
 	[DataRow("[CLAN] Name With Spaces", "[CLAN]", "Name With Spaces")]
 	[DataRow("[CLAN]NameNoSpace", "[CLAN]", "NameNoSpace")]

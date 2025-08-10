@@ -281,8 +281,8 @@ internal class UserService(ILogger<UserService> logger,
 	public WotbPlayerNameInfo GetWotbPlayerNameFromDisplayName(string displayName)
 	{
 		// Pattern: optional [CLAN] (with or without space), then player name
-		// Examples matched: "[TAG] Player", "[NLBE]John", "NoClanTagName"
-		Match match = Regex.Match(displayName, @"^(?:\[(?<clan>[^\]]+)\]\s*)?(?<player>.+)$", RegexOptions.NonBacktracking);
+		// Examples matched: "[TAG] Player", "[NLBE]John", "[] NoClanTagName", "NoClanTagName"
+		Match match = Regex.Match(displayName, @"^(?:\[(?<clan>[^\]]*)\]\s*)?(?<player>.+)$", RegexOptions.NonBacktracking);
 		if (match.Success)
 		{
 			string clanTag = match.Groups["clan"].Success ? $"[{match.Groups["clan"].Value}]" : string.Empty;
