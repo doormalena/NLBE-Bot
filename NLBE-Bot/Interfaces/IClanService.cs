@@ -1,6 +1,6 @@
 namespace NLBE_Bot.Interfaces;
 
-using FMWOTB.Models;
+using WorldOfTanksBlitzApi.Models;
 using System.Threading.Tasks;
 
 internal interface IClanService

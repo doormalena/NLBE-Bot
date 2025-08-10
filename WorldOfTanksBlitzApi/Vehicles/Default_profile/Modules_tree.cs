@@ -3,7 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace FMWOTB.Vehicles.Default_profile
+namespace WorldOfTanksBlitzApi.Vehicles.Default_profile
 {
 	public class Modules_tree
 	{

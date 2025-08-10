@@ -1,29 +1,31 @@
-namespace FMWOTB.Models;
+namespace WorldOfTanksBlitzApi.Models;
 
 using System;
 using System.Text.Json.Serialization;
+using WorldOfTanksBlitzApi.Tools;
 
 public class WotbClanMember
 {
-	[JsonPropertyName("account_id")]
+	[JsonInclude, JsonPropertyName("account_id")]
 	public long AccountId
 	{
 		get; internal set;
 	}
 
-	[JsonPropertyName("account_name")]
+	[JsonInclude, JsonPropertyName("account_name")]
 	public string AccountName
 	{
 		get; internal set;
 	}
 
-	[JsonPropertyName("joined_at")]
+	[JsonInclude, JsonPropertyName("joined_at")]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? JoinedAt
 	{
 		get; internal set;
 	}
 
-	[JsonPropertyName("role")]
+	[JsonInclude, JsonPropertyName("role")]
 	public string Role
 	{
 		get; internal set;

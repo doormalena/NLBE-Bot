@@ -4,11 +4,11 @@ using DiscordHelper;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
 using DSharpPlus.Entities;
-using FMWOTB.Models;
-using FMWOTB.Clans;
-using FMWOTB.Exceptions;
-using FMWOTB.Interfaces;
-using FMWOTB.Tournament;
+using WorldOfTanksBlitzApi.Models;
+using WorldOfTanksBlitzApi.Clans;
+using WorldOfTanksBlitzApi.Exceptions;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Tournament;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot;
@@ -21,8 +21,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using FMWOTB.Account;
-using FMWOTB;
+using WorldOfTanksBlitzApi.Account;
+using WorldOfTanksBlitzApi;
 
 internal class BotCommands(IDiscordClient discordClient,
 						   ILogger<BotCommands> logger,

@@ -1,4 +1,4 @@
-namespace FMWOTB.Interfaces;
+namespace WorldOfTanksBlitzApi.Interfaces;
 
 using System.Net.Http;
 using System.Threading.Tasks;

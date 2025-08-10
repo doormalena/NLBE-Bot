@@ -3,7 +3,7 @@ using System;
 using System.Collections;
 using System.Threading.Tasks;
 
-namespace FMWOTB.Vehicles
+namespace WorldOfTanksBlitzApi.Vehicles
 {
 	public class VehicleOfPlayer
 	{

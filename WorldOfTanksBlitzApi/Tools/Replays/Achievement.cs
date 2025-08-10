@@ -1,7 +1,7 @@
 using JsonObjectConverter;
 using System;
 
-namespace FMWOTB.Tools.Replays
+namespace WorldOfTanksBlitzApi.Tools.Replays
 {
 
 	public class Achievement

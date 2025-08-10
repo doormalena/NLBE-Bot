@@ -1,6 +1,6 @@
 using JsonObjectConverter;
 
-namespace FMWOTB
+namespace WorldOfTanksBlitzApi
 {
 	public class Option
 	{

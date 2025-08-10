@@ -1,6 +1,6 @@
 namespace NLBE_Bot.Tests;
 
-using FMWOTB.Interfaces;
+using WorldOfTanksBlitzApi.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;

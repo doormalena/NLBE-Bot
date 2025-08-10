@@ -1,4 +1,4 @@
-using FMWOTB.Exceptions;
+using WorldOfTanksBlitzApi.Exceptions;
 using JsonObjectConverter;
 using System;
 using System.Collections;
@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace FMWOTB.Clans
+namespace WorldOfTanksBlitzApi.Clans
 {
 	internal class WGClan // TODO: phase out this class and use the new FMWOTB.WotbClanInfo instead
 	{

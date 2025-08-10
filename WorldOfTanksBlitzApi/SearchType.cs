@@ -1,4 +1,4 @@
-namespace FMWOTB;
+namespace WorldOfTanksBlitzApi;
 
 public enum SearchType
 {

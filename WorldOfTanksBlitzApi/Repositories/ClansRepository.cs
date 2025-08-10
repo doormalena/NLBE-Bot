@@ -1,14 +1,14 @@
-namespace FMWOTB.Repositories;
+namespace WorldOfTanksBlitzApi.Repositories;
 
-using FMWOTB;
-using FMWOTB.Interfaces;
-using FMWOTB.Models;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 public class ClansRepository(IWotbConnection connection) : IClansRepository
 {

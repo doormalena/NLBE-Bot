@@ -1,17 +1,18 @@
-namespace FMWOTB.Models;
+namespace WorldOfTanksBlitzApi.Models;
+
 using System.Text.Json.Serialization;
 
 public class WotbAccountListItem
 {
-	[JsonPropertyName("nickname")]
+	[JsonInclude, JsonPropertyName("nickname")]
 	public string Nickname
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("account_id")]
+	[JsonInclude, JsonPropertyName("account_id")]
 	public long AccountId
 	{
-		get; set;
+		get; internal set;
 	}
 }

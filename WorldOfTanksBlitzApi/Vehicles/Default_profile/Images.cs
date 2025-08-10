@@ -2,7 +2,7 @@ using JsonObjectConverter;
 using System;
 using System.Collections;
 
-namespace FMWOTB.Vehicles.Default_profile
+namespace WorldOfTanksBlitzApi.Vehicles.Default_profile
 {
 	public class Images
 	{

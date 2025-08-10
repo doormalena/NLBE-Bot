@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Interfaces;
 
-using FMWOTB.Clans;
-using FMWOTB.Models;
+using WorldOfTanksBlitzApi.Clans;
+using WorldOfTanksBlitzApi.Models;
 using NLBE_Bot.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;

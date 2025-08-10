@@ -1,39 +1,43 @@
-namespace FMWOTB.Models;
+namespace WorldOfTanksBlitzApi.Models;
 
-using FMWOTB.Account.Statistics;
 using System;
 using System.Text.Json.Serialization;
+using WorldOfTanksBlitzApi.Account.Statistics;
+using WorldOfTanksBlitzApi.Tools;
 
 public class WotbAccountInfo : WotbAccountListItem
 {
-	[JsonPropertyName("clan_id")]
+	[JsonInclude, JsonPropertyName("clan_id")]
 	public long? ClanId
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("created_at")]
+	[JsonInclude, JsonPropertyName("created_at")]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? CreatedAt
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("last_battle_time")]
+	[JsonInclude, JsonPropertyName("last_battle_time")]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? LastBattleTime
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("updated_at")]
+	[JsonInclude, JsonPropertyName("updated_at")]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? UpdatedAt
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("statistics")]
+	[JsonInclude, JsonPropertyName("statistics")]
 	public Statistics Statistics
 	{
-		get; set;
+		get; internal set;
 	}
 
 	public string BlitzStars => AccountId > 0 ? "https://www.blitzstars.com/sigs/" + AccountId : null;

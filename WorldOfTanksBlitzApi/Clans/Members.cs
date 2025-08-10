@@ -3,7 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace FMWOTB.Clans
+namespace WorldOfTanksBlitzApi.Clans
 {
 	public class Members
 	{

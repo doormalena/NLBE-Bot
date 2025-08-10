@@ -1,4 +1,4 @@
-namespace FMWOTB.Vehicles
+namespace WorldOfTanksBlitzApi.Vehicles
 {
 	public enum MasteryBadge
 	{

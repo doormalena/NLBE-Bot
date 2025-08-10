@@ -1,10 +1,10 @@
 namespace NLBE_Bot.Tests.Jobs;
 
 using DSharpPlus;
-using FMWOTB;
-using FMWOTB.Clans;
-using FMWOTB.Interfaces;
-using FMWOTB.Models;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Clans;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;

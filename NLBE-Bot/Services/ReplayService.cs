@@ -2,11 +2,11 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus.Entities;
-using FMWOTB;
-using FMWOTB.Account;
-using FMWOTB.Interfaces;
-using FMWOTB.Models;
-using FMWOTB.Tools.Replays;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Account;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
+using WorldOfTanksBlitzApi.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -167,10 +167,10 @@ internal class ReplayService(ILogger<ReplayService> logger,
 		}
 		if (battle.details.achievements != null && battle.details.achievements.Count > 0)
 		{
-			List<FMWOTB.Achievement> achievementList = [];
+			List<WorldOfTanksBlitzApi.Achievement> achievementList = [];
 			for (int i = 0; i < battle.details.achievements.Count; i++)
 			{
-				FMWOTB.Achievement tempAchievement = FMWOTB.Achievement.getAchievement(_options.WotbApi.ApplicationId, battle.details.achievements.ElementAt(i).t).Result;
+				WorldOfTanksBlitzApi.Achievement tempAchievement = WorldOfTanksBlitzApi.Achievement.getAchievement(_options.WotbApi.ApplicationId, battle.details.achievements.ElementAt(i).t).Result;
 				if (tempAchievement != null)
 				{
 					achievementList.Add(tempAchievement);
@@ -181,7 +181,7 @@ internal class ReplayService(ILogger<ReplayService> logger,
 				achievementList = achievementList.OrderBy(x => x.order).ToList();
 				sb.AppendLine("Achievements:");
 				sb.Append("```");
-				foreach (FMWOTB.Achievement tempAchievement in achievementList)
+				foreach (WorldOfTanksBlitzApi.Achievement tempAchievement in achievementList)
 				{
 					sb.AppendLine(tempAchievement.name.Replace("\n", string.Empty).Replace("(" + tempAchievement.achievement_id + ")", string.Empty));
 				}

@@ -1,9 +1,9 @@
-namespace FMWOTB.Interfaces;
+namespace WorldOfTanksBlitzApi.Interfaces;
 
-using FMWOTB;
-using FMWOTB.Models;
+using WorldOfTanksBlitzApi;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Models;
 
 public interface IAccountsRepository
 {

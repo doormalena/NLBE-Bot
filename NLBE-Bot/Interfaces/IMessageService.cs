@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Interfaces;
 
 using DSharpPlus.Entities;
-using FMWOTB.Tools.Replays;
+using WorldOfTanksBlitzApi.Tools.Replays;
 using NLBE_Bot.Models;
 using System.Threading.Tasks;
 

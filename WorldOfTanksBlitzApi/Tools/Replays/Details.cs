@@ -2,7 +2,7 @@ using JsonObjectConverter;
 using System;
 using System.Collections.Generic;
 
-namespace FMWOTB.Tools.Replays
+namespace WorldOfTanksBlitzApi.Tools.Replays
 {
 
 	public class Details

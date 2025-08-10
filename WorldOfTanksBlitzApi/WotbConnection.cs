@@ -1,10 +1,11 @@
-namespace FMWOTB;
+namespace WorldOfTanksBlitzApi;
 
-using FMWOTB.Exceptions;
-using FMWOTB.Interfaces;
+using WorldOfTanksBlitzApi.Exceptions;
+using WorldOfTanksBlitzApi.Interfaces;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.IO;
 
 public class WotbConnection(HttpClient client, string applicationId, string baseUri) : IWotbConnection
 {
@@ -14,23 +15,17 @@ public class WotbConnection(HttpClient client, string applicationId, string base
 
 	public async Task<string> PostAsync(string relativeUrl, MultipartFormDataContent form)
 	{
-		if (form == null)
-		{
-			throw new ArgumentNullException(nameof(form));
-		}
+		ArgumentNullException.ThrowIfNull(form);
 
 		// Always add the application_id to the form
 		form.Add(new StringContent(_applicationId), "application_id");
 
-		string url = _baseUri.TrimEnd('/') + "/" + relativeUrl.TrimStart('/');
+		string url = _baseUri.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar + relativeUrl.TrimStart(Path.DirectorySeparatorChar);
 
 		HttpResponseMessage response = await _client.PostAsync(url, form);
 
-		if ((int) response.StatusCode >= 500)
-		{
-			throw new InternalServerErrorException();
-		}
-
-		return await response.Content.ReadAsStringAsync();
+		return (int) response.StatusCode >= 500 ?
+				throw new InternalServerErrorException() :
+				await response.Content.ReadAsStringAsync();
 	}
 }

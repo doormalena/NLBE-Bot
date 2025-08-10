@@ -1,37 +1,39 @@
-namespace FMWOTB.Models;
+namespace WorldOfTanksBlitzApi.Models;
 
 using System;
 using System.Text.Json.Serialization;
+using WorldOfTanksBlitzApi.Tools;
 
 public class WotbClanListItem
 {
-	[JsonPropertyName("name")]
+	[JsonInclude, JsonPropertyName("name")]
 	public string Name
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("clan_id")]
+	[JsonInclude, JsonPropertyName("clan_id")]
 	public long ClanId
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("tag")]
+	[JsonInclude, JsonPropertyName("tag")]
 	public string Tag
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("members_count")]
+	[JsonInclude, JsonPropertyName("members_count")]
 	public int MembersCount
 	{
-		get; set;
+		get; internal set;
 	}
 
-	[JsonPropertyName("created_at")]
+	[JsonInclude, JsonPropertyName("created_at")]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? CreatedAt
 	{
-		get; set;
+		get; internal set;
 	}
 }

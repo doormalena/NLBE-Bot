@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using FMWOTB.Tools.Replays;
+using WorldOfTanksBlitzApi.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;

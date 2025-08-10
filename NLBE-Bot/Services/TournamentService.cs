@@ -2,7 +2,7 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus.Entities;
-using FMWOTB.Tournament;
+using WorldOfTanksBlitzApi.Tournament;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;

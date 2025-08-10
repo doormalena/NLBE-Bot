@@ -1,4 +1,4 @@
-using FMWOTB.Exceptions;
+using WorldOfTanksBlitzApi.Exceptions;
 using JsonObjectConverter;
 using System;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FMWOTB.Tools.Replays
+namespace WorldOfTanksBlitzApi.Tools.Replays
 {
 	public class WGBattle /* : Battle*/
 	{

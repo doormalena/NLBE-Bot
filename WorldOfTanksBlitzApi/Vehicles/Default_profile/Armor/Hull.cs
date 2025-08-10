@@ -2,7 +2,7 @@ using JsonObjectConverter;
 using System;
 using System.Collections;
 
-namespace FMWOTB.Vehicles
+namespace WorldOfTanksBlitzApi.Vehicles
 {
 	public class Hull
 	{

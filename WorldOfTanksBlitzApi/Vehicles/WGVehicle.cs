@@ -1,5 +1,5 @@
-using FMWOTB.Exceptions;
-using FMWOTB.Vehicles.Default_profile;
+using WorldOfTanksBlitzApi.Exceptions;
+using WorldOfTanksBlitzApi.Vehicles.Default_profile;
 using JsonObjectConverter;
 using System;
 using System.Collections;
@@ -8,7 +8,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FMWOTB.Vehicles
+namespace WorldOfTanksBlitzApi.Vehicles
 {
 	public class WGVehicle
 	{

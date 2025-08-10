@@ -3,7 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
-namespace FMWOTB.Tournament
+namespace WorldOfTanksBlitzApi.Tournament
 {
 	public class Teams
 	{

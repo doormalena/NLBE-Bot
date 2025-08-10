@@ -1,4 +1,4 @@
-using FMWOTB.Exceptions;
+using WorldOfTanksBlitzApi.Exceptions;
 using JsonObjectConverter;
 using System;
 using System.Collections;
@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace FMWOTB.Tournament
+namespace WorldOfTanksBlitzApi.Tournament
 {
 	public class Tournaments
 	{

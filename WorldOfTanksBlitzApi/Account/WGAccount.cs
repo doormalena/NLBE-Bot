@@ -1,6 +1,6 @@
-namespace FMWOTB.Account;
+namespace WorldOfTanksBlitzApi.Account;
 
-using FMWOTB.Exceptions;
+using WorldOfTanksBlitzApi.Exceptions;
 using JsonObjectConverter;
 using System;
 using System.Collections;

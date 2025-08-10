@@ -1,7 +1,7 @@
 namespace WorldOfTanksBlitzApi.Tests;
 
-using FMWOTB;
-using FMWOTB.Exceptions;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
 using RichardSzalay.MockHttp;

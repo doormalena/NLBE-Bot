@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Interfaces;
 
 using DSharpPlus.Entities;
-using FMWOTB.Tournament;
+using WorldOfTanksBlitzApi.Tournament;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;

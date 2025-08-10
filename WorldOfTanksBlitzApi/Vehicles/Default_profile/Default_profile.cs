@@ -1,7 +1,7 @@
 using JsonObjectConverter;
 using System.Collections.Generic;
 
-namespace FMWOTB.Vehicles.Default_profile
+namespace WorldOfTanksBlitzApi.Vehicles.Default_profile
 {
 	public class default_profile
 	{

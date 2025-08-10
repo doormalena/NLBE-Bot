@@ -1,6 +1,6 @@
 using System;
 
-namespace FMWOTB.Exceptions
+namespace WorldOfTanksBlitzApi.Exceptions
 {
 	[Serializable]
 	public class JsonConvertingException : Exception

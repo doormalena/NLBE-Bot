@@ -1,6 +1,6 @@
 using JsonObjectConverter;
 
-namespace FMWOTB.Vehicles.Default_profile
+namespace WorldOfTanksBlitzApi.Vehicles.Default_profile
 {
 	public class Turret
 	{

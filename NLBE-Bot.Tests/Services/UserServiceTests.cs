@@ -1,6 +1,6 @@
 namespace NLBE_Bot.Tests.Services;
 
-using FMWOTB.Interfaces;
+using WorldOfTanksBlitzApi.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;

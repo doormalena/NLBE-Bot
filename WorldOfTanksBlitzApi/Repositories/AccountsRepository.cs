@@ -1,8 +1,8 @@
-namespace FMWOTB.Repositories;
+namespace WorldOfTanksBlitzApi.Repositories;
 
-using FMWOTB;
-using FMWOTB.Interfaces;
-using FMWOTB.Models;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;

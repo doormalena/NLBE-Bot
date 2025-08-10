@@ -1,5 +1,5 @@
 using System;
-namespace FMWOTB.Exceptions
+namespace WorldOfTanksBlitzApi.Exceptions
 {
 	public class InternalServerErrorException : Exception
 	{

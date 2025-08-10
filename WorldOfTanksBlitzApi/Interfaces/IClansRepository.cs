@@ -1,7 +1,7 @@
-namespace FMWOTB.Interfaces;
+namespace WorldOfTanksBlitzApi.Interfaces;
 
-using FMWOTB;
-using FMWOTB.Models;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
