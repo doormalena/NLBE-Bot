@@ -113,5 +113,76 @@ public class ClansRepositoryTests
 		// Assert.
 		Assert.IsNull(result);
 	}
+
+	[TestMethod]
 	public async Task GetAccountClanInfoAsync_ReturnsAccountClanInfo_WhenDataIsPresent()
+	{
+		// Arrange.
+		string json = @"
+		{
+			""data"": {
+				""789"": {
+					""account_id"": 789,
+					""account_name"": ""Player789"",
+					""joined_at"": 1700000000,
+					""role"": ""commander"",
+					""clan_id"": 456,
+					""clan"": {
+						""name"": ""ClanTest"",
+						""clan_id"": 456,
+						""tag"": ""CT"",
+						""members_count"": 10,
+						""created_at"": 1577836800						
+					}
+				}
+			}
+		}";
+		_mockConnection!.PostAsync(Arg.Any<string>(), Arg.Any<MultipartFormDataContent>()).Returns(json);
+
+		// Act.
+		WotbAccountClanInfo? result = await _repository!.GetAccountClanInfoAsync(789);
+
+		// Assert.
+		Assert.IsNotNull(result);
+		Assert.AreEqual(789, result.AccountId);
+		Assert.AreEqual("Player789", result.AccountName);
+		Assert.AreEqual(new DateTime(2023, 11, 14, 22, 13, 20, DateTimeKind.Utc), result.JoinedAt);
+		Assert.AreEqual("commander", result.Role);
+		Assert.AreEqual(456, result.ClanId);
+		Assert.IsNotNull(result.Clan);
+		Assert.AreEqual("ClanTest", result.Clan.Name);
+		Assert.AreEqual(456, result.Clan.ClanId);
+		Assert.AreEqual("CT", result.Clan.Tag);
+		Assert.AreEqual(10, result.Clan.MembersCount);
+		Assert.AreEqual(new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc), result.Clan.CreatedAt);
+	}
+
+	[TestMethod]
+	public async Task GetAccountClanInfoAsync_ReturnsNull_WhenDataIsMissing()
+	{
+		// Arrange.
+		string json = @"{ ""data"": {} }";
+		_mockConnection!.PostAsync(Arg.Any<string>(), Arg.Any<MultipartFormDataContent>()).Returns(json);
+
+		// Act.
+		WotbAccountClanInfo? result = await _repository!.GetAccountClanInfoAsync(789);
+
+		// Assert.
+		Assert.IsNull(result);
+	}
+
+	[TestMethod]
+	public async Task GetAccountClanInfoAsync_ReturnsNull_WhenAccountClanNodeIsNull()
+	{
+		// Arrange.
+		string json = @"{ ""data"": { ""789"": null } }";
+		_mockConnection!.PostAsync(Arg.Any<string>(), Arg.Any<MultipartFormDataContent>()).Returns(json);
+
+		// Act.
+		WotbAccountClanInfo? result = await _repository!.GetAccountClanInfoAsync(789);
+
+		// Assert.
+		Assert.IsNull(result);
+	}
 }
+
