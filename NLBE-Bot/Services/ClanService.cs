@@ -1,12 +1,7 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -15,6 +10,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 internal class ClanService(IMessageService messageService,
 						   IClansRepository clanRepository,
@@ -90,7 +88,7 @@ internal class ClanService(IMessageService messageService,
 	}
 
 	public async Task<WotbClanListItem> SearchForClan(IDiscordChannel channel, IDiscordMember member, string guildName, string name, bool loadMembers, IDiscordUser user, IDiscordCommand command)
-{
+	{
 		IReadOnlyList<WotbClanListItem> clans = await _clanRepository.SearchByNameAsync(SearchType.StartsWith, name, loadMembers);
 		int aantalClans = clans.Count;
 		List<WotbClanListItem> clanList = [];

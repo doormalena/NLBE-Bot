@@ -4,14 +4,7 @@ using DiscordHelper;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.Net.Models;
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Clans;
-using WorldOfTanksBlitzApi.Exceptions;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -21,6 +14,9 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 internal class UserService(ILogger<UserService> logger,
 						   IMessageService messageService,
@@ -474,36 +470,36 @@ internal class UserService(ILogger<UserService> logger,
 				}
 				if (account.Statistics != null)
 				{
-					if (account.Statistics.rating != null)
+					if (account.Statistics.Rating != null)
 					{
 						DEF newDef4 = new()
 						{
 							Name = "Rating (WR)",
-							Value = account.Statistics.rating.battles > 0 ? string.Format("{0:.##}", CalculateWinRate(account.Statistics.rating.wins, account.Statistics.rating.battles)) : "Nog geen rating gespeeld",
+							Value = account.Statistics.Rating.Battles > 0 ? string.Format("{0:.##}", CalculateWinRate(account.Statistics.Rating.Wins, account.Statistics.Rating.Battles)) : "Nog geen rating gespeeld",
 							Inline = true
 						};
 						deflist.Add(newDef4);
 					}
-					if (account.Statistics.all != null)
+					if (account.Statistics.All != null)
 					{
 						DEF newDef5 = new()
 						{
 							Name = "Winrate",
-							Value = string.Format("{0:.##}", CalculateWinRate(account.Statistics.all.wins, account.Statistics.all.battles)),
+							Value = string.Format("{0:.##}", CalculateWinRate(account.Statistics.All.Wins, account.Statistics.All.Battles)),
 							Inline = true
 						};
 						deflist.Add(newDef5);
 						DEF newDef6 = new()
 						{
 							Name = "Gem. damage",
-							Value = (account.Statistics.all.damage_dealt / account.Statistics.all.battles).ToString(),
+							Value = (account.Statistics.All.DamageDealt / account.Statistics.All.Battles).ToString(),
 							Inline = true
 						};
 						deflist.Add(newDef6);
 						DEF newDef7 = new()
 						{
 							Name = "Battles",
-							Value = account.Statistics.all.battles.ToString(),
+							Value = account.Statistics.All.Battles.ToString(),
 							Inline = true
 						};
 						deflist.Add(newDef7);
@@ -951,48 +947,42 @@ internal class UserService(ILogger<UserService> logger,
 		}
 		return deflist;
 	}
+
 	public async Task<WotbAccountInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
 	{
-		try
+		IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, naam); // TODO: missing clan members and statistics
+		StringBuilder sb = new();
+		int index = 0;
+
+		if (searchResults != null)
 		{
-			IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, naam); // TODO: missing clan members and statistics
-			StringBuilder sb = new();
-			int index = 0;
-
-			if (searchResults != null)
+			if (searchResults.Count > 1)
 			{
-				if (searchResults.Count > 1)
+				int counter = 0;
+				foreach (WotbAccountListItem account in searchResults)
 				{
-					int counter = 0;
-					foreach (WotbAccountListItem account in searchResults)
-					{
-						counter++;
-						sb.AppendLine(counter + ". " + account.Nickname.AdaptToDiscordChat());
-					}
-					index = await _messageService.WaitForReply(channel, user, sb.ToString(), searchResults.Count);
+					counter++;
+					sb.AppendLine(counter + ". " + account.Nickname.AdaptToDiscordChat());
 				}
+				index = await _messageService.WaitForReply(channel, user, sb.ToString(), searchResults.Count);
+			}
 
-				if (index >= 0 && searchResults.Count >= 1)
-				{
-					WotbAccountInfo account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId); // TODO: missing clan and statistics
-					await ShowMemberInfo(channel, account);
-					return account;
-				}
-				else
-				{
-					await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam + "`**) kon niet gevonden worden!**");
-				}
+			if (index >= 0 && searchResults.Count >= 1)
+			{
+				WotbAccountInfo account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId); // TODO: missing clan and statistics
+				await ShowMemberInfo(channel, account);
+				return account;
 			}
 			else
 			{
-				await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam.AdaptToDiscordChat() + "`**) kon niet gevonden worden!**");
+				await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam + "`**) kon niet gevonden worden!**");
 			}
 		}
-		catch (TooManyResultsException ex)
+		else
 		{
-			_logger.LogWarning("While searching for player by name: {Message}", ex.Message);
-			await _messageService.SendMessage(channel, member, guildName, "**Te veel resultaten waren gevonden, wees specifieker!**");
+			await _messageService.SendMessage(channel, member, guildName, "**Gebruiker (**`" + naam.AdaptToDiscordChat() + "`**) kon niet gevonden worden!**");
 		}
+
 		return null;
 	}
 

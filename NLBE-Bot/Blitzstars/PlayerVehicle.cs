@@ -29,5 +29,5 @@ public class PlayerVehicle
 		{
 			get; set;
 		}
-	}	
+	}
 }

@@ -1,8 +1,8 @@
 namespace WorldOfTanksBlitzApi.Interfaces;
 
-using WorldOfTanksBlitzApi;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Models;
 
 public interface IAccountsRepository

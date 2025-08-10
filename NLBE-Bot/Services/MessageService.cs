@@ -2,7 +2,6 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus.Entities;
-using WorldOfTanksBlitzApi.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -11,6 +10,7 @@ using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IOptions<BotOptions> options, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,

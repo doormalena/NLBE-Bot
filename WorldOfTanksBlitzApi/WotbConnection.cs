@@ -1,11 +1,11 @@
 namespace WorldOfTanksBlitzApi;
 
-using WorldOfTanksBlitzApi.Exceptions;
-using WorldOfTanksBlitzApi.Interfaces;
 using System;
+using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.IO;
+using WorldOfTanksBlitzApi.Exceptions;
+using WorldOfTanksBlitzApi.Interfaces;
 
 public class WotbConnection(HttpClient client, string applicationId, string baseUri) : IWotbConnection
 {

@@ -2,8 +2,6 @@ namespace NLBE_Bot.Services;
 using DiscordHelper;
 using DSharpPlus;
 using DSharpPlus.Entities;
-using WorldOfTanksBlitzApi.Exceptions;
-using WorldOfTanksBlitzApi.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -15,6 +13,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Exceptions;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<BotOptions> options,
 		IDiscordMessageUtils discordMessageUtils, IChannelService channelService, IMessageService messageService, IMapService mapService, IReplayService replayService, IUserService userService) : IHallOfFameService

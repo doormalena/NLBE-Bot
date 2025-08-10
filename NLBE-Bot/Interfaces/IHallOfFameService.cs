@@ -1,10 +1,10 @@
 namespace NLBE_Bot.Interfaces;
 
-using WorldOfTanksBlitzApi.Tools.Replays;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal interface IHallOfFameService
 {

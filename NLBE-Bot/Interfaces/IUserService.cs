@@ -1,10 +1,9 @@
 namespace NLBE_Bot.Interfaces;
 
-using WorldOfTanksBlitzApi.Clans;
-using WorldOfTanksBlitzApi.Models;
 using NLBE_Bot.Models;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Models;
 
 internal interface IUserService
 {

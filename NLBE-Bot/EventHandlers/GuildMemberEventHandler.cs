@@ -2,9 +2,6 @@ namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.EventArgs;
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot;
@@ -17,6 +14,9 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 									   IOptions<BotOptions> options,

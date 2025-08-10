@@ -4,8 +4,6 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using WorldOfTanksBlitzApi.Tools.Replays;
-using WorldOfTanksBlitzApi.Vehicles;
 using JsonObjectConverter;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,6 +17,8 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Vehicles;
 
 internal class MessageEventHandler(IOptions<BotOptions> options,
 								   IBotState botState,

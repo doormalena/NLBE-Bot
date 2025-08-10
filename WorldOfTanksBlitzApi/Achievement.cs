@@ -1,10 +1,10 @@
-using WorldOfTanksBlitzApi.Exceptions;
 using JsonObjectConverter;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Exceptions;
 
 namespace WorldOfTanksBlitzApi
 {

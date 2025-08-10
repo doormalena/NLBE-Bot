@@ -1,14 +1,12 @@
 namespace NLBE_Bot.Tests.Services;
 
-using WorldOfTanksBlitzApi.Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using NSubstitute;
+using WorldOfTanksBlitzApi.Interfaces;
 
 [TestClass]
 public class UserServiceTests

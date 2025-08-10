@@ -56,8 +56,6 @@ public class AccountsRepositoryTests
 	[TestMethod]
 	public async Task GetByIdAsync_ReturnsAccountInfo_WhenDataIsPresent()
 	{
-		// TODO: add verification of loading statitics.
-
 		// Arrange.
 		string json = @"
 		{
@@ -67,7 +65,19 @@ public class AccountsRepositoryTests
 					""account_id"": 123,
 					""created_at"": 1673218661,
 					""last_battle_time"": 1735266208,
-					""updated_at"": 1735481708
+					""updated_at"": 1735481708,
+					""statistics"": {
+						""all"": {
+							""battles"": 1000,
+							""wins"": 600,
+							""damage_dealt"": 112143528
+						},
+						""rating"": {
+							""battles"": 200,
+							""wins"": 3500,
+							""damage_dealt"": 54957945
+						}
+					}
 				}
 			}
 		}";
@@ -84,6 +94,19 @@ public class AccountsRepositoryTests
 		Assert.AreEqual(new DateTime(2024, 12, 27, 2, 23, 28, DateTimeKind.Utc), result.LastBattleTime);
 		Assert.AreEqual(new DateTime(2024, 12, 29, 14, 15, 08, DateTimeKind.Utc), result.UpdatedAt);
 		Assert.AreEqual("https://www.blitzstars.com/sigs/123", result.BlitzStars);
+		Assert.IsNotNull(result.Statistics);
+
+		// Statistics: All
+		Assert.IsNotNull(result.Statistics.All);
+		Assert.AreEqual(1000, result.Statistics.All.Battles);
+		Assert.AreEqual(600, result.Statistics.All.Wins);
+		Assert.AreEqual(112143528, result.Statistics.All.DamageDealt);
+
+		// Statistics: Rating
+		Assert.IsNotNull(result.Statistics.Rating);
+		Assert.AreEqual(200, result.Statistics.Rating.Battles);
+		Assert.AreEqual(3500, result.Statistics.Rating.Wins);
+		Assert.AreEqual(54957945, result.Statistics.Rating.DamageDealt);
 	}
 
 	[TestMethod]
@@ -100,3 +123,4 @@ public class AccountsRepositoryTests
 		Assert.IsNull(result);
 	}
 }
+

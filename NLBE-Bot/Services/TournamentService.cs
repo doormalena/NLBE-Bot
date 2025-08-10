@@ -2,7 +2,6 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus.Entities;
-using WorldOfTanksBlitzApi.Tournament;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -16,6 +15,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tournament;
 
 internal class TournamentService(ILogger<TournamentService> logger, IOptions<BotOptions> options, IUserService userService, IChannelService channelService, IMessageService messageService,
 		IDiscordMessageUtils discordMessageUtils, IDiscordClient discordClient) : ITournamentService

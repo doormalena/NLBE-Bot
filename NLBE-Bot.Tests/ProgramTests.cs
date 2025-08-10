@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Tests;
 
-using WorldOfTanksBlitzApi.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -8,6 +7,7 @@ using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Jobs;
 using NLBE_Bot.Services;
+using WorldOfTanksBlitzApi.Interfaces;
 
 [TestClass]
 public class ProgramTests

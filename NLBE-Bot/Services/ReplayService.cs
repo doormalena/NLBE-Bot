@@ -2,11 +2,6 @@ namespace NLBE_Bot.Services;
 
 using DiscordHelper;
 using DSharpPlus.Entities;
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Account;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Models;
-using WorldOfTanksBlitzApi.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -19,6 +14,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal class ReplayService(ILogger<ReplayService> logger,
 					 		 IOptions<BotOptions> options,

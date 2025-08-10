@@ -1,8 +1,5 @@
 namespace NLBE_Bot.Jobs;
 
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -12,6 +9,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 internal class VerifyServerNicknamesJob(IUserService userService,
 								 IChannelService channelService,

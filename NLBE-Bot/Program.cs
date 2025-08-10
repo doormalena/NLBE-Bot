@@ -3,9 +3,6 @@ namespace NLBE_Bot;
 using DSharpPlus;
 using DSharpPlus.Interactivity;
 using DSharpPlus.Interactivity.Extensions;
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,6 +20,9 @@ using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Repositories;
 
 public static class Program
 {

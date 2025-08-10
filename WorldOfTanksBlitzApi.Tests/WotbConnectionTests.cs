@@ -1,7 +1,5 @@
 namespace WorldOfTanksBlitzApi.Tests;
 
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NSubstitute;
 using RichardSzalay.MockHttp;
@@ -9,6 +7,8 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Exceptions;
 
 [TestClass]
 public class WotbConnectionTests

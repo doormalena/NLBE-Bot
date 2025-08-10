@@ -1,4 +1,3 @@
-using WorldOfTanksBlitzApi.Exceptions;
 using JsonObjectConverter;
 using System;
 using System.Collections.Generic;
@@ -6,6 +5,7 @@ using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Exceptions;
 
 namespace WorldOfTanksBlitzApi.Tools.Replays
 {

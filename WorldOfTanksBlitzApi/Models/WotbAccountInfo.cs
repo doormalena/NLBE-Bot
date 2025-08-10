@@ -2,7 +2,6 @@ namespace WorldOfTanksBlitzApi.Models;
 
 using System;
 using System.Text.Json.Serialization;
-using WorldOfTanksBlitzApi.Account.Statistics;
 using WorldOfTanksBlitzApi.Tools;
 
 public class WotbAccountInfo : WotbAccountListItem
@@ -29,7 +28,7 @@ public class WotbAccountInfo : WotbAccountListItem
 	}
 
 	[JsonInclude, JsonPropertyName("statistics")]
-	public Statistics Statistics
+	public WotbAccountStatistics Statistics
 	{
 		get; internal set;
 	}

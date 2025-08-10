@@ -1,7 +1,6 @@
 namespace NLBE_Bot.Services;
 
 using DiscordHelper;
-using WorldOfTanksBlitzApi.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -10,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal class WeeklyEventService(IChannelService channelService,
 								  IUserService userService,

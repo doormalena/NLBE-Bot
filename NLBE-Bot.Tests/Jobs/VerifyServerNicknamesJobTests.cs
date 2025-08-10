@@ -1,9 +1,6 @@
 namespace NLBE_Bot.Tests.Jobs;
 
 using DSharpPlus;
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -12,6 +9,9 @@ using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using NSubstitute;
 using System;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class VerifyServerNicknamesJobTests

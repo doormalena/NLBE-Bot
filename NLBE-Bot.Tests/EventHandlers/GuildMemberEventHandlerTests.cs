@@ -3,9 +3,6 @@ namespace NLBE_Bot.Tests.EventHandlers;
 using DSharpPlus;
 using DSharpPlus.AsyncEvents;
 using DSharpPlus.EventArgs;
-using WorldOfTanksBlitzApi;
-using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -13,6 +10,9 @@ using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using NSubstitute;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class GuildMemberEventHandlerTests
