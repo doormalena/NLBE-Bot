@@ -30,16 +30,23 @@ public class GuildMemberEventHandlerTests
 	[TestInitialize]
 	public void Setup()
 	{
+		_optionsMock = Substitute.For<IOptions<BotOptions>>();
+		_optionsMock.Value.Returns(new BotOptions()
+		{
+			RoleIds = new()
+			{
+				MustReadRules = 565656565,
+				Noob = 0987654321
+			},
+			ServerId = 12345
+		});
 		_discordClientMock = Substitute.For<IDiscordClient>();
 		_loggerMock = Substitute.For<ILogger<GuildMemberEventHandler>>();
-		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_channelServiceMock = Substitute.For<IChannelService>();
 		_userServiceMock = Substitute.For<IUserService>();
 		_messageServiceMock = Substitute.For<IMessageService>();
 		_accountsRepository = Substitute.For<IAccountsRepository>();
 		_clansRepository = Substitute.For<IClansRepository>();
-
-		_optionsMock.Value.Returns(new BotOptions { ServerId = 12345 });
 
 		_handler = new GuildMemberEventHandler(
 			_loggerMock,
@@ -71,9 +78,10 @@ public class GuildMemberEventHandlerTests
 		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
 		guild.Id.Returns(12345ul);
 
+		ulong noobRoleId = _optionsMock!.Value.RoleIds.Noob;
 		IDiscordRole noobRole = Substitute.For<IDiscordRole>();
-		noobRole.Id.Returns(Constants.NOOB_ROLE);
-		guild.GetRole(Constants.NOOB_ROLE).Returns(noobRole);
+		noobRole.Id.Returns(noobRoleId);
+		guild.GetRole(noobRoleId).Returns(noobRole);
 
 		IDiscordChannel regelsChannel = Substitute.For<IDiscordChannel>();
 		regelsChannel.Mention.Returns("#regels");
@@ -127,13 +135,14 @@ public class GuildMemberEventHandlerTests
 			}
 		};
 
-		_accountsRepository!.SearchByNameAsync(SearchType.Exact, accountInfo.Nickname)
+		_accountsRepository!.SearchByNameAsync(SearchType.StartsWith, accountInfo.Nickname)
 			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo]));
 		_clansRepository!.GetAccountClanInfoAsync(accountInfo.AccountId).Returns(Task.FromResult(accountClanInfo));
 
+		ulong mustReadRolesId = _optionsMock.Value.RoleIds.MustReadRules;
 		IDiscordRole rulesNotReadRole = Substitute.For<IDiscordRole>();
-		rulesNotReadRole.Id.Returns(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
-		guild.GetRole(Constants.MOET_REGELS_NOG_LEZEN_ROLE).Returns(rulesNotReadRole);
+		rulesNotReadRole.Id.Returns(mustReadRolesId);
+		guild.GetRole(mustReadRolesId).Returns(rulesNotReadRole);
 
 		IBotState botState = Substitute.For<IBotState>();
 		botState.IgnoreEvents.Returns(false);
@@ -190,8 +199,9 @@ public class GuildMemberEventHandlerTests
 		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
 		guild.Id.Returns(12345ul);
 
+		ulong noobRoleId = _optionsMock!.Value.RoleIds.Noob;
 		IDiscordRole noobRole = Substitute.For<IDiscordRole>();
-		noobRole.Id.Returns(Constants.NOOB_ROLE);
+		noobRole.Id.Returns(noobRoleId);
 
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		member.Roles.Returns([noobRole]);
@@ -296,9 +306,10 @@ public class GuildMemberEventHandlerTests
 
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		IDiscordRole role = Substitute.For<IDiscordRole>();
-		role.Id.Returns(Constants.NOOB_ROLE);
+		ulong noobRoleId = _optionsMock!.Value.RoleIds.Noob;
+		role.Id.Returns(noobRoleId);
 		member.Roles.Returns([role]);
-		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { Constants.NOOB_ROLE, role } });
+		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { noobRoleId, role } });
 		_channelServiceMock!.GetOudLedenChannel().Returns(Substitute.For<IDiscordChannel>());
 
 		IBotState botState = Substitute.For<IBotState>();

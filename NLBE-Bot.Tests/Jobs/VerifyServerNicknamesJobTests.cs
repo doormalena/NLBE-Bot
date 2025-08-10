@@ -32,9 +32,11 @@ public class VerifyServerNicknamesJobTests
 		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_optionsMock.Value.Returns(new BotOptions()
 		{
-			MemberDefaultRoleId = 1234567890,
+			RoleIds = new()
+			{
+				Members = 1234567890
+			}
 		});
-
 		_userServiceMock = Substitute.For<IUserService>();
 		_channelServiceMock = Substitute.For<IChannelService>();
 		_messageServcieMock = Substitute.For<IMessageService>();
@@ -134,7 +136,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains($"Could not find the default member role with id `{_optionsMock!.Value.MemberDefaultRoleId}`. Aborting user update.")),
+			Arg.Is<object>(o => o.ToString()!.Contains($"Could not find the default member role with id `{_optionsMock!.Value.RoleIds.Members}`. Aborting user update.")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);

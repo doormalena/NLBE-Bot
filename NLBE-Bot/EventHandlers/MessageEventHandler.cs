@@ -344,7 +344,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 									if (member.Roles != null)
 									{
 										foreach (IDiscordRole memberRole in from IDiscordRole memberRole in member.Roles
-																			where memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE)
+																			where memberRole.Id.Equals(_options.RoleIds.MustReadRules)
 																			select memberRole)
 										{
 											hadRulesNotReadrole = true;
@@ -375,7 +375,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 										{
 											await _userService.ChangeMemberNickname(member, "[] " + member.Username);
 										}
-										IDiscordRole ledenRole = guild.GetRole(_options.MemberDefaultRoleId);
+										IDiscordRole ledenRole = guild.GetRole(_options.RoleIds.Members);
 										if (ledenRole != null)
 										{
 											await member.GrantRoleAsync(ledenRole);

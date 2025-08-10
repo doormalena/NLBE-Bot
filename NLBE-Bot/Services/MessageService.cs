@@ -440,7 +440,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		else
 		{
 			_logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
+			IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
 			bool roleWasGiven = false;
 			if (noobRole != null)
 			{

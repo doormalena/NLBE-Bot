@@ -64,14 +64,6 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
-
-			if (noobRole == null)
-			{
-				_logger.LogWarning("Noob role not found. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
-				return;
-			}
-
 			IDiscordChannel welkomChannel = await _channelService.GetWelkomChannel();
 
 			if (welkomChannel == null)
@@ -85,6 +77,14 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			if (user == null)
 			{
 				_logger.LogWarning("Could not find the user. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
+				return;
+			}
+
+			IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
+
+			if (noobRole == null)
+			{
+				_logger.LogWarning("Noob role not found. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
@@ -112,7 +112,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				}
 
 				string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
-				searchResults = await _accountRepository.SearchByNameAsync(SearchType.Exact, ign);
+				searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, ign);
 
 				if (searchResults == null || searchResults.Count <= 0)
 				{
@@ -154,7 +154,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 
 			if (accountClanInfo.Clan != null && accountClanInfo.Clan.Tag != null)
 			{
-				if (accountClanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || accountClanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID))
+				if (accountClanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || accountClanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID)) // TODO: move to configuration
 				{
 					await member.SendMessageAsync("Indien je echt van **" + accountClanInfo.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + accountClanInfo.Clan.Tag + "** rol wilt geven.");
 				}
@@ -167,7 +167,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			_userService.ChangeMemberNickname(member, "[" + clanName + "] " + account.Nickname).Wait();
 			await member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
 
-			IDiscordRole rulesNotReadRole = guild.GetRole(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
+			IDiscordRole rulesNotReadRole = guild.GetRole(_options.RoleIds.MustReadRules);
 
 			if (rulesNotReadRole != null)
 			{
@@ -188,12 +188,12 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				IEnumerable<IDiscordRole> roles = member.Roles;
 
 				// TODO: why do we check rolesAfter and nicknameAfter? Filtering out changes that do not effect the name of the member?
-				if (roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
+				if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
 				{
 					return;
 				}
 
-				string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do?
+				string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do? Does this update the display name based on the nickname or something else?
 
 				if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
 				{
@@ -229,9 +229,9 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 
 			IEnumerable<IDiscordRole> roles = member.Roles;
 
-			if (roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE)))
+			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)))
 			{
-				IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
+				IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
 				await CleanWelcomeChannel(guild, member, noobRole);
 			}
 

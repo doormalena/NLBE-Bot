@@ -100,8 +100,6 @@ internal class WeeklyEventService(IChannelService channelService,
 
 		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
 
-		Debug.Assert(bottestChannel != null, "bottestChannel should not be null at this point.");
-
 		if (userNotFound)
 		{
 			string message = "Een weekly event winnaar was niet gevonden. Je zal handmatig een nieuw weekly event moeten aanmaken middels het `weekly` commando.";

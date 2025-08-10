@@ -63,11 +63,11 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 			}
 
 			IDiscordGuild guild = bottestChannel.Guild;
-			IDiscordRole memberRole = guild.GetRole(_options.MemberDefaultRoleId);
+			IDiscordRole memberRole = guild.GetRole(_options.RoleIds.Members);
 
 			if (memberRole == null)
 			{
-				_logger.LogWarning("Could not find the default member role with id `{Id}`. Aborting user update.", _options.MemberDefaultRoleId);
+				_logger.LogWarning("Could not find the default member role with id `{Id}`. Aborting user update.", _options.RoleIds.Members);
 				return;
 			}
 

@@ -1,13 +1,11 @@
 namespace NLBE_Bot.Configuration;
 
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 internal class BotOptions
 {
-
 	[Required]
-	public Dictionary<string, ulong> ChannelIds
+	public ChannelIdsOptions ChannelIds
 	{
 		get; set;
 	}
@@ -30,7 +28,7 @@ internal class BotOptions
 	} = 120;
 
 	[Required]
-	public ulong MemberDefaultRoleId
+	public RoleIdsOptions RoleIds
 	{
 		get; set;
 	}
@@ -52,3 +50,6 @@ internal class BotOptions
 		get; set;
 	}
 }
+
+
+

@@ -30,7 +30,7 @@ public class ProgramTests
 								services.AddSingleton(Options.Create(new BotOptions
 								{
 									DiscordToken = "dummy-token",
-									MemberDefaultRoleId = 1234567890,
+									RoleIds = new() { Members = 1234567890 },
 									WotbApi = new() { ApplicationId = "dummy-appid", BaseUri = "https://apitest.something.test" }
 								}));
 							})
