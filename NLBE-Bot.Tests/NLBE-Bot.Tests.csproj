@@ -12,6 +12,7 @@
       -->
 		<TestingPlatformShowTestsFailure>true</TestingPlatformShowTestsFailure>
 		<UseVSTest>true</UseVSTest>
+		<UserSecretsId>9ba1ef94-ad51-4b50-981a-f10543ad25cf</UserSecretsId>
 	</PropertyGroup>
 
 	<ItemGroup>

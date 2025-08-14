@@ -106,7 +106,8 @@ public static class Program
 	private static WotbConnection CreateWotbConnection(IServiceProvider provider, HttpClient client)
 	{
 		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
-		return new WotbConnection(client, options.WotbApi.ApplicationId, options.WotbApi.BaseUri);
+		ILogger<WotbConnection> logger = provider.GetRequiredService<ILogger<WotbConnection>>();
+		return new WotbConnection(client, logger, options.WotbApi.BaseUri, options.WotbApi.ApplicationId);
 	}
 
 	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider)
