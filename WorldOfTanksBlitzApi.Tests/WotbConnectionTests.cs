@@ -362,6 +362,27 @@ public class WotbConnectionTests
 	}
 
 	[TestMethod]
+	public async Task PostAsync_ThrowsInvalidOperationException_OnMalformedJson()
+	{
+		// Arrange.
+		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
+		string malformedJson = "{ \"status\": \"ok\", \"data\": [ "; // Incomplete JSON
+
+		_mockHttp!.When(HttpMethod.Post, expectedUrl).Respond("application/json", malformedJson);
+
+		MultipartFormDataContent form = [];
+		form.Add(new StringContent("value"), "key");
+
+		// Act & Assert.
+		InvalidOperationException ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+		{
+			await _connection!.PostAsync(RelativeUrl, form);
+		});
+
+		Assert.AreEqual("Failed to parse API response.", ex.Message);
+	}
+
+	[TestMethod]
 	public async Task PostAsync_ThrowsInvalidOperationException_OnUndefinedErrorCode()
 	{
 		// Arrange.

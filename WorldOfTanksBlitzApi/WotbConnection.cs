@@ -92,12 +92,8 @@ public class WotbConnection(HttpClient client,
 				return false;
 			}
 		}
-		else
-		{
-			throw new InvalidOperationException($"API error {errorCode}: {message}");
-		}
 
-		return true;
+		throw new InvalidOperationException($"API error {errorCode}: {message}");
 	}
 
 	private async Task RateLimitReachedBackoff(int attempt)
