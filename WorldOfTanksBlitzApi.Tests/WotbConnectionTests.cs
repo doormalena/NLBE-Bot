@@ -197,6 +197,171 @@ public class WotbConnectionTests
 	}
 
 	[TestMethod]
+	public async Task PostAsync_LogsBackoffDelay_OnRateLimitExceeded()
+	{
+		// Arrange.
+		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
+		string errorJson = """
+		{
+			"status": "error",
+			"error": {
+				"code": 407,
+				"message": "REQUEST_LIMIT_EXCEEDED",
+				"field": "application_id",
+				"value": null
+			}
+		}
+		""";
+
+		TimeSpan? capturedDelay = null;
+		Task fakeDelay(TimeSpan delay)
+		{
+			capturedDelay = delay;
+			return Task.CompletedTask;
+		}
+
+		_connection = new(_httpClient!, _loggerMock, BaseUri, ApplicationId, maxRetries: 1, delayFunc: fakeDelay);
+
+		_mockHttp!.When(HttpMethod.Post, expectedUrl).Respond("application/json", errorJson);
+
+		MultipartFormDataContent form = [];
+		form.Add(new StringContent("value"), "key");
+
+		// Act & Assert.
+		await Assert.ThrowsExceptionAsync<TimeoutException>(async () =>
+		{
+			await _connection!.PostAsync(RelativeUrl, form);
+		});
+		Assert.IsNotNull(capturedDelay, "Backoff delay was not triggered.");
+		_loggerMock!.Received().Log(
+			LogLevel.Debug,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(o => o.ToString()!.Contains("Rate limit exceeded")),
+			null,
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task PostAsync_UsesExponentialBackoff_OnMultipleRateLimitResponses()
+	{
+		// Arrange
+		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
+		string errorJson = """
+		{
+			"status": "error",
+			"error": {
+				"code": 407,
+				"message": "REQUEST_LIMIT_EXCEEDED",
+				"field": "application_id",
+				"value": null
+			}
+		}
+		""";
+
+		List<TimeSpan> delays = [];
+		Task fakeDelay(TimeSpan delay)
+		{
+			delays.Add(delay);
+			return Task.CompletedTask;
+		}
+
+		int maxRetries = 4;
+		_loggerMock = Substitute.For<ILogger<WotbConnection>>();
+		_connection = new(_httpClient!, _loggerMock, BaseUri, ApplicationId, maxRetries, fakeDelay);
+
+		_mockHttp!.When(HttpMethod.Post, expectedUrl).Respond("application/json", errorJson);
+
+		MultipartFormDataContent form = [];
+		form.Add(new StringContent("value"), "key");
+
+		// Act & Assert.
+		await Assert.ThrowsExceptionAsync<TimeoutException>(async () =>
+		{
+			await _connection!.PostAsync(RelativeUrl, form);
+		});
+
+		Assert.IsTrue(delays.Count > 0, "No delays were recorded. Retry logic may not have been triggered.");
+		Assert.AreEqual(maxRetries, delays.Count, "Unexpected number of backoff attempts.");
+
+		// Verify exponential growth pattern
+		for (int i = 0; i < delays.Count; i++)
+		{
+			double maxExpectedSeconds = 0.5 * Math.Pow(2, i);
+			Assert.IsTrue(delays[i].TotalSeconds >= 0, $"Delay at attempt {i} was negative.");
+			Assert.IsTrue(delays[i].TotalSeconds <= maxExpectedSeconds,
+				$"Delay at attempt {i} ({delays[i].TotalSeconds:F2}s) exceeded max expected ({maxExpectedSeconds:F2}s).");
+		}
+
+		// Print delays for visual inspection.
+		foreach ((TimeSpan delay, int i) in delays.Select((d, i) => (d, i)))
+		{
+			double maxExpected = 0.5 * Math.Pow(2, i);
+			Console.WriteLine($"Attempt {i}: Delay = {delay.TotalSeconds:F3}s (Max Expected: {maxExpected:F3}s)");
+		}
+	}
+	[TestMethod]
+	public async Task PostAsync_StopsRetrying_AfterSuccessfulResponse()
+	{
+		// Arrange.
+		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
+		string rateLimitJson = """
+		{
+			"status": "error",
+			"error": {
+				"code": 407,
+				"message": "REQUEST_LIMIT_EXCEEDED",
+				"field": "application_id",
+				"value": null
+			}
+		}
+		""";
+
+		string successJson = """
+		{
+			"status": "ok",
+			"data": []
+		}
+		""";
+
+		int failAttempts = 2;
+		int totalCalls = 0;
+
+		_mockHttp!.When(HttpMethod.Post, expectedUrl)
+			.Respond(_ =>
+			{
+				string responseJson = totalCalls < failAttempts ? rateLimitJson : successJson;
+				totalCalls++;
+				return new HttpResponseMessage
+				{
+					Content = new StringContent(responseJson),
+					StatusCode = HttpStatusCode.OK
+				};
+			});
+
+		List<TimeSpan> delays = [];
+		Task fakeDelay(TimeSpan delay)
+		{
+			delays.Add(delay);
+			return Task.CompletedTask;
+		}
+
+		_loggerMock = Substitute.For<ILogger<WotbConnection>>();
+		_connection = new(_httpClient!, _loggerMock, BaseUri, ApplicationId, maxRetries: 5, delayFunc: fakeDelay);
+
+		MultipartFormDataContent form = [];
+		form.Add(new StringContent("value"), "key");
+
+		// Act.
+		string result = await _connection!.PostAsync(RelativeUrl, form);
+
+		// Assert.
+		Assert.AreEqual(successJson, result, "Did not return expected successful response.");
+		Assert.AreEqual(failAttempts, delays.Count, "Unexpected number of retries before success.");
+		Assert.AreEqual(failAttempts + 1, totalCalls, "Unexpected number of total HTTP calls.");
+	}
+
+	[TestMethod]
 	public async Task PostAsync_ThrowsInvalidOperationException_OnUndefinedErrorCode()
 	{
 		// Arrange.

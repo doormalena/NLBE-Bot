@@ -22,7 +22,7 @@ public class WotbConnectionRequestTests
 
 	[TestMethod]
 	public async Task PostAsync_ReturnsContent_WhenReachedRateLimit()
-{
+	{
 		// Arrange.
 		const string relativeUrl = "/account/list/";
 
