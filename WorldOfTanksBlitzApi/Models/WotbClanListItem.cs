@@ -31,7 +31,7 @@ public class WotbClanListItem
 	}
 
 	[JsonInclude, JsonPropertyName("created_at")]
-	[JsonConverter(typeof(UnixTimestampConverter))]
+	[JsonConverter(typeof(UnixTimestampNullableConverter))]
 	public DateTime? CreatedAt
 	{
 		get; internal set;

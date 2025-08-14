@@ -19,7 +19,7 @@ public class WotbClanMember
 	}
 
 	[JsonInclude, JsonPropertyName("joined_at")]
-	[JsonConverter(typeof(UnixTimestampConverter))]
+	[JsonConverter(typeof(UnixTimestampNullableConverter))]
 	public DateTime? JoinedAt
 	{
 		get; internal set;

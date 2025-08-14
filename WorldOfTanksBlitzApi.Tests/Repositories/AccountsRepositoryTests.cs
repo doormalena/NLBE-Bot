@@ -72,6 +72,11 @@ public class AccountsRepositoryTests
 							""wins"": 600,
 							""damage_dealt"": 112143528
 						},
+						""clan"": {
+							""battles"": 400,
+							""wins"": 100,
+							""damage_dealt"": 43528
+						},
 						""rating"": {
 							""battles"": 200,
 							""wins"": 3500,
@@ -101,6 +106,12 @@ public class AccountsRepositoryTests
 		Assert.AreEqual(1000, result.Statistics.All.Battles);
 		Assert.AreEqual(600, result.Statistics.All.Wins);
 		Assert.AreEqual(112143528, result.Statistics.All.DamageDealt);
+
+		// Statistics: Clan
+		Assert.IsNotNull(result.Statistics.Clan);
+		Assert.AreEqual(400, result.Statistics.Clan.Battles);
+		Assert.AreEqual(100, result.Statistics.Clan.Wins);
+		Assert.AreEqual(43528, result.Statistics.Clan.DamageDealt);
 
 		// Statistics: Rating
 		Assert.IsNotNull(result.Statistics.Rating);
