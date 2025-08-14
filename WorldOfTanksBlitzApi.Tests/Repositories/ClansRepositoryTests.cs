@@ -75,7 +75,7 @@ public class ClansRepositoryTests
 		_mockConnection!.PostAsync(Arg.Any<string>(), Arg.Any<MultipartFormDataContent>()).Returns(json);
 
 		// Act.
-		WotbClanInfo? result = await _repository!.GetByIdAsync(456);
+		WotbClanInfo? result = await _repository!.GetByIdAsync(456, true);
 
 		// Assert.
 		Assert.IsNotNull(result);
