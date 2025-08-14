@@ -68,6 +68,19 @@ public class UnixTimestampConverterTests
 		// Assert.
 		Assert.AreEqual(expectedJson, json);
 	}
+
+	[TestMethod]
+	public void Read_InvalidToken_ThrowsJsonException()
+	{
+		// Arrange.
+		string json = @"{""Timestamp"":""not-a-number""}";
+
+		// Act & Assert.
+		Assert.ThrowsException<JsonException>(() =>
+		{
+			JsonSerializer.Deserialize<TimestampWrapper>(json);
+		});
+	}
 }
 
 public class TimestampWrapper
