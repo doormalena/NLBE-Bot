@@ -41,26 +41,28 @@ internal class ChannelService(IOptions<BotOptions> options,
 		ulong ChatID = 507575682046492692;
 		return await GetChannel(ChatID);
 	}
+
 	public async Task<IDiscordChannel> GetOudLedenChannel()
 	{
-		ulong ChatID = 744462244951228507;
-		return await GetChannel(ChatID);
+		return await GetChannel(_options.ChannelIds.OldMembers);
 	}
+
 	public async Task<IDiscordChannel> GetDeputiesChannel()
 	{
 		ulong ChatID = 668211371522916389;
 		return await GetChannel(ChatID);
 	}
+
 	public async Task<IDiscordChannel> GetWelkomChannel()
 	{
-		ulong ChatID = 681960256296976405;
-		return await GetChannel(ChatID);
+		return await GetChannel(_options.ChannelIds.Welcome);
 	}
+
 	public async Task<IDiscordChannel> GetRegelsChannel()
 	{
-		ulong ChatID = 679531304882012165;
-		return await GetChannel(ChatID);
+		return await GetChannel(_options.ChannelIds.Rules);
 	}
+
 	public async Task<IDiscordChannel> GetLogChannel()
 	{
 		ulong ChatID = 782308602882031660;
@@ -79,7 +81,7 @@ internal class ChannelService(IOptions<BotOptions> options,
 
 	public async Task<IDiscordChannel> GetBotTestChannel()
 	{
-		return await GetChannel(_options.ChannelIds["BotTest"]);
+		return await GetChannel(_options.ChannelIds.BotTest);
 	}
 
 	public async Task<IDiscordChannel> GetTestChannel()

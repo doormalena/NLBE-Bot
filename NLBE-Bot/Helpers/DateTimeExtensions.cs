@@ -17,11 +17,6 @@ public static class DateTimeExtensions
 		return ConvertToDate(theDate);
 	}
 
-	public static DateTime ConvertToDateTime(this DateTime dateTime)
-	{
-		return new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, dateTime.Second, DateTimeKind.Local);
-	}
-
 	private static string ConvertToDate(this string date)
 	{
 		string[] splitted = date.Replace('/', '-').Split(' ');

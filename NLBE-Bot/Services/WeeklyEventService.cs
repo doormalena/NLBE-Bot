@@ -1,15 +1,14 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
-using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal class WeeklyEventService(IChannelService channelService,
 								  IUserService userService,
@@ -73,7 +72,7 @@ internal class WeeklyEventService(IChannelService channelService,
 							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
 							if (algemeenChannel != null)
 							{
-								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').adaptToDiscordChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
+								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
 																	   "\n" +
 																	   "`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
 																	   "\n\n" +
@@ -99,8 +98,6 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 
 		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
-
-		Debug.Assert(bottestChannel != null, "bottestChannel should not be null at this point.");
 
 		if (userNotFound)
 		{

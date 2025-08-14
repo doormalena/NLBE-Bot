@@ -4,8 +4,6 @@ using DSharpPlus;
 using DSharpPlus.CommandsNext;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
-using FMWOTB.Tools.Replays;
-using FMWOTB.Vehicles;
 using JsonObjectConverter;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -19,6 +17,8 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Vehicles;
 
 internal class MessageEventHandler(IOptions<BotOptions> options,
 								   IBotState botState,
@@ -344,7 +344,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 									if (member.Roles != null)
 									{
 										foreach (IDiscordRole memberRole in from IDiscordRole memberRole in member.Roles
-																			where memberRole.Id.Equals(Constants.MOET_REGELS_NOG_LEZEN_ROLE)
+																			where memberRole.Id.Equals(_options.RoleIds.MustReadRules)
 																			select memberRole)
 										{
 											hadRulesNotReadrole = true;
@@ -375,7 +375,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 										{
 											await _userService.ChangeMemberNickname(member, "[] " + member.Username);
 										}
-										IDiscordRole ledenRole = guild.GetRole(_options.MemberDefaultRoleId);
+										IDiscordRole ledenRole = guild.GetRole(_options.RoleIds.Members);
 										if (ledenRole != null)
 										{
 											await member.GrantRoleAsync(ledenRole);
@@ -493,7 +493,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			return;
 		}
 
-		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WarGamingAppId, ["name"]);
+		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WotbApi.ApplicationId, ["name"]);
 		Json json = new(vehiclesInString, string.Empty);
 		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
 

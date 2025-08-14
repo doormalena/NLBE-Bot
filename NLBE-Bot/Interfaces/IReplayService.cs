@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Interfaces;
 
-using FMWOTB.Tools.Replays;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal interface IReplayService
 {

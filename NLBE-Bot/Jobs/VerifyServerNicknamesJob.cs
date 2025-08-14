@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Jobs;
 
-using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -10,11 +9,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 internal class VerifyServerNicknamesJob(IUserService userService,
 								 IChannelService channelService,
 								 IMessageService messageService,
-								 IWGAccountService wgAccountService,
+								 IAccountsRepository accountRepository,
+								 IClansRepository clanRepository,
 								 IOptions<BotOptions> options,
 								 IBotState botState,
 								 ILogger<VerifyServerNicknamesJob> logger) : IJob<VerifyServerNicknamesJob>
@@ -22,7 +25,8 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
-	private readonly IWGAccountService _wgAccountService = wgAccountService ?? throw new ArgumentNullException(nameof(wgAccountService));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -59,22 +63,21 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 			}
 
 			IDiscordGuild guild = bottestChannel.Guild;
-			IDiscordRole memberRole = guild.GetRole(_options.MemberDefaultRoleId);
+			IDiscordRole memberRole = guild.GetRole(_options.RoleIds.Members);
 
 			if (memberRole == null)
 			{
-				_logger.LogWarning("Could not find the default member role with id `{Id}`. Aborting user update.", _options.MemberDefaultRoleId);
+				_logger.LogWarning("Could not find the default member role with id `{Id}`. Aborting user update.", _options.RoleIds.Members);
 				return;
 			}
 
 			IReadOnlyCollection<IDiscordMember> members = await guild.GetAllMembersAsync();
 			List<IDiscordMember> invalidPlayerMatches = [];
 			Dictionary<IDiscordMember, string> invalidPlayerClanMatches = [];
-			List<IDiscordMember> validPlayerAndClanMatches = [];
 
 			foreach (IDiscordMember member in members)
 			{
-				await EvaluateMember(memberRole, invalidPlayerMatches, invalidPlayerClanMatches, validPlayerAndClanMatches, member);
+				await EvaluateMember(memberRole, invalidPlayerMatches, invalidPlayerClanMatches, member);
 			}
 
 			await NotifyNicknameIssues(bottestChannel, guild, invalidPlayerMatches, invalidPlayerClanMatches);
@@ -86,7 +89,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		}
 	}
 
-	private async Task EvaluateMember(IDiscordRole memberRole, List<IDiscordMember> invalidPlayerMatches, Dictionary<IDiscordMember, string> invalidPlayerClanMatches, List<IDiscordMember> validPlayerAndClanMatches, IDiscordMember member)
+	private async Task EvaluateMember(IDiscordRole memberRole, List<IDiscordMember> invalidPlayerMatches, Dictionary<IDiscordMember, string> invalidPlayerClanMatches, IDiscordMember member)
 	{
 		if (member.IsBot || member.Roles == null || !member.Roles.Any(r => r.Id == memberRole.Id))
 		{
@@ -94,26 +97,24 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		}
 
 		WotbPlayerNameInfo playerNameInfo = _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName);
-		IReadOnlyList<IWGAccount> wgAccounts = await _wgAccountService.SearchByName(SearchAccuracy.EXACT, playerNameInfo.PlayerName, _options.WarGamingAppId, false, true, false);
+		IReadOnlyList<WotbAccountListItem> wotbAccounts = await _accountRepository.SearchByNameAsync(SearchType.Exact, playerNameInfo.PlayerName, 1);
 
-		if (wgAccounts?.Count > 0)
+		if (wotbAccounts.Count <= 0)
 		{
-			IWGAccount account = wgAccounts[0];
-			string clanTag = account.Clan != null ? account.Clan.Tag : string.Empty;
-			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
-
-			if (account.Nickname != null && !member.DisplayName.Equals(expectedDisplayName))
-			{
-				invalidPlayerClanMatches.TryAdd(member, expectedDisplayName); // An exact match has been found using the player name, however, the clan tag does not match.
-			}
-			else if (member.DisplayName.Equals(expectedDisplayName))
-			{
-				validPlayerAndClanMatches.Add(member); // An exact match has been found using the player name and clan tag.
-			}
+			invalidPlayerMatches.Add(member); // No match has been found using the player name.
 		}
 		else
 		{
-			invalidPlayerMatches.Add(member); // No match has been found using the player name.
+			WotbAccountListItem account = wotbAccounts[0];
+			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
+
+			string clanTag = accountClanInfo?.Clan.Tag;
+			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
+
+			if (!member.DisplayName.Equals(expectedDisplayName))
+			{
+				invalidPlayerClanMatches.TryAdd(member, expectedDisplayName); // An exact match has been found using the player name, however, the clan tag does not match.
+			}
 		}
 	}
 
@@ -126,13 +127,12 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		}
 
 		// Apply changes and notify users
-
 		foreach (KeyValuePair<IDiscordMember, string> memberChange in invalidPlayerClanMatches)
 		{
 			try
 			{
 				await _userService.ChangeMemberNickname(memberChange.Key, memberChange.Value);
-				await _messageService.SendMessage(bottestChannel, null, guild.Name, $"De gebruikersbijnaam van **{memberChange.Key.Username}** is aangepast van {memberChange.Key.DisplayName} naar **{memberChange.Value}**");
+				await _messageService.SendMessage(bottestChannel, null, guild.Name, $"De gebruikersbijnaam van **{memberChange.Key.Username}** is aangepast van **{memberChange.Key.DisplayName}** naar **{memberChange.Value}**");
 				_logger.LogInformation("Nickname for `{Username}` updated from `{DisplayName}` to `{Value}`", memberChange.Key.Username, memberChange.Key.DisplayName, memberChange.Value);
 			}
 			catch (UnauthorizedAccessException ex)

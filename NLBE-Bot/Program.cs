@@ -16,9 +16,13 @@ using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using System;
+using System.Net.Http;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Repositories;
 
 public static class Program
 {
@@ -63,6 +67,10 @@ public static class Program
 				{
 					return CreateDiscordClient(provider) as IDiscordClient;
 				});
+				services.AddHttpClient<IWotbConnection, WotbConnection>((client, provider) =>
+				{
+					return CreateWotbConnection(provider, client);
+				});
 				services.AddSingleton<IBotState>(provider =>
 				{
 					BotState botState = new();
@@ -85,13 +93,21 @@ public static class Program
 				services.AddSingleton<ITournamentService, TournamentService>();
 				services.AddSingleton<IBlitzstarsService, BlitzstarsService>();
 				services.AddSingleton<IClanService, ClanService>();
-				services.AddSingleton<IWGAccountService, WGAccountService>();
 				services.AddSingleton<IJob<AnnounceWeeklyWinnerJob>, AnnounceWeeklyWinnerJob>();
 				services.AddSingleton<IJob<VerifyServerNicknamesJob>, VerifyServerNicknamesJob>();
 				services.AddSingleton<IDiscordMessageUtils, DiscordMessageUtils>();
 				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
 				services.AddHttpClient<IApiRequester, ApiRequester>();
+				services.AddSingleton<IAccountsRepository, AccountsRepository>();
+				services.AddSingleton<IClansRepository, ClansRepository>();
 			});
+	}
+
+	private static WotbConnection CreateWotbConnection(IServiceProvider provider, HttpClient client)
+	{
+		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
+		ILogger<WotbConnection> logger = provider.GetRequiredService<ILogger<WotbConnection>>();
+		return new WotbConnection(client, logger, options.WotbApi.BaseUri, options.WotbApi.ApplicationId);
 	}
 
 	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider)

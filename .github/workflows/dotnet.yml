@@ -27,10 +27,6 @@ jobs:
     - name: "Install dotnet-coverage" 
       run: dotnet tool install --global dotnet-coverage
 
-    # The below step is temporary until the other repo's publish the output as NuGet packages on a feed.
-    - name: "Configure internal packages"
-      run: dotnet nuget add source ${GITHUB_WORKSPACE}/.packages
-
     - name: "Configure SonarCloud"
       run: dotnet sonarscanner begin /o:"doormalena" /k:"NLBE-Bot" /d:sonar.token=${{ secrets.SONAR_TOKEN }} /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverage.exclusions=*.Tests/**/*
 

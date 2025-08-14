@@ -12,8 +12,6 @@ public static class Constants
 	public const string ACTION_COMPLETED_REACTION = ":white_check_mark:";
 	public const string MAINTENANCE_REACTION = ":tool_logo:";
 	public const int HOF_AMOUNT_PER_TANK = 3;
-	public const ulong MOET_REGELS_NOG_LEZEN_ROLE = 793830434551103500;
-	public const ulong NOOB_ROLE = 782272112505258054;
 	public const ulong NLBE_ROLE = 668534098729631745;
 	public const ulong NLBE2_ROLE = 781625012695728140;
 	public const ulong TOERNOOI_DIRECTIE = 782751703559700530;

@@ -1,8 +1,6 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using DSharpPlus.Entities;
-using FMWOTB.Tournament;
 using JsonObjectConverter;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -16,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tournament;
 
 internal class TournamentService(ILogger<TournamentService> logger, IOptions<BotOptions> options, IUserService userService, IChannelService channelService, IMessageService messageService,
 		IDiscordMessageUtils discordMessageUtils, IDiscordClient discordClient) : ITournamentService
@@ -59,7 +58,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						if (member != null)
 						{
 							string organisator = await GetOrganisator(await toernooiAanmeldenChannel.GetMessageAsync(message.Id));
-							string logMessage = "Teams|" + member.DisplayName.adaptToDiscordChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
+							string logMessage = "Teams|" + member.DisplayName.AdaptToChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
 							await WriteInLog(message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
 						}
 					}
@@ -78,7 +77,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 
 	public async Task<List<WGTournament>> InitialiseTournaments(bool all)
 	{
-		string tournamentJson = await Tournaments.tournamentsToString(_options.WarGamingAppId);
+		string tournamentJson = await Tournaments.tournamentsToString(_options.WotbApi.ApplicationId);
 		Json json = new(tournamentJson, "Tournaments");
 		List<WGTournament> tournamentsList = [];
 
@@ -95,9 +94,9 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							if (tournaments.start_at.Value > DateTime.Now || all)
 							{
-								string wgTournamentJsonString = await WGTournament.tournamentsToString(_options.WarGamingAppId, tournaments.tournament_id);
+								string wgTournamentJsonString = await WGTournament.tournamentsToString(_options.WotbApi.ApplicationId, tournaments.tournament_id);
 								Json wgTournamentJson = new(wgTournamentJsonString, "WGTournament");
-								WGTournament eenToernooi = new(wgTournamentJson, _options.WarGamingAppId);
+								WGTournament eenToernooi = new(wgTournamentJson, _options.WotbApi.ApplicationId);
 								tournamentsList.Add(eenToernooi);
 							}
 						}
@@ -366,7 +365,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 				}
 				if (voegToe)
 				{
-					string tempRules = tournament.rules.adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
+					string tempRules = tournament.rules.AdaptLink().AdaptToChat().AdaptMutlipleLines();
 					if (tempRules.Length > 1024)
 					{
 						StringBuilder sbRules = new();
@@ -383,8 +382,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 									{
 										DEF newDefx = new()
 										{
-											Name = splitted[i].adaptToDiscordChat(),
-											Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
+											Name = splitted[i].AdaptToChat(),
+											Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 											Inline = true
 										};
 										deflist.Add(newDefx);
@@ -403,8 +402,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 									{
 										DEF newDefx = new()
 										{
-											Name = splitted[i].adaptToDiscordChat(),
-											Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
+											Name = splitted[i].AdaptToChat(),
+											Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 											Inline = true
 										};
 										deflist.Add(newDefx);
@@ -417,7 +416,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 								sbRules.AppendLine(splitted[i]);
 							}
 						}
-						tempRules = sbRules.ToString().adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
+						tempRules = sbRules.ToString().AdaptLink().AdaptToChat().AdaptMutlipleLines();
 
 					}
 					DEF newDef4 = new()
@@ -430,7 +429,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 				}
 			}
 		}
-		string tempDescription = tournament.description.adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
+		string tempDescription = tournament.description.AdaptLink().AdaptToChat().AdaptMutlipleLines();
 		if (tempDescription.Length > 1024)
 		{
 			StringBuilder sbDescription = new();
@@ -447,8 +446,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							DEF newDefx = new()
 							{
-								Name = splitted[i].adaptToDiscordChat(),
-								Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
+								Name = splitted[i].AdaptToChat(),
+								Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 								Inline = true
 							};
 							deflist.Add(newDefx);
@@ -467,8 +466,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							DEF newDefx = new()
 							{
-								Name = splitted[i].adaptToDiscordChat(),
-								Value = sbTemp.ToString().adaptDiscordLink().adaptToDiscordChat(),
+								Name = splitted[i].AdaptToChat(),
+								Value = sbTemp.ToString().AdaptLink().AdaptToChat(),
 								Inline = true
 							};
 							deflist.Add(newDefx);
@@ -481,7 +480,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 					sbDescription.AppendLine(splitted[i]);
 				}
 			}
-			tempDescription = sbDescription.ToString().adaptDiscordLink().adaptToDiscordChat().adaptMutlipleLines();
+			tempDescription = sbDescription.ToString().AdaptLink().AdaptToChat().AdaptMutlipleLines();
 
 		}
 		if (tempDescription.Length <= 1024)
