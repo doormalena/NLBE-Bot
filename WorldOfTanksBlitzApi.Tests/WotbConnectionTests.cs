@@ -383,16 +383,18 @@ public class WotbConnectionTests
 	}
 
 	[TestMethod]
-	public async Task PostAsync_ThrowsInvalidOperationException_OnUndefinedErrorCode()
+	[DataRow(407, "%FIELD%_LIST_LIMIT_EXCEEDED")]
+	[DataRow(504, "SOURCE_NOT_AVAILABLE")]
+	public async Task PostAsync_ThrowsInvalidOperationException_OnUndefinedErrorCode(int errorCode, string message)
 	{
 		// Arrange.
 		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
-		string errorJson = """
+		string errorJson = $$"""
 		{
 			"status": "error",
 			"error": {
-				"code": 504,
-				"message": "SOURCE_NOT_AVAILABLE",
+				"code": {{errorCode}},
+				"message": "{{message}}",
 				"field": "application_id",
 				"value": null
 			}
