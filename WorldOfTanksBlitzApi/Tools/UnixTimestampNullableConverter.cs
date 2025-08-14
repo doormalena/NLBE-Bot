@@ -4,28 +4,22 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-public class UnixTimestampNullableConverter : JsonConverter<DateTime?>
+public class UnixTimestampConverter : JsonConverter<DateTime>
 {
-	public override DateTime? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+	public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 	{
-		if (reader.TokenType == JsonTokenType.Null)
+		if (reader.TokenType != JsonTokenType.Number || !reader.TryGetInt64(out long _))
 		{
-			return null;
+			throw new JsonException("Expected a Unix timestamp as a number.");
 		}
 
 		long seconds = reader.GetInt64();
 		return DateTimeOffset.FromUnixTimeSeconds(seconds).UtcDateTime;
 	}
 
-	public override void Write(Utf8JsonWriter writer, DateTime? value, JsonSerializerOptions options)
+	public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
 	{
-		if (value is null)
-		{
-			writer.WriteNullValue();
-			return;
-		}
-
-		long unixTime = new DateTimeOffset(value.Value).ToUnixTimeSeconds();
+		long unixTime = new DateTimeOffset(value).ToUnixTimeSeconds();
 		writer.WriteNumberValue(unixTime);
 	}
 }

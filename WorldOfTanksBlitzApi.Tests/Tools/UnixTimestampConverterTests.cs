@@ -3,39 +3,37 @@ namespace WorldOfTanksBlitzApi.Tests.Tools;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using WorldOfTanksBlitzApi.Tools;
 
 [TestClass]
 public class UnixTimestampConverterTests
 {
-	private readonly JsonSerializerOptions _options = new()
-	{
-		Converters = { new UnixTimestampNullableConverter() }
-	};
-
 	[TestMethod]
 	public void Read_ValidUnixTimestamp_ReturnsCorrectDateTime()
 	{
 		// Arrange.
-		long unixTimestamp = 1609459200; // 2021-01-01T00:00:00Z
-		string json = unixTimestamp.ToString();
+		string json = @"{""Timestamp"":1609459200}"; // 2021-01-01T00:00:00Z
 
 		// Act.
-		DateTime? result = JsonSerializer.Deserialize<DateTime?>(json, _options);
+		TimestampWrapper result = JsonSerializer.Deserialize<TimestampWrapper>(json)!;
 
 		// Assert.
-		Assert.AreEqual(new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), result);
+		Assert.AreEqual(new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), result!.Timestamp);
 	}
 
 	[TestMethod]
 	public void Write_DateTime_ReturnsCorrectUnixTimestamp()
 	{
 		// Arrange.
-		DateTime? dateTime = new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-		string expectedJson = "1609459200";
+		TimestampWrapper value = new()
+		{
+			Timestamp = new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+		};
+		string expectedJson = @"{""Timestamp"":1609459200}";
 
 		// Act.
-		string json = JsonSerializer.Serialize(dateTime, _options);
+		string json = JsonSerializer.Serialize(value);
 
 		// Assert.
 		Assert.AreEqual(expectedJson, json);
@@ -45,25 +43,38 @@ public class UnixTimestampConverterTests
 	public void Read_NullToken_ReturnsNull()
 	{
 		// Arrange.
-		string json = "null";
+		string json = @"{""Timestamp"":null}";
 
 		// Act.
-		DateTime? result = JsonSerializer.Deserialize<DateTime?>(json, _options);
+		TimestampWrapper result = JsonSerializer.Deserialize<TimestampWrapper>(json)!;
 
 		// Assert.
-		Assert.IsNull(result);
+		Assert.IsNull(result!.Timestamp);
 	}
 
 	[TestMethod]
 	public void Write_NullValue_WritesJsonNull()
 	{
 		// Arrange.
-		DateTime? value = null;
+		TimestampWrapper value = new()
+		{
+			Timestamp = null
+		};
+		string expectedJson = @"{""Timestamp"":null}";
 
 		// Act.
-		string json = JsonSerializer.Serialize(value, _options);
+		string json = JsonSerializer.Serialize(value);
 
 		// Assert.
-		Assert.AreEqual("null", json);
+		Assert.AreEqual(expectedJson, json);
+	}
+}
+
+public class TimestampWrapper
+{
+	[JsonConverter(typeof(UnixTimestampConverter))]
+	public DateTime? Timestamp
+	{
+		get; set;
 	}
 }

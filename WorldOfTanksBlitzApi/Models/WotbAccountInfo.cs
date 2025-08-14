@@ -7,21 +7,21 @@ using WorldOfTanksBlitzApi.Tools;
 public class WotbAccountInfo : WotbAccountListItem
 {
 	[JsonInclude, JsonPropertyName("created_at")]
-	[JsonConverter(typeof(UnixTimestampNullableConverter))]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? CreatedAt
 	{
 		get; internal set;
 	}
 
 	[JsonInclude, JsonPropertyName("last_battle_time")]
-	[JsonConverter(typeof(UnixTimestampNullableConverter))]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? LastBattleTime
 	{
 		get; internal set;
 	}
 
 	[JsonInclude, JsonPropertyName("updated_at")]
-	[JsonConverter(typeof(UnixTimestampNullableConverter))]
+	[JsonConverter(typeof(UnixTimestampConverter))]
 	public DateTime? UpdatedAt
 	{
 		get; internal set;
