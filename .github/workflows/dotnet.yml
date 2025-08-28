@@ -28,7 +28,9 @@ jobs:
       run: dotnet tool install --global dotnet-coverage
 
     - name: "Configure SonarCloud"
-      run: dotnet sonarscanner begin /o:"doormalena" /k:"NLBE-Bot" /d:sonar.token=${{ secrets.SONAR_TOKEN }} /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverage.exclusions=*.Tests/**/*
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: dotnet sonarscanner begin /o:"doormalena" /k:"NLBE-Bot" /d:sonar.token=$SONAR_TOKEN /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverage.exclusions=*.Tests/**/*
 
     - name: "Restore dependencies"
       run: dotnet restore
@@ -40,4 +42,6 @@ jobs:
       run: dotnet-coverage collect "dotnet test --no-build" -f xml -o "coverage.xml"
 
     - name: "Publish SonarCloud results"
-      run: dotnet sonarscanner end /d:sonar.token=${{ secrets.SONAR_TOKEN }}
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      run: dotnet sonarscanner end /d:sonar.token=$SONAR_TOKEN
