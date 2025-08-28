@@ -412,7 +412,7 @@ public class WotbConnectionTests
 			await _connection!.PostAsync(RelativeUrl, form);
 		});
 
-		Assert.AreEqual("API error 504: SOURCE_NOT_AVAILABLE", ex.Message);
+		Assert.AreEqual($"API error {errorCode}: {message}", ex.Message);
 	}
 
 	[TestMethod]
