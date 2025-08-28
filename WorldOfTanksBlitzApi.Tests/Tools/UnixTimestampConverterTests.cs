@@ -81,6 +81,19 @@ public class UnixTimestampConverterTests
 			JsonSerializer.Deserialize<TimestampWrapper>(json);
 		});
 	}
+
+	[TestMethod]
+	public void Read_OverflowingNumber_ThrowsJsonException()
+	{
+		// Arrange.
+		string json = @"{""Timestamp"":92233720368547758070}"; // This number is larger than long.MaxValue (9,223,372,036,854,775,807)
+
+		// Act & Assert.
+		Assert.ThrowsException<JsonException>(() =>
+		{
+			JsonSerializer.Deserialize<TimestampWrapper>(json);
+		});
+	}
 }
 
 public class TimestampWrapper
