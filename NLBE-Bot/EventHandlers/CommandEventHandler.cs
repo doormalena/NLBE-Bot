@@ -8,6 +8,7 @@ using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 
 internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
@@ -24,6 +25,7 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 		commands.CommandExecuted += OnCommandExecuted;
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnCommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
 	{
 		CommandContextWrapper contextInfo = new(e.Context);
@@ -31,6 +33,7 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 		return HandleCommandError(contextInfo, commandInfo, e.Exception);
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
 	{
 		IDiscordCommand commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
@@ -64,5 +67,4 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 		_logger.LogInformation("Command executed: {CommandName}", command.Name);
 		return Task.CompletedTask;
 	}
-
 }

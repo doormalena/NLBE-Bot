@@ -11,6 +11,7 @@ using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -54,22 +55,26 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 		client.SocketClosed += OnSocketClosed;
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnClientErrored(DiscordClient sender, ClientErrorEventArgs e)
 	{
 		HandleClienErrored(e.EventName, e.Exception);
 		return Task.CompletedTask;
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs e)
 	{
 		return HandleHeartbeated(e.Ping, e.Timestamp, DateTime.Now);
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnReady(DiscordClient discordClient, ReadyEventArgs _)
 	{
 		return HandleReady(new DiscordClientWrapper(discordClient));
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnSocketClosed(DiscordClient sender, SocketCloseEventArgs e)
 	{
 		return HandleSocketClosed(e.CloseCode, e.CloseMessage);

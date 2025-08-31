@@ -10,7 +10,9 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -46,16 +48,21 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		client.GuildMemberRemoved += OnMemberRemoved;
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private async Task OnMemberAdded(DiscordClient sender, GuildMemberAddEventArgs e)
 	{
 		await HandleMemberAdded(new DiscordClientWrapper(sender), new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member));
 	}
+
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private async Task OnMemberUpdated(DiscordClient _, GuildMemberUpdateEventArgs e)
 	{
-		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member), e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly(), e.NicknameAfter);
+		ReadOnlyCollection<IDiscordRole> rolesAfter = e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly();
+		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member), rolesAfter, e.NicknameAfter);
 	}
 
-	internal async Task OnMemberRemoved(DiscordClient _, GuildMemberRemoveEventArgs e)
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
+	private async Task OnMemberRemoved(DiscordClient _, GuildMemberRemoveEventArgs e)
 	{
 		await HandleMemberRemoved(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member));
 	}
