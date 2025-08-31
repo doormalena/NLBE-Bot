@@ -36,7 +36,5 @@ internal interface IChannelService
 
 	public Task CleanChannelAsync(ulong channelId);
 
-	public Task CleanWelkomChannelAsync();
-
 	public Task CleanWelkomChannelAsync(ulong userId);
 }

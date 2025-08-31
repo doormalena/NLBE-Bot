@@ -99,7 +99,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			// - The username will be updated (if needed).
 			// - The user will be welcomed in the general channel.
 
-			await CleanWelcomeChannel(guild, member, noobRole);
+			await _channelService.CleanWelkomChannelAsync(member.Id);
 		});
 	}
 
@@ -107,26 +107,19 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			try
+			IEnumerable<IDiscordRole> roles = member.Roles;
+
+			// TODO: why do we check rolesAfter and nicknameAfter? Filtering out changes that do not effect the name of the member?
+			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
 			{
-				IEnumerable<IDiscordRole> roles = member.Roles;
-
-				// TODO: why do we check rolesAfter and nicknameAfter? Filtering out changes that do not effect the name of the member?
-				if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
-				{
-					return;
-				}
-
-				string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do? Does this update the display name based on the nickname or something else?
-
-				if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
-				{
-					await _userService.ChangeMemberNickname(member, editedName);
-				}
+				return;
 			}
-			catch (Exception ex)
+
+			string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do? Does this update the display name based on the nickname or something else?
+
+			if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
 			{
-				_logger.LogError(ex, "An error occured while processing the updated member. {DisplayName} ({Id})", member.DisplayName, member.Id);
+				await _userService.ChangeMemberNickname(member, editedName);
 			}
 		});
 	}
@@ -141,19 +134,12 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			}
 
 			IReadOnlyDictionary<ulong, IDiscordRole> serverRoles = guild.Roles;
-
-			if (serverRoles == null || serverRoles.Count <= 0)
-			{
-				_logger.LogWarning("Could not find server roles. Cannot log member removal for {MemberName} ({MemberId})", member.DisplayName, member.Id);
-				return;
-			}
-
 			IEnumerable<IDiscordRole> roles = member.Roles;
 
 			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)))
 			{
 				IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
-				await CleanWelcomeChannel(guild, member, noobRole);
+				await _channelService.CleanWelkomChannelAsync(member.Id);
 			}
 
 			List<DEF> fields = [];
@@ -304,30 +290,6 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		}
 
 		return sbRoles.ToString();
-	}
-
-	private async Task CleanWelcomeChannel(IDiscordGuild guild, IDiscordMember member, IDiscordRole noobRole)
-	{
-		IReadOnlyCollection<IDiscordMember> allMembers = await guild.GetAllMembersAsync();
-		bool atLeastOneOtherPlayerWithNoobRole = false;
-
-		foreach (var _ in from IDiscordMember m in allMembers
-						  where m.Roles.Contains(noobRole)
-						  select new
-						  {
-						  })
-		{
-			atLeastOneOtherPlayerWithNoobRole = true;
-		}
-
-		if (atLeastOneOtherPlayerWithNoobRole)
-		{
-			await _channelService.CleanWelkomChannelAsync(member.Id);
-		}
-		else
-		{
-			await _channelService.CleanWelkomChannelAsync();
-		}
 	}
 
 	private async Task ExecuteIfAllowedAsync(IDiscordGuild guild, Func<Task> action)

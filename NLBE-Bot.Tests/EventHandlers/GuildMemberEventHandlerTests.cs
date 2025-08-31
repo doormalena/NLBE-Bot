@@ -343,34 +343,6 @@ public class GuildMemberEventHandlerTests
 	}
 
 	[TestMethod]
-	public async Task HandleMemberRemoved_ShouldLogWarning_IfNoServerRolesFound()
-	{
-		// Arrange.
-		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
-		guild.Id.Returns(12345ul);
-		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole>());
-
-		IDiscordMember member = Substitute.For<IDiscordMember>();
-		_channelServiceMock!.GetOudLedenChannelAsync().Returns(Substitute.For<IDiscordChannel>());
-
-		IBotState botState = Substitute.For<IBotState>();
-		botState.IgnoreEvents.Returns(false);
-		_handler!.Register(_discordClientMock!, botState);
-
-		// Act.
-		await _handler!.HandleMemberRemoved(guild, member);
-
-		// Assert.
-		_loggerMock!.Received().Log(
-			LogLevel.Warning,
-			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("Could not find server roles")),
-			null,
-			Arg.Any<Func<object, Exception?, string>>()
-		);
-	}
-
-	[TestMethod]
 	public async Task HandleMemberRemoved_ShouldCleanWelkomChannel_IfMemberHasNoobRole()
 	{
 		// Arrange.
@@ -393,7 +365,7 @@ public class GuildMemberEventHandlerTests
 		await _handler!.HandleMemberRemoved(guild, member);
 
 		// Assert.
-		await _channelServiceMock.Received(1).CleanWelkomChannelAsync();
+		await _channelServiceMock.Received(1).CleanWelkomChannelAsync(Arg.Any<ulong>());
 	}
 
 	[TestMethod]

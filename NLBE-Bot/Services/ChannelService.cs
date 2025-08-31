@@ -91,24 +91,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 		return await GetChannelAsync((ulong) ChatID);
 	}
 
-	public async Task CleanWelkomChannelAsync()
-	{
-		if (Guard.ReturnIfNull(await GetChannelAsync(_options.ChannelIds.Welcome), _logger, $"Welcome channel", out IDiscordChannel welkomChannel))
-		{
-			return;
-		}
-
-		IReadOnlyList<IDiscordMessage> messages = await welkomChannel.GetMessagesAsync(100);
-
-		foreach (IDiscordMessage message in messages)
-		{
-			if (!message.Pinned)
-			{
-				await welkomChannel.DeleteMessageAsync(message);
-				await Task.Delay(875);
-			}
-		}
-	}
 	public async Task CleanWelkomChannelAsync(ulong userId)
 	{
 		if (Guard.ReturnIfNull(await GetChannelAsync(_options.ChannelIds.Welcome), _logger, $"Welcome channel", out IDiscordChannel welkomChannel))
