@@ -12,6 +12,7 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -62,6 +63,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Description("Creëert het aanmelden van een nieuw toernooi." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "toernooi \"Quick Tournament\" \"Morgen 20u\" 6 8 10`\n" +
 		"`" + Constants.Prefix + "toernooi \"\" \"Morgen 20u\" 6 8 10` --> \"\" = Quick Tournament (is default waarde)")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Tournament(CommandContext ctx, string type, string wanneer, params string[] tiers_gesplitst_met_spatie)
 	{
 		return HandleTournament(new CommandContextWrapper(ctx), type, wanneer, tiers_gesplitst_met_spatie);
@@ -158,6 +160,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("Toernooien")]
 	[Aliases("trn")]
 	[Description("Geeft zowel de recente toernooien als de komende toernooien.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Tournaments(CommandContext ctx, params string[] optioneel_nummer)
 	{
 		return HandleTournaments(new CommandContextWrapper(ctx), optioneel_nummer);
@@ -245,6 +248,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("Bonuscode")]
 	[Aliases("bc", "boncode", "bonscode", "bonc", "bonuscod", "bonusco", "bonusc", "bonus", "bonu", "bon", "bo", "b")]
 	[Description("Geeft de link om een bonuscode in te vullen (enkel nodig voor pc spelers, anderen kunnen dit via het spel doen).")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task BonusCode(CommandContext ctx)
 	{
 		return HandleBonusCode(new CommandContextWrapper(ctx));
@@ -266,6 +270,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Description("Tagt alle gebruikers die zich voor het bepaalde toernooi aangemeld hebben.\n" +
 		"Voer deze commando uit in het kanaal waar het bericht geplaatst moet worden. " +
 		"De bot zal dan je commando verwijderen en zelf een bericht plaatsen met dezelfde inhoud en tagt de mensen die zich aangemeld hebben voor het toernooi.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task TagTeams(CommandContext ctx, params string[] optioneel_wat_je_wilt_zeggen)
 	{
 		return HandleTagTeams(new CommandContextWrapper(ctx), optioneel_wat_je_wilt_zeggen);
@@ -348,6 +353,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Aliases("te", "tea", "team")]
 	[Description("Geeft de teams voor het gegeven toernooi." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "teams` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Constants.Prefix + "teams 1` --> geeft de teams van het meest recente bericht in Toernooi-aanmelden\n`" + Constants.Prefix + "teams 2` --> geeft de teams van het 2de meest recente bericht in Toernooi-aanmelden")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Teams(CommandContext ctx, params string[] optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt)
 	{
 		return HandleTeams(new CommandContextWrapper(ctx), optioneel_hoeveelste_toernooi_startende_vanaf_1_wat_de_recentste_voorstelt);
@@ -446,6 +452,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Aliases("p", "po", "pol")]
 	[Description("Creëert een nieuwe poll." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "poll \"Een titel tussen aanhalingstekens indien er spaties zijn\" Vlaanderen :one: Wallonië :two:`\n`" + Constants.Prefix + "poll test de hemel :thumbsup: de hemel, de hel :thinking: de hel :thumbsdown:`")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Poll(CommandContext ctx, string uitleg, params string[] opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties)
 	{
 		return HandlePoll(new CommandContextWrapper(ctx), uitleg, opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties);
@@ -529,6 +536,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		"De mogelijke ondewerwerpen zijn:\n`nieuw` (= indien er een nieuw kandidaat-clanclid is)\n`inactief` (= indien een clanclid inactief is)\n`overstap` (= indien clanlid van NLBE2 naar NLBE wilt overstappen)\n\n" +
 		"De mogelijke reacties zijn:\n:thumbsup: = akkoord\n:thinking: = neutraal\n:thumbsdown: = Niet akkoord\n\n" +
 		"Indien je opnieuw een naam mee geeft dan kan je kiezen uit:\n`ja`\n`stop`\nindien iets anders herhaalt hij het gewoon\n\nIndien je niet antwoord binnen de 30s dan stopt de bot gewoon met vragen en stopt hij ook met de commando verder uit te voeren.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task DeputyPoll(CommandContext ctx, string tag, string subject, string speler_naam, params string[] optioneel_clan_naam_indien_nieuwe_kandidaat)
 	{
 		return HandleDeputyPoll(new CommandContextWrapper(ctx), tag, subject, speler_naam, optioneel_clan_naam_indien_nieuwe_kandidaat);
@@ -795,6 +803,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Aliases("m", "ma", "maps")]
 	[Description("Laadt de map in de chat." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "map` --> geeft de lijst van mappen\n`" + Constants.Prefix + "map list` --> geeft de lijst van mappen\n`" + Constants.Prefix + "map mines` --> geeft de map \"Mines\"")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task MapLoader(CommandContext ctx, params string[] map)
 	{
 		return HandleMapLoader(new CommandContextWrapper(ctx), map);
@@ -870,6 +879,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Aliases("r", "re", "rea", "reag", "reage", "reagee")]
 	[Description("Geeft een reactie op het gegeven bericht in het gegeven kanaal met de gegeven emoji." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "reageer toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: zet\n`" + Constants.Prefix + "reageer polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: zet")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Respond(CommandContext ctx, string naam_van_kanaal, int hoeveelste_bericht, string emoji)
 	{
 		return HandleRespond(new CommandContextWrapper(ctx), naam_van_kanaal, hoeveelste_bericht, emoji);
@@ -932,6 +942,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Aliases("vr", "v", "ve", "ver", "verw", "verwi", "verwij", "verwijd", "verwijde", "verwijder", "verwijderr", "verwijderre", "verwijderrea", "verwijderreac", "verwijderreact", "verwijderreacti", "verwijdereactie")]
 	[Description("Verwijdert een reactie van het gegeven bericht in het gegeven kanaal met de gegeven emoji." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "verwijderreactie toernooi-aanmelden 1 :two:`--> zorgt ervoor dat de bot in toernooi-aanmelden bij het meest recente bericht de emoji :two: verwijdert\n`" + Constants.Prefix + "verwijderreactie polls 4 :tada:` --> zorgt ervoor dat de bot in polls bij het 4de meest recente bericht de emoji :tada: verwijdert")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task RemoveResponse(CommandContext ctx, string naam_van_kanaal, string hoeveelste_bericht, string emoji)
 	{
 		return HandleRemoveResponse(new CommandContextWrapper(ctx), naam_van_kanaal, hoeveelste_bericht, emoji);
@@ -1100,6 +1111,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Aliases("h", "he", "hel")]
 	[Description("Geeft alle commando's of geeft uitleg voor het gegeven commando." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "help`\n`" + Constants.Prefix + "help teams`")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Help(CommandContext ctx, params string[] optioneel_commando)
 	{
 		return HandleHelp(new CommandContextWrapper(ctx), optioneel_commando);
@@ -1279,6 +1291,7 @@ internal class BotCommands(IDiscordClient discordClient,
 
 	[Command("Ignore")]
 	[Description("Negeert alle commando's behalve deze commando zelf tot de gebruiker dit weer inschakelt. Indien \"event\" of \"events\" als parameter meegegeven wordt, negeert hij de events. Je kan de events met dezelfde commando terug inschakelen.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Ignore(CommandContext ctx, params string[] options)
 	{
 		return HandleIgnore(new CommandContextWrapper(ctx), options);
@@ -1319,6 +1332,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Aliases("speler", "spele", "spel", "spe", "sp", "s", "g", "ge", "geb", "gebr", "gebru", "gebrui", "gebruik", "gebruike", "gbruiker", "gbruikr", "gbrkr")]
 	[Description("Geeft info over een speler.\n-i --> op ID zoeken (zoekt ook buiten de discord server)\nAnders zoekt de bot op basis van de originele gebruikersnamen van de personen in deze server." +
 		"Bijvoorbeeld:`" + Constants.Prefix + "gebruiker 1`\n`" + Constants.Prefix + "gebruiker sjt`")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Player(CommandContext ctx, params string[] optioneel_zoeken_op_id__zoekterm)
 	{
 		return HandlePlayer(new CommandContextWrapper(ctx), optioneel_zoeken_op_id__zoekterm);
@@ -1502,6 +1516,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		"`" + Constants.Prefix + "gl -nu [NLBE]` --> geeft alle leden waarvan zowel de gebruikersnaam als de bijnaam \"[NLBE]\" bevat\n" +
 		"`" + Constants.Prefix + "gl -!nu [NLBE]` --> geeft de leden waarbij \"[NLBE]\" noch in de gebruikersnaam noch in de bijnaam voorkomt" +
 		"`" + Constants.Prefix + "gl -on [NLBE]` --> geeft de leden waarbij \"[NLBE]\" in de bijnaam voorkomt en sorteert dit op de creatie van het WG account")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task PlayerList(CommandContext ctx, params string[] optioneel_optie_met_als_default_ud__waarde)
 	{
 		return HandlePlayerList(new CommandContextWrapper(ctx), optioneel_optie_met_als_default_ud__waarde);
@@ -1709,6 +1724,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("Clan")]
 	[Aliases("c", "cl", "cla")]
 	[Description("Geeft info over de clan.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Clan(CommandContext ctx, string clan_naam)
 	{
 		return HandleClan(new CommandContextWrapper(ctx), clan_naam);
@@ -1739,6 +1755,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("Clanmembers")]
 	[Aliases("cm", "clanm", "clanme", "clanmem", "clanmembe", "clanmember")]
 	[Description("Geeft spelers van de clan.\n-s --> duid discordmembers aan\n-d --> sorteren op laatst actief")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task ClanMembers(CommandContext ctx, params string[] optioneel_discordmembers_aanduiden_en_of_sorteren_op_laatst_actief__clan_naam)
 	{
 		return HandleClanMembers(new CommandContextWrapper(ctx), optioneel_discordmembers_aanduiden_en_of_sorteren_op_laatst_actief__clan_naam);
@@ -1789,6 +1806,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("SpelerInfo")]
 	[Aliases("si")]
 	[Description("Geeft wotb info van een account.\n-i --> zoekt op spelerID")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task PlayerInfo(CommandContext ctx, params string[] optioneel_zoeken_op_ID__ign_naam)
 	{
 		return HandlePlayerInfo(new CommandContextWrapper(ctx), optioneel_zoeken_op_ID__ign_naam);
@@ -1840,6 +1858,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("ResetHOF")]
 	[Aliases("res", "rese", "rest", "rst", "rset", "reset")]
 	[Description("Verwijdert alle opgeslagen replays in de Hall Of Fame.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task ResetHof(CommandContext ctx)
 	{
 		return HandleResetHof(new CommandContextWrapper(ctx));
@@ -1916,6 +1935,7 @@ internal class BotCommands(IDiscordClient discordClient,
 
 	[Command("VerwijderSpelerHOF")]
 	[Description("Verwijdert een bepaalde persoon van de HOF. (Hoofdlettergevoelig)")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task RemovePlayerFromHOF(CommandContext ctx, string naam)
 	{
 		return HandleRemovePlayerFromHOF(new CommandContextWrapper(ctx), naam);
@@ -1989,6 +2009,7 @@ internal class BotCommands(IDiscordClient discordClient,
 
 	[Command("HernoemSpelerHOF")]
 	[Description("Verandert de naam in de HOF naar een andere naam. (Hoofdlettergevoelig)")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task RenamePlayerHOF(CommandContext ctx, string oldName, string niewe_naam)
 	{
 		return HandleRenamePlayerHOF(new CommandContextWrapper(ctx), oldName, niewe_naam);
@@ -2049,6 +2070,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("hof")]
 	[Aliases("hf")]
 	[Description("Geeft een lijst van de spelers die in de Hall of Fame voorkomen.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Hof(CommandContext ctx)
 	{
 		return HandleHof(new CommandContextWrapper(ctx));
@@ -2095,6 +2117,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	[Command("hofplayer")]
 	[Aliases("hofp", "hp", "hofplaye", "hofplay", "hofpla", "hofpl", "hfplayer")]
 	[Description("Geeft een lijst van plekken dat de speler in de Hall Of Fame gehaald heeft.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task HofPlayer(CommandContext ctx, string name)
 	{
 		return HandleHofPlayer(new CommandContextWrapper(ctx), name);
@@ -2200,6 +2223,7 @@ internal class BotCommands(IDiscordClient discordClient,
 
 	[Command("Weekly")]
 	[Description("Start het proces van het instellen van de tank voor het wekelijkse event.")]
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	public Task Weekly(CommandContext ctx, params string[] options)
 	{
 		return HandleWeekly(new CommandContextWrapper(ctx), options);

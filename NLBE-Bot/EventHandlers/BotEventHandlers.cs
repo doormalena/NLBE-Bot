@@ -74,6 +74,7 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 		return HandleReady(new DiscordClientWrapper(discordClient));
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnSocketClosed(DiscordClient sender, SocketCloseEventArgs e)
 	{
 		return HandleSocketClosed(e.CloseCode, e.CloseMessage);

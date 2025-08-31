@@ -10,6 +10,7 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -56,7 +57,8 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private async Task OnMemberUpdated(DiscordClient _, GuildMemberUpdateEventArgs e)
 	{
-		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member), e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly(), e.NicknameAfter);
+		ReadOnlyCollection<IDiscordRole> rolesAfter = e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly();
+		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member), rolesAfter, e.NicknameAfter);
 	}
 
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
