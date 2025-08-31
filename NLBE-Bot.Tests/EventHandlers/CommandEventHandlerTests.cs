@@ -75,7 +75,7 @@ public class CommandEventHandlerTests
 		contextMock.GuildId.Returns(123UL); // Not a valid guild ID
 
 		// Act.
-		await _handler!.HandleCommandError(contextMock, null, null);
+		await _handler!.HandleCommandError(contextMock, null!, null!);
 
 		// Assert.
 		_loggerMock!.DidNotReceive().Log(
@@ -96,7 +96,7 @@ public class CommandEventHandlerTests
 		contextMock.SendUnauthorizedMessageAsync().Returns(Task.CompletedTask);
 
 		// Act.
-		await _handler!.HandleCommandError(contextMock, null, new Exception("Unauthorized access"));
+		await _handler!.HandleCommandError(contextMock, null!, new Exception("Unauthorized access"));
 
 		// Assert.
 		await contextMock.Received(1).SendUnauthorizedMessageAsync();

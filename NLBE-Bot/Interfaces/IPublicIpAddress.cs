@@ -4,5 +4,5 @@ using System.Threading.Tasks;
 
 internal interface IPublicIpAddress
 {
-	public Task<string> GetPublicIpAddressAsync();
+	public Task<string?> GetPublicIpAddressAsync();
 }

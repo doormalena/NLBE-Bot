@@ -3,6 +3,7 @@ namespace NLBE_Bot.Jobs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -54,20 +55,16 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		try
 		{
 			_botState.LasTimeServerNicknamesWereVerified = now; // Update the last successful verification time to now to prevent multiple executions in parallel.
-			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannelAsync();
 
-			if (bottestChannel == null)
+			if (Guard.ReturnIfNull(await _channelService.GetBotTestChannelAsync(), _logger, "Bot Test channel", out IDiscordChannel bottestChannel))
 			{
-				_logger.LogWarning("Could not find the bot test channel. Aborting user update.");
 				return;
 			}
 
 			IDiscordGuild guild = bottestChannel.Guild;
-			IDiscordRole memberRole = guild.GetRole(_options.RoleIds.Members);
 
-			if (memberRole == null)
+			if (Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Members), _logger, $"Default member role with id `{_options.RoleIds.Members}`", out IDiscordRole memberRole))
 			{
-				_logger.LogWarning("Could not find the default member role with id `{Id}`. Aborting user update.", _options.RoleIds.Members);
 				return;
 			}
 

@@ -125,11 +125,11 @@ public class BotTests
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
 	{
 		// Act & Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(null, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, null, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, null, _publicIpMock, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, null, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, null, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, null));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(null!, _eventHandlersMock!, _loggerMock!, _publicIpMock!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, null!, _loggerMock!, _publicIpMock!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, null!, _publicIpMock!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, _loggerMock!, null!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, _loggerMock!, _publicIpMock!, null!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, _loggerMock!, _publicIpMock!, _serviceProviderMock!, null!));
 	}
 }

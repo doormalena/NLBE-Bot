@@ -105,14 +105,17 @@ public static class Program
 
 	private static WotbConnection CreateWotbConnection(IServiceProvider provider, HttpClient client)
 	{
-		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
+		IOptions<BotOptions>? optionsWrapper = provider.GetService<IOptions<BotOptions>>() ?? throw new InvalidOperationException("IOptions<BotOptions> is not registered in the service provider.");
+		BotOptions options = optionsWrapper.Value;
 		ILogger<WotbConnection> logger = provider.GetRequiredService<ILogger<WotbConnection>>();
+
 		return new WotbConnection(client, logger, options.WotbApi.BaseUri, options.WotbApi.ApplicationId);
 	}
 
 	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider)
 	{
-		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
+		IOptions<BotOptions>? optionsWrapper = provider.GetService<IOptions<BotOptions>>() ?? throw new InvalidOperationException("IOptions<BotOptions> is not registered in the service provider.");
+		BotOptions options = optionsWrapper.Value;
 
 		DiscordConfiguration config = new()
 		{

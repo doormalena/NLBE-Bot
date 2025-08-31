@@ -52,12 +52,12 @@ public class BotEventHandlersTests
 	public void Register_RegistersAllHandlersAndEvents()
 	{
 		// Act.
-		_handlers!.Register(_clientMock, _botStateMock);
+		_handlers!.Register(_clientMock!, _botStateMock!);
 
 		// Assert.
-		_commandHandlerMock!.Received(1).Register(_commandsNextMock);
-		_guildMemberHandlerMock!.Received(1).Register(_clientMock, _botStateMock);
-		_messageHandlerMock!.Received(1).Register(_clientMock);
+		_commandHandlerMock!.Received(1).Register(_commandsNextMock!);
+		_guildMemberHandlerMock!.Received(1).Register(_clientMock!, _botStateMock!);
+		_messageHandlerMock!.Received(1).Register(_clientMock!);
 	}
 
 	[TestMethod]
@@ -199,8 +199,8 @@ public class BotEventHandlersTests
 	public void Register_ThrowsArgumentNullException_WhenAnyParameterIsNull()
 	{
 		// Act & Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(null, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(_clientMock, null));
+		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(null!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => _handlers!.Register(_clientMock!, null!));
 	}
 
 	[TestMethod]
@@ -208,18 +208,18 @@ public class BotEventHandlersTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new BotEventHandlers(null, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
+			  new BotEventHandlers(null!, _guildMemberHandlerMock!, _messageHandlerMock!, _verifyServerNicknamesJobMock!, _announceWeeklyWinnerJobMock!, _loggerMock!, _optionsMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, null, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock!, null!, _messageHandlerMock!, _verifyServerNicknamesJobMock!, _announceWeeklyWinnerJobMock!, _loggerMock!, _optionsMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, null, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock!, _guildMemberHandlerMock!, null!, _verifyServerNicknamesJobMock!, _announceWeeklyWinnerJobMock!, _loggerMock!, _optionsMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, null, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock!, _guildMemberHandlerMock!, _messageHandlerMock!, null!, _announceWeeklyWinnerJobMock!, _loggerMock!, _optionsMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, null, _loggerMock, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock!, _guildMemberHandlerMock!, _messageHandlerMock!, _verifyServerNicknamesJobMock!, null!, _loggerMock!, _optionsMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, null, _optionsMock));
+			new BotEventHandlers(_commandHandlerMock!, _guildMemberHandlerMock!, _messageHandlerMock!, _verifyServerNicknamesJobMock!, _announceWeeklyWinnerJobMock!, null!, _optionsMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new BotEventHandlers(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, null));
+			new BotEventHandlers(_commandHandlerMock!, _guildMemberHandlerMock!, _messageHandlerMock!, _verifyServerNicknamesJobMock!, _announceWeeklyWinnerJobMock!, _loggerMock!, null!));
 	}
 }

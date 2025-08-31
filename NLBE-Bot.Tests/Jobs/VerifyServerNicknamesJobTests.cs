@@ -113,7 +113,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("Could not find the bot test channel")),
+			Arg.Is<object>(o => o.ToString()!.Contains("Bot Test channel is missing")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -136,7 +136,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains($"Could not find the default member role with id `{_optionsMock!.Value.RoleIds.Members}`. Aborting user update.")),
+			Arg.Is<object>(o => o.ToString()!.Contains($"Default member role with id `{_optionsMock!.Value.RoleIds.Members}` is missing")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);

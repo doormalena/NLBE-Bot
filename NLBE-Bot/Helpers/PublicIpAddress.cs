@@ -3,6 +3,7 @@ namespace NLBE_Bot.Helpers;
 using Newtonsoft.Json;
 using NLBE_Bot.Interfaces;
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -14,13 +15,13 @@ public class PublicIpAddress(HttpClient client) : IPublicIpAddress
 
 	private readonly HttpClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
-	public async Task<string> GetPublicIpAddressAsync()
+	public async Task<string?> GetPublicIpAddressAsync()
 	{
 		try
 		{
 			string response = await _client.GetStringAsync(ApiUrl);
-			IpResponse json = JsonConvert.DeserializeObject<IpResponse>(response);
-			return json.Ip;
+			IpResponse? ipResponse = JsonConvert.DeserializeObject<IpResponse>(response);
+			return ipResponse != null ? ipResponse.Ip : string.Empty;
 		}
 		catch (Exception ex)
 		{
@@ -29,7 +30,7 @@ public class PublicIpAddress(HttpClient client) : IPublicIpAddress
 	}
 	public class IpResponse
 	{
-		public string Ip
+		public string? Ip
 		{
 			get; set;
 		}

@@ -14,7 +14,7 @@ internal class BotStateData
 		get; set;
 	}
 
-	public WeeklyEventWinner WeeklyEventWinner
+	public WeeklyEventWinner? WeeklyEventWinner
 	{
 		get; set;
 	}

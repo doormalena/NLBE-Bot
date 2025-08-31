@@ -69,7 +69,7 @@ public class GuildMemberEventHandlerTests
 	public void Register_RegistersAllHandlersAndEvents()
 	{
 		// Act.
-		_handler!.Register(_discordClientMock, Substitute.For<IBotState>());
+		_handler!.Register(_discordClientMock!, Substitute.For<IBotState>());
 
 		// Assert.
 		_discordClientMock!.Received(1).GuildMemberAdded += Arg.Any<AsyncEventHandler<DiscordClient, GuildMemberAddEventArgs>>();

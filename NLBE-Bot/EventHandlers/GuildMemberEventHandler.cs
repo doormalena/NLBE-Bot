@@ -95,82 +95,16 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			await member.GrantRoleAsync(noobRole);
 			await welcomeChannel.SendMessageAsync($"{member.Mention} welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de {rulesChannel.Mention} aub.");
 
-			IReadOnlyList<WotbAccountListItem> searchResults = [];
-			bool resultFound = false;
-			StringBuilder sbDescription = new();
-			int counter = 0;
-			bool firstTime = true;
-
-			while (!resultFound)
+			IReadOnlyList<WotbAccountListItem> searchResults = await FindMatchingAccountsAsync(welcomeChannel, user, guild);
+			if (searchResults.Count == 0)
 			{
-				string question = user.Mention + " Wat is je gebruikersnaam van je wargaming account?";
-				if (firstTime)
-				{
-					firstTime = false;
-				}
-				else
-				{
-					question = "**We konden dit Wargamingaccount niet vinden, probeer opnieuw! (Hoofdlettergevoelig)**\n" + question;
-				}
-
-				string ign = await _messageService.AskQuestion(welcomeChannel, user, guild, question);
-				searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, ign);
-
-				if (searchResults == null || searchResults.Count <= 0)
-				{
-					continue;
-				}
-
-				resultFound = true;
-				foreach (WotbAccountListItem tempAccount in searchResults)
-				{
-					WotbAccountInfo? accountInfo = await _accountRepository.GetByIdAsync(searchResults[0].AccountId);
-
-					if (accountInfo == null)
-					{
-						_logger.LogWarning("Account info not found for account ID {AccountId} while processing member {MemberName} ({MemberId})", searchResults[0].AccountId, member.DisplayName, member.Id);
-						continue;
-					}
-
-					WotbAccountClanInfo? tempAccountClanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
-					string tempClanName = tempAccountClanInfo != null ? tempAccountClanInfo.Clan.Tag : string.Empty;
-
-					sbDescription.AppendLine(++counter + ". " + accountInfo.Nickname + " " + (!string.IsNullOrEmpty(tempClanName) ? '`' + tempClanName + '`' : string.Empty));
-				}
+				return;
 			}
 
-			int selectedAccount = 0;
-			if (searchResults!.Count > 1)
-			{
-				selectedAccount = -1;
-				while (selectedAccount == -1)
-				{
-					selectedAccount = await _messageService.WaitForReply(welcomeChannel, user, sbDescription.ToString(), counter);
-				}
-			}
-
-			WotbAccountListItem account = searchResults[selectedAccount];
-			WotbAccountClanInfo? accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
-
-			string clanName = string.Empty;
-
-			if (accountClanInfo != null && accountClanInfo.Clan != null && accountClanInfo.Clan.Tag != null)
-			{
-				if (accountClanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || accountClanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID)) // TODO: move to configuration
-				{
-					await member.SendMessageAsync("Indien je echt van **" + accountClanInfo.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + accountClanInfo.Clan.Tag + "** rol wilt geven.");
-				}
-				else
-				{
-					clanName = accountClanInfo.Clan.Tag;
-				}
-			}
-
-			_userService.ChangeMemberNickname(member, "[" + clanName + "] " + account.Nickname).Wait();
-			await member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
+			WotbAccountListItem selectedAccount = await SelectAccountAsync(searchResults, welcomeChannel, user);
+			await ProcessAccountInfoAsync(selectedAccount, member);
 
 			IDiscordRole rulesNotReadRole = guild.GetRole(_options.RoleIds.MustReadRules);
-
 			if (rulesNotReadRole != null)
 			{
 				await member.RevokeRoleAsync(noobRole);
@@ -272,6 +206,88 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 
 			await _messageService.CreateEmbed(oudLedenChannel, embedOptions);
 		});
+	}
+
+	private async Task<IReadOnlyList<WotbAccountListItem>> FindMatchingAccountsAsync(IDiscordChannel channel, IDiscordUser user, IDiscordGuild guild)
+	{
+		bool firstAttempt = true;
+
+		while (true) // TODO: add a way to exit this loop
+		{
+			string question;
+			if (firstAttempt)
+			{
+				question = user.Mention + " Wat is je gebruikersnaam van je wargaming account?";
+				firstAttempt = false;
+			}
+			else
+			{
+				question = "**We konden dit Wargamingaccount niet vinden, probeer opnieuw! (Hoofdlettergevoelig)**\n" + user.Mention + " Wat is je gebruikersnaam van je wargaming account?";
+			}
+
+			string ign = await _messageService.AskQuestion(channel, user, guild, question);
+			IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, ign);
+
+			if (searchResults != null && searchResults.Count > 0)
+			{
+				return searchResults;
+			}
+		}
+	}
+	private async Task<WotbAccountListItem> SelectAccountAsync(IReadOnlyList<WotbAccountListItem> accounts, IDiscordChannel channel, IDiscordUser user)
+	{
+		if (accounts.Count == 1)
+		{
+			return accounts[0];
+		}
+
+		StringBuilder sb = new();
+		int counter = 0;
+
+		for (int i = 0; i < accounts.Count; i++)
+		{
+			WotbAccountListItem account = accounts[i];
+			WotbAccountInfo? accountInfo = await _accountRepository.GetByIdAsync(account.AccountId);
+
+			if (accountInfo == null)
+			{
+				continue;
+			}
+
+			WotbAccountClanInfo? clanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
+			string clanTag = (clanInfo != null && clanInfo.Clan != null) ? clanInfo.Clan.Tag : string.Empty;
+
+			sb.AppendLine((++counter) + ". " + accountInfo.Nickname + (string.IsNullOrEmpty(clanTag) ? "" : " `" + clanTag + "`"));
+		}
+
+		int selected = -1;
+		while (selected == -1) // TODO: add a way to exit this loop
+		{
+			selected = await _messageService.WaitForReply(channel, user, sb.ToString(), counter);
+		}
+
+		return accounts[selected];
+	}
+
+	private async Task ProcessAccountInfoAsync(WotbAccountListItem account, IDiscordMember member)
+	{
+		string clanTag = string.Empty;
+		WotbAccountClanInfo? clanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
+
+		if (clanInfo != null)
+		{
+			if (clanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || clanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID)) // TODO: move to configuration
+			{
+				await member.SendMessageAsync("Indien je echt van **" + clanInfo.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + clanInfo.Clan.Tag + "** rol wilt geven."); // TODO: why is this manual, and not automated.
+			}
+			else if (clanInfo.Clan != null && clanInfo.Clan.Tag != null)
+			{
+				clanTag = clanInfo.Clan.Tag;
+			}
+		}
+
+		await _userService.ChangeMemberNickname(member, "[" + clanTag + "] " + account.Nickname);
+		await member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
 	}
 
 	private static string GetCommaSeperatedRoleList(IReadOnlyDictionary<ulong, IDiscordRole> serverRoles, IEnumerable<IDiscordRole> memberRoles)
