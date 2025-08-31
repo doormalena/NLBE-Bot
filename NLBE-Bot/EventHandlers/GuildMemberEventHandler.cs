@@ -62,7 +62,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	}
 
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
-	internal async Task OnMemberRemoved(DiscordClient _, GuildMemberRemoveEventArgs e)
+	private async Task OnMemberRemoved(DiscordClient _, GuildMemberRemoveEventArgs e)
 	{
 		await HandleMemberRemoved(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member));
 	}
