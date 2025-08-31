@@ -1,11 +1,10 @@
 namespace NLBE_Bot.Interfaces;
 
-using DSharpPlus.Entities;
-using FMWOTB.Tournament;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tournament;
 
 internal interface ITournamentService
 {

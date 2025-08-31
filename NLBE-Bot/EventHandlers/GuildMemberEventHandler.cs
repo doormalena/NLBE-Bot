@@ -2,7 +2,6 @@ namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.EventArgs;
-using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot;
@@ -15,20 +14,25 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 									   IOptions<BotOptions> options,
 									   IChannelService channelService,
 									   IUserService userService,
 									   IMessageService messageService,
-									   IWGAccountService wgAccountService) : IGuildMemberEventHandler
+									   IAccountsRepository accountRepository,
+									   IClansRepository clanRepository) : IGuildMemberEventHandler
 {
 	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
-	private readonly IWGAccountService _wgAccountService = wgAccountService ?? throw new ArgumentNullException(nameof(wgAccountService));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
+	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 
 	private IBotState _botState;
 
@@ -60,14 +64,6 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
-
-			if (noobRole == null)
-			{
-				_logger.LogWarning("Noob role not found. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
-				return;
-			}
-
 			IDiscordChannel welkomChannel = await _channelService.GetWelkomChannel();
 
 			if (welkomChannel == null)
@@ -84,12 +80,20 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				return;
 			}
 
+			IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
+
+			if (noobRole == null)
+			{
+				_logger.LogWarning("Noob role not found. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
+				return;
+			}
+
 			await member.GrantRoleAsync(noobRole);
 
 			IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
 			await welkomChannel.SendMessageAsync(member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.");
 
-			IReadOnlyList<IWGAccount> searchResults = [];
+			IReadOnlyList<WotbAccountListItem> searchResults = [];
 			bool resultFound = false;
 			StringBuilder sbDescription = new();
 			int counter = 0;
@@ -108,28 +112,28 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				}
 
 				string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
-				searchResults = await _wgAccountService.SearchByName(SearchAccuracy.EXACT, ign, _options.WarGamingAppId, false, true, false);
+				searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, ign);
 
-				if (searchResults != null && searchResults.Count > 0)
+				if (searchResults == null || searchResults.Count <= 0)
 				{
-					resultFound = true;
-					foreach (IWGAccount tempAccount in searchResults)
-					{
-						string tempClanName = string.Empty;
-						if (tempAccount.Clan != null)
-						{
-							tempClanName = tempAccount.Clan.Tag;
-						}
+					continue;
+				}
 
-						try
-						{
-							sbDescription.AppendLine(++counter + ". " + tempAccount.Nickname + " " + (tempClanName.Length > 0 ? '`' + tempClanName + '`' : string.Empty));
-						}
-						catch (Exception ex)
-						{
-							_logger.LogWarning(ex, "Error while looking for basicInfo for {Ign}:\n {StackTrace}", ign, ex.StackTrace);
-						}
+				resultFound = true;
+				foreach (WotbAccountListItem tempAccount in searchResults)
+				{
+					WotbAccountInfo accountInfo = await _accountRepository.GetByIdAsync(searchResults[0].AccountId);
+
+					if (accountInfo == null)
+					{
+						_logger.LogWarning("Account info not found for account ID {AccountId} while processing member {MemberName} ({MemberId})", searchResults[0].AccountId, member.DisplayName, member.Id);
+						continue;
 					}
+
+					WotbAccountClanInfo tempAccountClanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
+					string tempClanName = tempAccountClanInfo?.Clan.Tag;
+
+					sbDescription.AppendLine(++counter + ". " + accountInfo.Nickname + " " + (!string.IsNullOrEmpty(tempClanName) ? '`' + tempClanName + '`' : string.Empty));
 				}
 			}
 
@@ -143,25 +147,27 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				}
 			}
 
-			IWGAccount account = searchResults[selectedAccount];
+			WotbAccountListItem account = searchResults[selectedAccount];
+			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
 			string clanName = string.Empty;
-			if (account.Clan != null && account.Clan.Tag != null)
+
+			if (accountClanInfo.Clan != null && accountClanInfo.Clan.Tag != null)
 			{
-				if (account.Clan.Id.Equals(Constants.NLBE_CLAN_ID) || account.Clan.Id.Equals(Constants.NLBE2_CLAN_ID))
+				if (accountClanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || accountClanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID)) // TODO: move to configuration
 				{
-					await member.SendMessageAsync("Indien je echt van **" + account.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + account.Clan.Tag + "** rol wilt geven.");
+					await member.SendMessageAsync("Indien je echt van **" + accountClanInfo.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + accountClanInfo.Clan.Tag + "** rol wilt geven.");
 				}
 				else
 				{
-					clanName = account.Clan.Tag;
+					clanName = accountClanInfo.Clan.Tag;
 				}
 			}
 
 			_userService.ChangeMemberNickname(member, "[" + clanName + "] " + account.Nickname).Wait();
 			await member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
 
-			IDiscordRole rulesNotReadRole = guild.GetRole(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
+			IDiscordRole rulesNotReadRole = guild.GetRole(_options.RoleIds.MustReadRules);
 
 			if (rulesNotReadRole != null)
 			{
@@ -182,12 +188,12 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				IEnumerable<IDiscordRole> roles = member.Roles;
 
 				// TODO: why do we check rolesAfter and nicknameAfter? Filtering out changes that do not effect the name of the member?
-				if (roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
+				if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
 				{
 					return;
 				}
 
-				string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do?
+				string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do? Does this update the display name based on the nickname or something else?
 
 				if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
 				{
@@ -223,9 +229,9 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 
 			IEnumerable<IDiscordRole> roles = member.Roles;
 
-			if (roles.Any(role => role.Id.Equals(Constants.NOOB_ROLE)))
+			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)))
 			{
-				IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
+				IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
 				await CleanWelcomeChannel(guild, member, noobRole);
 			}
 

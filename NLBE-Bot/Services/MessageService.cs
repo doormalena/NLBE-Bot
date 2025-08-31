@@ -1,16 +1,16 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using DSharpPlus.Entities;
-using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IOptions<BotOptions> options, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,
@@ -128,7 +128,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		try
 		{
-			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.adaptToDiscordChat(), DiscordColor.Red);
+			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.AdaptToChat(), DiscordColor.Red);
 			return channel.SendMessageAsync(null, embed).Result;
 		}
 		catch (Exception ex)
@@ -440,7 +440,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		else
 		{
 			_logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			IDiscordRole noobRole = guild.GetRole(Constants.NOOB_ROLE);
+			IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
 			bool roleWasGiven = false;
 			if (noobRole != null)
 			{

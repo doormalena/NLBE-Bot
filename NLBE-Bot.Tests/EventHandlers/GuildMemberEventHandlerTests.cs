@@ -3,7 +3,6 @@ namespace NLBE_Bot.Tests.EventHandlers;
 using DSharpPlus;
 using DSharpPlus.AsyncEvents;
 using DSharpPlus.EventArgs;
-using FMWOTB.Tools;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -11,6 +10,9 @@ using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using NSubstitute;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class GuildMemberEventHandlerTests
@@ -21,21 +23,30 @@ public class GuildMemberEventHandlerTests
 	private IChannelService? _channelServiceMock;
 	private IUserService? _userServiceMock;
 	private IMessageService? _messageServiceMock;
-	private IWGAccountService? _wgAcacountServiceMock;
+	private IAccountsRepository? _accountsRepository;
+	private IClansRepository? _clansRepository;
 	private GuildMemberEventHandler? _handler;
 
 	[TestInitialize]
 	public void Setup()
 	{
+		_optionsMock = Substitute.For<IOptions<BotOptions>>();
+		_optionsMock.Value.Returns(new BotOptions()
+		{
+			RoleIds = new()
+			{
+				MustReadRules = 565656565,
+				Noob = 0987654321
+			},
+			ServerId = 12345
+		});
 		_discordClientMock = Substitute.For<IDiscordClient>();
 		_loggerMock = Substitute.For<ILogger<GuildMemberEventHandler>>();
-		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_channelServiceMock = Substitute.For<IChannelService>();
 		_userServiceMock = Substitute.For<IUserService>();
 		_messageServiceMock = Substitute.For<IMessageService>();
-		_wgAcacountServiceMock = Substitute.For<IWGAccountService>();
-
-		_optionsMock.Value.Returns(new BotOptions { ServerId = 12345, WarGamingAppId = "appid" });
+		_accountsRepository = Substitute.For<IAccountsRepository>();
+		_clansRepository = Substitute.For<IClansRepository>();
 
 		_handler = new GuildMemberEventHandler(
 			_loggerMock,
@@ -43,7 +54,8 @@ public class GuildMemberEventHandlerTests
 			_channelServiceMock,
 			_userServiceMock,
 			_messageServiceMock,
-			_wgAcacountServiceMock
+			_accountsRepository,
+			_clansRepository
 		);
 	}
 
@@ -66,9 +78,10 @@ public class GuildMemberEventHandlerTests
 		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
 		guild.Id.Returns(12345ul);
 
+		ulong noobRoleId = _optionsMock!.Value.RoleIds.Noob;
 		IDiscordRole noobRole = Substitute.For<IDiscordRole>();
-		noobRole.Id.Returns(Constants.NOOB_ROLE);
-		guild.GetRole(Constants.NOOB_ROLE).Returns(noobRole);
+		noobRole.Id.Returns(noobRoleId);
+		guild.GetRole(noobRoleId).Returns(noobRole);
 
 		IDiscordChannel regelsChannel = Substitute.For<IDiscordChannel>();
 		regelsChannel.Mention.Returns("#regels");
@@ -105,18 +118,31 @@ public class GuildMemberEventHandlerTests
 
 		_userServiceMock!.ChangeMemberNickname(member, Arg.Any<string>()).Returns(Task.CompletedTask);
 
-		IWGClan wgClan = Substitute.For<IWGClan>();
-		wgClan.Id.Returns((int) Constants.NLBE2_CLAN_ID);
-		wgClan.Tag.Returns("NLBE2");
-		IWGAccount wgAccount = Substitute.For<IWGAccount>();
-		wgAccount.Nickname.Returns("WargamingUser");
+		WotbAccountInfo accountInfo = new()
+		{
+			Nickname = "WargamingUser",
+			AccountId = 12345
+		};
+		WotbAccountClanInfo accountClanInfo = new()
+		{
+			AccountId = accountInfo.AccountId,
+			AccountName = accountInfo.Nickname,
+			ClanId = Constants.NLBE2_CLAN_ID,
+			Clan = new WotbClanInfo
+			{
+				ClanId = Constants.NLBE2_CLAN_ID,
+				Tag = "NLBE2"
+			}
+		};
 
-		_wgAcacountServiceMock!.SearchByName(Arg.Is(SearchAccuracy.EXACT), Arg.Is("WargamingUser"), Arg.Is("appid"), Arg.Is(false), Arg.Is(true), Arg.Is(false))
-			.Returns(Task.FromResult<IReadOnlyList<IWGAccount>>([wgAccount]));
+		_accountsRepository!.SearchByNameAsync(SearchType.StartsWith, accountInfo.Nickname)
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo]));
+		_clansRepository!.GetAccountClanInfoAsync(accountInfo.AccountId).Returns(Task.FromResult(accountClanInfo));
 
+		ulong mustReadRolesId = _optionsMock.Value.RoleIds.MustReadRules;
 		IDiscordRole rulesNotReadRole = Substitute.For<IDiscordRole>();
-		rulesNotReadRole.Id.Returns(Constants.MOET_REGELS_NOG_LEZEN_ROLE);
-		guild.GetRole(Constants.MOET_REGELS_NOG_LEZEN_ROLE).Returns(rulesNotReadRole);
+		rulesNotReadRole.Id.Returns(mustReadRolesId);
+		guild.GetRole(mustReadRolesId).Returns(rulesNotReadRole);
 
 		IBotState botState = Substitute.For<IBotState>();
 		botState.IgnoreEvents.Returns(false);
@@ -132,7 +158,7 @@ public class GuildMemberEventHandlerTests
 		await member.Received().SendMessageAsync(Arg.Is<string>(msg => msg.Contains("regels")));
 		await member.Received().GrantRoleAsync(rulesNotReadRole);
 		await member.Received().RevokeRoleAsync(noobRole);
-		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name.Contains(wgAccount.Nickname)));
+		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name.Contains(accountInfo.Nickname)));
 	}
 
 	[TestMethod]
@@ -173,8 +199,9 @@ public class GuildMemberEventHandlerTests
 		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
 		guild.Id.Returns(12345ul);
 
+		ulong noobRoleId = _optionsMock!.Value.RoleIds.Noob;
 		IDiscordRole noobRole = Substitute.For<IDiscordRole>();
-		noobRole.Id.Returns(Constants.NOOB_ROLE);
+		noobRole.Id.Returns(noobRoleId);
 
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		member.Roles.Returns([noobRole]);
@@ -279,9 +306,10 @@ public class GuildMemberEventHandlerTests
 
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		IDiscordRole role = Substitute.For<IDiscordRole>();
-		role.Id.Returns(Constants.NOOB_ROLE);
+		ulong noobRoleId = _optionsMock!.Value.RoleIds.Noob;
+		role.Id.Returns(noobRoleId);
 		member.Roles.Returns([role]);
-		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { Constants.NOOB_ROLE, role } });
+		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { noobRoleId, role } });
 		_channelServiceMock!.GetOudLedenChannel().Returns(Substitute.For<IDiscordChannel>());
 
 		IBotState botState = Substitute.For<IBotState>();
@@ -342,16 +370,18 @@ public class GuildMemberEventHandlerTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(null, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(null, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _accountsRepository, _clansRepository));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_loggerMock, null, _channelServiceMock, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, null, _channelServiceMock, _userServiceMock, _messageServiceMock, _accountsRepository, _clansRepository));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_loggerMock, _optionsMock, null, _userServiceMock, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, null, _userServiceMock, _messageServiceMock, _accountsRepository, _clansRepository));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, null, _messageServiceMock, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, null, _messageServiceMock, _accountsRepository, _clansRepository));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, null, _wgAcacountServiceMock));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, null, _accountsRepository, _clansRepository));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, null));
+			  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, null, _clansRepository));
+		Assert.ThrowsException<ArgumentNullException>(() =>
+				  new GuildMemberEventHandler(_loggerMock, _optionsMock, _channelServiceMock, _userServiceMock, _messageServiceMock, _accountsRepository, null));
 	}
 }

@@ -1,8 +1,8 @@
 namespace NLBE_Bot.Interfaces;
 
-using FMWOTB.Tools.Replays;
 using NLBE_Bot.Models;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal interface IWeeklyEventService
 {

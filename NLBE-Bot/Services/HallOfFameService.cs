@@ -1,12 +1,11 @@
 namespace NLBE_Bot.Services;
-using DiscordHelper;
+
 using DSharpPlus;
 using DSharpPlus.Entities;
-using FMWOTB;
-using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -15,6 +14,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Exceptions;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<BotOptions> options,
 		IDiscordMessageUtils discordMessageUtils, IChannelService channelService, IMessageService messageService, IMapService mapService, IReplayService replayService, IUserService userService) : IHallOfFameService
@@ -486,7 +487,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 						// ▁
 						sb.AppendLine(i + 1 + ". [" + sortedTankHofList[i].Speler.Replace("\\", string.Empty).Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + sortedTankHofList[i].Link + ") `" + sortedTankHofList[i].Damage + " dmg`");
 					}
-					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().adaptToDiscordChat());
+					newDiscEmbedBuilder.AddField(item.Item1, sb.ToString().AdaptToChat());
 				}
 			}
 

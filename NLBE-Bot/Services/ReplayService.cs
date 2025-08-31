@@ -1,13 +1,10 @@
 namespace NLBE_Bot.Services;
 
-using DiscordHelper;
 using DSharpPlus.Entities;
-using FMWOTB.Account;
-using FMWOTB.Tools;
-using FMWOTB.Tools.Replays;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -17,12 +14,20 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
+using WorldOfTanksBlitzApi.Tools.Replays;
 
-internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions> options, IWeeklyEventService weeklyEventHandler) : IReplayService
+internal class ReplayService(ILogger<ReplayService> logger,
+					 		 IOptions<BotOptions> options,
+						 	 IWeeklyEventService weeklyEventHandler,
+							 IAccountsRepository accountRepository) : IReplayService
 {
 	private readonly ILogger<ReplayService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
+	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 
 	public async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
 	{
@@ -47,19 +52,18 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 	{
 		string json = string.Empty;
 		bool playerIDFound = false;
-		IReadOnlyList<WGAccount> accountInfo = await WGAccount.searchByName(SearchAccuracy.EXACT, ign, _options.WarGamingAppId, false, true, false);
-		if (accountInfo != null)
+
+		IReadOnlyList<WotbAccountListItem> accountInfo = await _accountRepository.SearchByNameAsync(SearchType.Exact, ign);
+
+		if (accountInfo != null && accountInfo.Count > 0)
 		{
-			if (accountInfo.Count > 0)
+			playerIDFound = true;
+			if (attachment != null)
 			{
-				playerIDFound = true;
-				if (attachment != null)
-				{
-					DiscordAttachment attach = (DiscordAttachment) attachment;
-					url = attach.Url;
-				}
-				json = await ReplayToString(url, titel, accountInfo[0].account_id);
+				DiscordAttachment attach = (DiscordAttachment) attachment;
+				url = attach.Url;
 			}
+			json = await ReplayToString(url, titel, accountInfo[0].AccountId);
 		}
 		if (!playerIDFound)
 		{
@@ -132,8 +136,8 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 	private string GetSomeReplayInfoAsText(WGBattle battle, int position)
 	{
 		StringBuilder sb = new();
-		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.adaptToDiscordChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.adaptToDiscordChat() + ")", false));
-		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.adaptToDiscordChat()));
+		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.AdaptToChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.AdaptToChat() + ")", false));
+		sb.AppendLine(GetInfoInFormat("Speler", battle.player_name.AdaptToChat()));
 		sb.AppendLine(GetInfoInFormat("Clan", battle.details.clan_tag));
 		sb.AppendLine(GetInfoInFormat("Tank", battle.vehicle));
 		sb.AppendLine(GetInfoInFormat("Tier", Emoj.GetName(battle.vehicle_tier), false));
@@ -162,10 +166,10 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 		}
 		if (battle.details.achievements != null && battle.details.achievements.Count > 0)
 		{
-			List<FMWOTB.Achievement> achievementList = [];
+			List<WorldOfTanksBlitzApi.Achievement> achievementList = [];
 			for (int i = 0; i < battle.details.achievements.Count; i++)
 			{
-				FMWOTB.Achievement tempAchievement = FMWOTB.Achievement.getAchievement(_options.WarGamingAppId, battle.details.achievements.ElementAt(i).t).Result;
+				WorldOfTanksBlitzApi.Achievement tempAchievement = WorldOfTanksBlitzApi.Achievement.getAchievement(_options.WotbApi.ApplicationId, battle.details.achievements.ElementAt(i).t).Result;
 				if (tempAchievement != null)
 				{
 					achievementList.Add(tempAchievement);
@@ -176,7 +180,7 @@ internal class ReplayService(ILogger<ReplayService> logger, IOptions<BotOptions>
 				achievementList = achievementList.OrderBy(x => x.order).ToList();
 				sb.AppendLine("Achievements:");
 				sb.Append("```");
-				foreach (FMWOTB.Achievement tempAchievement in achievementList)
+				foreach (WorldOfTanksBlitzApi.Achievement tempAchievement in achievementList)
 				{
 					sb.AppendLine(tempAchievement.name.Replace("\n", string.Empty).Replace("(" + tempAchievement.achievement_id + ")", string.Empty));
 				}
