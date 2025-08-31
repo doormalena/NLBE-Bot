@@ -138,7 +138,6 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 
 			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)))
 			{
-				IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
 				await _channelService.CleanWelkomChannelAsync(member.Id);
 			}
 
