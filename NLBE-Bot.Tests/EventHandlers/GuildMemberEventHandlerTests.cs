@@ -2,7 +2,6 @@ namespace NLBE_Bot.Tests.EventHandlers;
 
 using DSharpPlus;
 using DSharpPlus.AsyncEvents;
-using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -265,7 +264,7 @@ public class GuildMemberEventHandlerTests
 		member.DisplayName.Returns("Newbie");
 		member.Username.Returns("Tester");
 		member.Discriminator.Returns("1234");
-		member.Roles.Returns(Array.Empty<IDiscordRole>());
+		member.Roles.Returns([]);
 		member.GrantRoleAsync(Arg.Any<IDiscordRole>()).Returns(Task.CompletedTask);
 		member.RevokeRoleAsync(Arg.Any<IDiscordRole>()).Returns(Task.CompletedTask);
 		member.SendMessageAsync(Arg.Any<string>())
@@ -354,7 +353,7 @@ public class GuildMemberEventHandlerTests
 		member.DisplayName.Returns("MultiAcc");
 		member.Username.Returns("Tester");
 		member.Discriminator.Returns("5678");
-		member.Roles.Returns(Array.Empty<IDiscordRole>());
+		member.Roles.Returns([]);
 		member.GrantRoleAsync(Arg.Any<IDiscordRole>()).Returns(Task.CompletedTask);
 		member.RevokeRoleAsync(Arg.Any<IDiscordRole>()).Returns(Task.CompletedTask);
 
