@@ -93,7 +93,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				{
 					if (_tournamentService.CheckIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
 					{
-						IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
+						IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannelAsync();
 						if (toernooiAanmeldenChannel != null)
 						{
 							List<DEF> deflist = [];
@@ -463,7 +463,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			IDiscordChannel pollChannel = await _channelService.GetPollsChannel(false);
+			IDiscordChannel pollChannel = await _channelService.GetPollsChannelAsync(false);
 			if (pollChannel != null)
 			{
 				List<DEF> deflist = [];
@@ -549,14 +549,14 @@ internal class BotCommands(IDiscordClient discordClient,
 			// 3 reacties voorzien, :thumbsup: :thinking: :thumbsdown:
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			bool validChannel = false;
-			IDiscordChannel deputiesChannel = await _channelService.GetDeputiesChannel();
+			IDiscordChannel deputiesChannel = await _channelService.GetDeputiesChannelAsync();
 			if (deputiesChannel != null && ctx.Channel.Id.Equals(deputiesChannel.Id))
 			{
 				validChannel = true;
 			}
 			if (!validChannel)
 			{
-				IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
+				IDiscordChannel bottestChannel = await _channelService.GetBotTestChannelAsync();
 				if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
 				{
 					validChannel = true;
@@ -564,7 +564,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			}
 			if (!validChannel)
 			{
-				IDiscordChannel bottestChannel = await _channelService.GetTestChannel();
+				IDiscordChannel bottestChannel = await _channelService.GetTestChannelAsync();
 				if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
 				{
 					validChannel = true;
@@ -581,7 +581,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					}
 					sb.Append(optioneel_clan_naam_indien_nieuwe_kandidaat[i]);
 				}
-				IDiscordChannel deputiesPollsChannel = await _channelService.GetPollsChannel(true);
+				IDiscordChannel deputiesPollsChannel = await _channelService.GetPollsChannelAsync(true);
 
 				bool goodOption = true;
 				IDiscordRole deputiesNLBERole = ctx.Guild.GetRole(Constants.DEPUTY_NLBE_ROLE);
@@ -1024,7 +1024,7 @@ internal class BotCommands(IDiscordClient discordClient,
 								{
 									if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 									{
-										IDiscordChannel logChannel = await _channelService.GetLogChannel();
+										IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
 
 										if (logChannel.Inner != null)
 										{
@@ -1869,7 +1869,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
+			IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
 			if (channel != null)
 			{
 				bool noErrors = true;
@@ -1949,7 +1949,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			bool foundAtLeastOnce = false;
 			naam = naam.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			naam = naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
+			IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
 			if (channel != null)
 			{
 				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
@@ -2024,7 +2024,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			oldName = oldName.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			oldName = oldName.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 			niewe_naam = niewe_naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
+			IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
 			if (channel != null)
 			{
 				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
@@ -2249,7 +2249,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					sb.Append(options[i]);
 				}
 
-				await _weeklyEventHandler.CreateNewWeeklyEvent(sb.ToString(), await _channelService.GetWeeklyEventChannel());
+				await _weeklyEventHandler.CreateNewWeeklyEvent(sb.ToString(), await _channelService.GetWeeklyEventChannelAsync());
 			}
 			else
 			{

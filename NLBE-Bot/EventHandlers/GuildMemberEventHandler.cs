@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -36,7 +37,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 
-	private IBotState _botState;
+	private IBotState? _botState;
 
 	public void Register(IDiscordClient client, IBotState botState)
 	{
@@ -71,34 +72,28 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			IDiscordChannel welkomChannel = await _channelService.GetWelkomChannel();
-
-			if (welkomChannel == null)
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Welcome), _logger, "Welcome channel", out IDiscordChannel welcomeChannel))
 			{
-				_logger.LogWarning("Could not find the welcome channel. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
-			IDiscordUser user = await sender.GetUserAsync(member.Id);
-
-			if (user == null)
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Rules), _logger, "Rules channel", out IDiscordChannel rulesChannel))
 			{
-				_logger.LogWarning("Could not find the user. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
-			IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
-
-			if (noobRole == null)
+			if (Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Noob), _logger, "Noob role", out IDiscordRole noobRole))
 			{
-				_logger.LogWarning("Noob role not found. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
+				return;
+			}
+
+			if (Guard.ReturnIfNull(await sender.GetUserAsync(member.Id), _logger, "User", out IDiscordUser user))
+			{
 				return;
 			}
 
 			await member.GrantRoleAsync(noobRole);
-
-			IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
-			await welkomChannel.SendMessageAsync(member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.");
+			await welcomeChannel.SendMessageAsync($"{member.Mention} welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de {rulesChannel.Mention} aub.");
 
 			IReadOnlyList<WotbAccountListItem> searchResults = [];
 			bool resultFound = false;
@@ -118,7 +113,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 					question = "**We konden dit Wargamingaccount niet vinden, probeer opnieuw! (Hoofdlettergevoelig)**\n" + question;
 				}
 
-				string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
+				string ign = await _messageService.AskQuestion(welcomeChannel, user, guild, question);
 				searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, ign);
 
 				if (searchResults == null || searchResults.Count <= 0)
@@ -129,7 +124,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 				resultFound = true;
 				foreach (WotbAccountListItem tempAccount in searchResults)
 				{
-					WotbAccountInfo accountInfo = await _accountRepository.GetByIdAsync(searchResults[0].AccountId);
+					WotbAccountInfo? accountInfo = await _accountRepository.GetByIdAsync(searchResults[0].AccountId);
 
 					if (accountInfo == null)
 					{
@@ -137,29 +132,29 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 						continue;
 					}
 
-					WotbAccountClanInfo tempAccountClanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
-					string tempClanName = tempAccountClanInfo?.Clan.Tag;
+					WotbAccountClanInfo? tempAccountClanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
+					string tempClanName = tempAccountClanInfo != null ? tempAccountClanInfo.Clan.Tag : string.Empty;
 
 					sbDescription.AppendLine(++counter + ". " + accountInfo.Nickname + " " + (!string.IsNullOrEmpty(tempClanName) ? '`' + tempClanName + '`' : string.Empty));
 				}
 			}
 
 			int selectedAccount = 0;
-			if (searchResults.Count > 1)
+			if (searchResults!.Count > 1)
 			{
 				selectedAccount = -1;
 				while (selectedAccount == -1)
 				{
-					selectedAccount = await _messageService.WaitForReply(welkomChannel, user, sbDescription.ToString(), counter);
+					selectedAccount = await _messageService.WaitForReply(welcomeChannel, user, sbDescription.ToString(), counter);
 				}
 			}
 
 			WotbAccountListItem account = searchResults[selectedAccount];
-			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
+			WotbAccountClanInfo? accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
 			string clanName = string.Empty;
 
-			if (accountClanInfo.Clan != null && accountClanInfo.Clan.Tag != null)
+			if (accountClanInfo != null && accountClanInfo.Clan != null && accountClanInfo.Clan.Tag != null)
 			{
 				if (accountClanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || accountClanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID)) // TODO: move to configuration
 				{
@@ -218,11 +213,8 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			IDiscordChannel oudLedenChannel = await _channelService.GetOudLedenChannel();
-
-			if (oudLedenChannel == null)
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.OldMembers), _logger, "Old Members channel", out IDiscordChannel oudLedenChannel))
 			{
-				_logger.LogWarning("Could not find the Oud Leden channel. Cannot log member removal for {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
@@ -327,17 +319,17 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 
 		if (atLeastOneOtherPlayerWithNoobRole)
 		{
-			await _channelService.CleanWelkomChannel(member.Id);
+			await _channelService.CleanWelkomChannelAsync(member.Id);
 		}
 		else
 		{
-			await _channelService.CleanWelkomChannel();
+			await _channelService.CleanWelkomChannelAsync();
 		}
 	}
 
 	private async Task ExecuteIfAllowedAsync(IDiscordGuild guild, Func<Task> action)
 	{
-		if (_botState.IgnoreEvents || guild.Id != _options.ServerId)
+		if (_botState!.IgnoreEvents || guild.Id != _options.ServerId)
 		{
 			return;
 		}

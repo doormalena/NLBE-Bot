@@ -54,7 +54,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		try
 		{
 			_botState.LasTimeServerNicknamesWereVerified = now; // Update the last successful verification time to now to prevent multiple executions in parallel.
-			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
+			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannelAsync();
 
 			if (bottestChannel == null)
 			{

@@ -60,7 +60,7 @@ public class VerifyServerNicknamesJobTests
 		await _job!.Execute(now);
 
 		// Assert.
-		await _channelServiceMock!.Received(1).GetBotTestChannel();
+		await _channelServiceMock!.Received(1).GetBotTestChannelAsync();
 		Assert.AreEqual(_botStateMock!.LasTimeServerNicknamesWereVerified, now);
 	}
 
@@ -72,7 +72,7 @@ public class VerifyServerNicknamesJobTests
 		DateTime now = DateTime.Now;
 		Exception ex = new("fail");
 		_botStateMock!.LasTimeServerNicknamesWereVerified.Returns(yesterday);
-		_channelServiceMock!.GetBotTestChannel().Returns<Task<IDiscordChannel>>(x => throw ex);
+		_channelServiceMock!.GetBotTestChannelAsync().Returns<Task<IDiscordChannel>>(x => throw ex);
 
 		// Act.
 		await _job!.Execute(now);
@@ -104,7 +104,7 @@ public class VerifyServerNicknamesJobTests
 	public async Task Execute_LogsWarning_WhenChannelIsNull()
 	{
 		// Arrange.
-		_channelServiceMock!.GetBotTestChannel().Returns((IDiscordChannel?) null);
+		_channelServiceMock!.GetBotTestChannelAsync().Returns((IDiscordChannel?) null);
 
 		// Act.
 		await _job!.Execute(DateTime.Today);
@@ -126,7 +126,7 @@ public class VerifyServerNicknamesJobTests
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
 		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
 		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
 		testGuild.GetRole(Arg.Any<ulong>()).Returns((IDiscordRole?) null);
 
 		// Act.
@@ -150,7 +150,7 @@ public class VerifyServerNicknamesJobTests
 		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
 		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
 		channelMock.Guild.Returns(guildMock);
-		_channelServiceMock!.GetBotTestChannel().Returns(channelMock);
+		_channelServiceMock!.GetBotTestChannelAsync().Returns(channelMock);
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
 		guildMock.GetRole(Arg.Any<ulong>()).Returns(memberRole);
@@ -205,7 +205,7 @@ public class VerifyServerNicknamesJobTests
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
 		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
 		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
 		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
@@ -299,7 +299,7 @@ public class VerifyServerNicknamesJobTests
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
 		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
 		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
 		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
@@ -350,7 +350,7 @@ public class VerifyServerNicknamesJobTests
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
 		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
 		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
 		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
@@ -395,7 +395,7 @@ public class VerifyServerNicknamesJobTests
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
 		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
 		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannel().Returns(Task.FromResult(testChannel));
+		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
 		memberRole.Id.Returns(123UL);
 		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);

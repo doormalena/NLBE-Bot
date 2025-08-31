@@ -3,6 +3,7 @@ namespace NLBE_Bot.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -16,145 +17,89 @@ internal class ChannelService(IOptions<BotOptions> options,
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<ChannelService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public async Task<IDiscordChannel> GetHallOfFameChannel()
+	public async Task<IDiscordChannel?> GetHallOfFameChannelAsync()
 	{
 		ulong ChatID = 793268894454251570;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel> GetMasteryReplaysChannel()
+	public async Task<IDiscordChannel?> GetMasteryReplaysChannelAsync()
 	{
 		ulong ChatID = Constants.MASTERY_REPLAYS_ID;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel> GetReplayResultsChannel()
+	public async Task<IDiscordChannel?> GetReplayResultsChannelAsync()
 	{
 		ulong ChatID = 583958593129414677;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel> GetWeeklyEventChannel()
+	public async Task<IDiscordChannel?> GetWeeklyEventChannelAsync()
 	{
 		ulong ChatID = 897749692895596565;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel> GetAlgemeenChannel()
+	public async Task<IDiscordChannel?> GetAlgemeenChannelAsync()
 	{
 		ulong ChatID = 507575682046492692;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
 
-	public async Task<IDiscordChannel> GetOudLedenChannel()
+	public async Task<IDiscordChannel?> GetOudLedenChannelAsync()
 	{
-		return await GetChannel(_options.ChannelIds.OldMembers);
+		return await GetChannelAsync(_options.ChannelIds.OldMembers);
 	}
 
-	public async Task<IDiscordChannel> GetDeputiesChannel()
+	public async Task<IDiscordChannel?> GetDeputiesChannelAsync()
 	{
 		ulong ChatID = 668211371522916389;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
 
-	public async Task<IDiscordChannel> GetWelkomChannel()
+	public async Task<IDiscordChannel?> GetRegelsChannelAsync()
 	{
-		return await GetChannel(_options.ChannelIds.Welcome);
+		return await GetChannelAsync(_options.ChannelIds.Rules);
 	}
 
-	public async Task<IDiscordChannel> GetRegelsChannel()
-	{
-		return await GetChannel(_options.ChannelIds.Rules);
-	}
-
-	public async Task<IDiscordChannel> GetLogChannel()
+	public async Task<IDiscordChannel?> GetLogChannelAsync()
 	{
 		ulong ChatID = 782308602882031660;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel> GetToernooiAanmeldenChannel()
+	public async Task<IDiscordChannel?> GetToernooiAanmeldenChannelAsync()
 	{
 		ulong ChatID = Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel> GetMappenChannel()
+	public async Task<IDiscordChannel?> GetMappenChannelAsync()
 	{
 		ulong ChatID = 782240999190953984;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
 
-	public async Task<IDiscordChannel> GetBotTestChannel()
+	public async Task<IDiscordChannel?> GetBotTestChannelAsync()
 	{
-		return await GetChannel(_options.ChannelIds.BotTest);
+		return await GetChannelAsync(_options.ChannelIds.BotTest);
 	}
 
-	public async Task<IDiscordChannel> GetTestChannel()
+	public async Task<IDiscordChannel?> GetTestChannelAsync()
 	{
 		ulong ChatID = 804477788676685874;
-		return await GetChannel(ChatID);
+		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel> GetPollsChannel(bool isDeputyPoll)
+	public async Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll)
 	{
 		long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;
-		return await GetChannel((ulong) ChatID);
+		return await GetChannelAsync((ulong) ChatID);
 	}
 
-	public async Task<IDiscordChannel> GetChannel(ulong channelId)
+	public async Task CleanWelkomChannelAsync()
 	{
-		try
+		if (Guard.ReturnIfNull(await GetChannelAsync(_options.ChannelIds.Welcome), _logger, $"Welcome channel", out IDiscordChannel welkomChannel))
 		{
-			IDiscordGuild guild = await _discordClient.GetGuildAsync(_options.ServerId);
-
-			if (guild != null)
-			{
-				return guild.GetChannel(channelId);
-			}
-		}
-		catch (Exception ex)
-		{
-			_logger.LogDebug(ex, ex.Message);
+			return;
 		}
 
-		return null;
-	}
+		IReadOnlyList<IDiscordMessage> messages = await welkomChannel.GetMessagesAsync(100);
 
-	public async Task<IDiscordChannel> GetChannelBasedOnString(string guildNameOrTag, ulong guildID)
-	{
-		bool isId = false;
-
-		if (guildNameOrTag.StartsWith('<'))
-		{
-			isId = true;
-			guildNameOrTag = guildNameOrTag.TrimStart('<');
-			guildNameOrTag = guildNameOrTag.TrimStart('#');
-			guildNameOrTag = guildNameOrTag.TrimEnd('>');
-		}
-
-		IDiscordGuild guild = await _discordClient.GetGuildAsync(guildID);
-
-		if (guild != null)
-		{
-			foreach (KeyValuePair<ulong, IDiscordChannel> channel in guild.Channels)
-			{
-				if (isId)
-				{
-					if (channel.Value.Id.ToString().Equals(guildNameOrTag.ToLower()))
-					{
-						return channel.Value;
-					}
-				}
-				else
-				{
-					if (channel.Value.Name.ToLower().Equals(guildNameOrTag.ToLower()))
-					{
-						return channel.Value;
-					}
-				}
-			}
-		}
-
-		return null;
-	}
-	public async Task CleanWelkomChannel()
-	{
-		IDiscordChannel welkomChannel = await GetWelkomChannel();
-		IReadOnlyList<IDiscordMessage> messages = welkomChannel.GetMessagesAsync(100).Result;
 		foreach (IDiscordMessage message in messages)
 		{
 			if (!message.Pinned)
@@ -164,13 +109,19 @@ internal class ChannelService(IOptions<BotOptions> options,
 			}
 		}
 	}
-	public async Task CleanWelkomChannel(ulong userId)
+	public async Task CleanWelkomChannelAsync(ulong userId)
 	{
-		IDiscordChannel welkomChannel = await GetWelkomChannel();
-		IReadOnlyList<IDiscordMessage> messages = welkomChannel.GetMessagesAsync(100).Result;
+		if (Guard.ReturnIfNull(await GetChannelAsync(_options.ChannelIds.Welcome), _logger, $"Welcome channel", out IDiscordChannel welkomChannel))
+		{
+			return;
+		}
+
+		IReadOnlyList<IDiscordMessage> messages = await welkomChannel.GetMessagesAsync(100); // TODO: why this specific number?
+
 		foreach (IDiscordMessage message in messages)
 		{
 			bool deleteMessage = false;
+
 			if (!message.Pinned)
 			{
 				if (message.Author.Id.Equals(Constants.NLBE_BOT))
@@ -185,25 +136,37 @@ internal class ChannelService(IOptions<BotOptions> options,
 					deleteMessage = true;
 				}
 			}
+
 			if (deleteMessage)
 			{
 				await welkomChannel.DeleteMessageAsync(message);
-				await Task.Delay(875);
+				await Task.Delay(875); // TODO: why this arbitrary delay?
 			}
 		}
 	}
 
-	public async Task CleanChannel(ulong channelId)
+	public async Task CleanChannelAsync(ulong channelId)
 	{
-		IDiscordChannel channel = await GetChannel(channelId);
-		IReadOnlyList<IDiscordMessage> messages = channel.GetMessagesAsync(100).Result;
+		if (Guard.ReturnIfNull(await GetChannelAsync(channelId), _logger, $"Channel with id {channelId}", out IDiscordChannel channel))
+		{
+			return;
+		}
+
+		IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100); // TODO: why this specific number?
+
 		foreach (IDiscordMessage message in messages)
 		{
 			if (!message.Pinned)
 			{
 				await channel.DeleteMessageAsync(message);
-				await Task.Delay(875);
+				await Task.Delay(875); // TODO: why this arbitrary delay?
 			}
 		}
+	}
+
+	public async Task<IDiscordChannel?> GetChannelAsync(ulong channelId)
+	{
+		IDiscordGuild guild = await _discordClient.GetGuildAsync(_options.ServerId);
+		return guild?.GetChannel(channelId);
 	}
 }

@@ -505,7 +505,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 
 	private async Task WriteInLog(string date, string message)
 	{
-		IDiscordChannel logChannel = await _channelService.GetLogChannel();
+		IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
 		if (logChannel != null)
 		{
 			await logChannel.SendMessageAsync(date + "|" + message);
@@ -585,7 +585,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 
 				if (goodNumber)
 				{
-					IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
+					IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannelAsync();
 					if (toernooiAanmeldenChannel != null)
 					{
 						List<IDiscordMessage> messages = [];
@@ -608,7 +608,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 							{
 								if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 								{
-									IDiscordChannel logChannel = await _channelService.GetLogChannel();
+									IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
 
 									if (logChannel.Inner != null)
 									{

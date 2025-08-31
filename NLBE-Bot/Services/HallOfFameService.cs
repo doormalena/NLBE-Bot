@@ -42,14 +42,14 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 			{
 				bool validChannel = false;
 
-				IDiscordChannel goodChannel = await _channelService.GetMasteryReplaysChannel();
+				IDiscordChannel goodChannel = await _channelService.GetMasteryReplaysChannelAsync();
 				if (goodChannel != null && goodChannel.Id.Equals(channel.Id))
 				{
 					validChannel = true;
 				}
 				if (!validChannel)
 				{
-					goodChannel = await _channelService.GetBotTestChannel();
+					goodChannel = await _channelService.GetBotTestChannelAsync();
 					if (goodChannel.Id.Equals(channel.Id))
 					{
 						validChannel = true;
@@ -275,7 +275,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 	}
 	public async Task<IDiscordMessage> GetHOFMessage(int tier, string vehicle)
 	{
-		IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
+		IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
 		if (channel != null)
 		{
 			IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
@@ -548,7 +548,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 	public async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID)
 	{
 		List<Tuple<string, List<TankHof>>> players = [];
-		IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
+		IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
 		if (channel != null)
 		{
 			IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);

@@ -428,7 +428,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 							}
 						}
 					}
-					await _channelService.CleanChannel(channel.Id);
+					await _channelService.CleanChannelAsync(channel.Id);
 				}
 			}
 			catch (Exception e)

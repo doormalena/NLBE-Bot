@@ -69,7 +69,7 @@ internal class WeeklyEventService(IChannelService channelService,
 						}
 						try
 						{
-							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannelAsync();
 							if (algemeenChannel != null)
 							{
 								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
@@ -90,14 +90,14 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 		else
 		{
-			IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+			IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannelAsync();
 			if (algemeenChannel != null)
 			{
 				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 			}
 		}
 
-		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
+		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannelAsync();
 
 		if (userNotFound)
 		{
@@ -201,7 +201,7 @@ internal class WeeklyEventService(IChannelService channelService,
 	{
 		try
 		{
-			IDiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannel();
+			IDiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannelAsync();
 
 			if (weeklyEventChannel != null)
 			{

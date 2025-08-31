@@ -1,6 +1,7 @@
 namespace NLBE_Bot.Jobs;
 
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -13,7 +14,7 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 									IBotState botState,
 									ILogger<AnnounceWeeklyWinnerJob> logger) : IJob<AnnounceWeeklyWinnerJob>
 {
-	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService ?? throw new ArgumentNullException(nameof(weeklyEventService));
+	private readonly IWeeklyEventService? _weeklyEventService = weeklyEventService ?? throw new ArgumentNullException(nameof(weeklyEventService));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly ILogger<AnnounceWeeklyWinnerJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -46,20 +47,18 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 		try
 		{
 			_botState.LastWeeklyWinnerAnnouncement = now;
-			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
 
-			if (bottestChannel == null)
+			if (Guard.ReturnIfNull(await _channelService.GetBotTestChannelAsync(), _logger, "Bot Test channel", out IDiscordChannel bottestChannel))
 			{
-				_logger.LogWarning("Could not find the bot test channel. Aborting user update.");
 				return;
 			}
 
-			await _weeklyEventService.ReadWeeklyEvent();
+			await _weeklyEventService!.ReadWeeklyEvent();
 
 			StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
 			winnerMessage.AppendLine("Na 1 week...");
 
-			WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventService.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
+			WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventService!.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
 
 			if (weeklyEventItemMostDMG != null && !string.IsNullOrEmpty(weeklyEventItemMostDMG.Player))
 			{

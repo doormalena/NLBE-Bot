@@ -52,7 +52,7 @@ public class AnnounceWeeklyWinnerJobTests
 		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
 		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
 		channelMock.Guild.Returns(guildMock);
-		_channelServiceMock!.GetBotTestChannel().Returns(channelMock);
+		_channelServiceMock!.GetBotTestChannelAsync().Returns(channelMock);
 
 		// Setup WeeklyEventService to return a valid WeeklyEvent with a Most_damage item and player.
 		WeeklyEventItem mostDmgItem = new(WeeklyEventType.Most_damage)
@@ -167,7 +167,7 @@ public class AnnounceWeeklyWinnerJobTests
 		// Arrange.
 		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local);
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
-		_channelServiceMock!.GetBotTestChannel().Returns((IDiscordChannel?) null);
+		_channelServiceMock!.GetBotTestChannelAsync().Returns((IDiscordChannel?) null);
 
 		// Act.
 		await _job!.Execute(monday15);
@@ -177,7 +177,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("Could not find the bot test channel")),
+			Arg.Is<object>(o => o.ToString()!.Contains("Bot Test channel is missing")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -188,12 +188,12 @@ public class AnnounceWeeklyWinnerJobTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new AnnounceWeeklyWinnerJob(null, _channelServiceMock, _botStateMock, _loggerMock));
+			  new AnnounceWeeklyWinnerJob(null!, _channelServiceMock!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock, null, _botStateMock, _loggerMock));
+			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, null!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock, _channelServiceMock, null, _loggerMock));
+			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, _channelServiceMock!, null!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock, _channelServiceMock, _botStateMock, null));
+			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, _channelServiceMock!, _botStateMock!, null!));
 	}
 }

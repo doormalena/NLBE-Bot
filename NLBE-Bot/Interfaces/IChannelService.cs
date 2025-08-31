@@ -4,41 +4,39 @@ using System.Threading.Tasks;
 
 internal interface IChannelService
 {
-	public Task<IDiscordChannel> GetHallOfFameChannel();
+	public Task<IDiscordChannel?> GetHallOfFameChannelAsync();
 
-	public Task<IDiscordChannel> GetLogChannel();
+	public Task<IDiscordChannel?> GetLogChannelAsync();
 
-	public Task<IDiscordChannel> GetDeputiesChannel();
+	public Task<IDiscordChannel?> GetDeputiesChannelAsync();
 
-	public Task<IDiscordChannel> GetPollsChannel(bool isDeputyPoll);
+	public Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll);
 
-	public Task<IDiscordChannel> GetTestChannel();
+	public Task<IDiscordChannel?> GetTestChannelAsync();
 
-	public Task<IDiscordChannel> GetBotTestChannel();
+	public Task<IDiscordChannel?> GetBotTestChannelAsync();
 
-	public Task<IDiscordChannel> GetToernooiAanmeldenChannel();
+	public Task<IDiscordChannel?> GetToernooiAanmeldenChannelAsync();
 
-	public Task<IDiscordChannel> GetWeeklyEventChannel();
+	public Task<IDiscordChannel?> GetWeeklyEventChannelAsync();
 
-	public Task<IDiscordChannel> GetReplayResultsChannel();
+	public Task<IDiscordChannel?> GetReplayResultsChannelAsync();
 
-	public Task<IDiscordChannel> GetChannel(ulong channeId);
+	public Task<IDiscordChannel?> GetAlgemeenChannelAsync();
 
-	public Task<IDiscordChannel> GetWelkomChannel();
+	public Task<IDiscordChannel?> GetRegelsChannelAsync();
 
-	public Task CleanWelkomChannel();
+	public Task<IDiscordChannel?> GetMasteryReplaysChannelAsync();
 
-	public Task CleanWelkomChannel(ulong userId);
+	public Task<IDiscordChannel?> GetMappenChannelAsync();
 
-	public Task<IDiscordChannel> GetAlgemeenChannel();
+	public Task<IDiscordChannel?> GetOudLedenChannelAsync();
 
-	public Task<IDiscordChannel> GetRegelsChannel();
+	public Task<IDiscordChannel?> GetChannelAsync(ulong channelId);
 
-	public Task<IDiscordChannel> GetMasteryReplaysChannel();
+	public Task CleanChannelAsync(ulong channelId);
 
-	public Task<IDiscordChannel> GetMappenChannel();
+	public Task CleanWelkomChannelAsync();
 
-	public Task<IDiscordChannel> GetOudLedenChannel();
-
-	public Task CleanChannel(ulong channeId);
+	public Task CleanWelkomChannelAsync(ulong userId);
 }

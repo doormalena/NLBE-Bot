@@ -121,7 +121,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		if (!author.IsBot && channel.Guild != null)
 		{
 			bool validChannel = false;
-			IDiscordChannel masteryChannel = await _channelService.GetMasteryReplaysChannel();
+			IDiscordChannel masteryChannel = await _channelService.GetMasteryReplaysChannelAsync();
 
 			if (masteryChannel != null && masteryChannel.Equals(channel))
 			{
@@ -130,28 +130,28 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 
 			if (!validChannel)
 			{
-				masteryChannel = await _channelService.GetBotTestChannel();
+				masteryChannel = await _channelService.GetBotTestChannelAsync();
 				if (masteryChannel != null && masteryChannel.Equals(channel))
 				{
 					validChannel = true;
 				}
 				if (!validChannel)
 				{
-					masteryChannel = await _channelService.GetReplayResultsChannel();
+					masteryChannel = await _channelService.GetReplayResultsChannelAsync();
 					if (masteryChannel != null && masteryChannel.Equals(channel))
 					{
 						validChannel = true;
 					}
 					if (!validChannel)
 					{
-						masteryChannel = await _channelService.GetReplayResultsChannel();
+						masteryChannel = await _channelService.GetReplayResultsChannelAsync();
 						if (masteryChannel != null && masteryChannel.Equals(channel))
 						{
 							validChannel = true;
 						}
 						if (!validChannel)
 						{
-							masteryChannel = await _channelService.GetTestChannel();
+							masteryChannel = await _channelService.GetTestChannelAsync();
 							if (masteryChannel != null && masteryChannel.Equals(channel))
 							{
 								validChannel = true;
@@ -279,11 +279,11 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			return;
 		}
 
-		IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
+		IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannelAsync();
 		if (e.Channel.Equals(toernooiAanmeldenChannel))
 		{
 			DateTime timeStamp = e.Message.Timestamp.LocalDateTime;
-			IDiscordChannel logChannel = await _channelService.GetLogChannel();
+			IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
 			if (logChannel != null)
 			{
 				IReadOnlyList<IDiscordMessage> messages = await logChannel.GetMessagesAsync(100);
@@ -316,7 +316,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 
 		if (!user.IsBot && guild.Id == _options.ServerId)
 		{
-			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
+			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannelAsync();
 			if (toernooiAanmeldenChannel != null && channel.Equals(toernooiAanmeldenChannel))
 			{
 				IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
@@ -324,7 +324,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			}
 			else
 			{
-				IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
+				IDiscordChannel regelsChannel = await _channelService.GetRegelsChannelAsync();
 				if (regelsChannel != null && channel.Equals(regelsChannel))
 				{
 					string rulesReadEmoji = ":ok:";
@@ -380,7 +380,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 										{
 											await member.GrantRoleAsync(ledenRole);
 										}
-										IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
+										IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannelAsync();
 										if (algemeenChannel != null)
 										{
 											await algemeenChannel.SendMessageAsync(user.Mention + " , welkom op de NLBE discord server. GLHF!");
@@ -420,7 +420,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 
 		if (guild.Id == _options.ServerId)
 		{
-			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
+			IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannelAsync();
 			if (toernooiAanmeldenChannel != null && channel.Equals(toernooiAanmeldenChannel))
 			{
 				bool removeInLog = true;
@@ -439,7 +439,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 					}
 
 					//remove in log
-					IDiscordChannel logChannel = await _channelService.GetLogChannel();
+					IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
 
 					if (logChannel.Inner != null)
 					{
@@ -528,7 +528,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		{
 			//tank was chosen
 			await channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
-			await _weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await _channelService.GetWeeklyEventChannel());
+			await _weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await _channelService.GetWeeklyEventChannelAsync());
 			_botState.WeeklyEventWinner = null;//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
 		}
 	}
