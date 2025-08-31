@@ -410,6 +410,94 @@ public class GuildMemberEventHandlerTests
 		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(s => s.Contains(account2.Nickname))); // Verify nickname was set to the chosen account
 	}
 
+	[TestMethod]
+	public async Task HandleMemberAdded_ShouldSetClanTag_WhenClanInfoHasTag()
+	{
+		// Arrange.
+		IDiscordChannel rulesChannel = Substitute.For<IDiscordChannel>();
+		rulesChannel.Mention.Returns("#regels");
+
+		IDiscordChannel welcomeChannel = Substitute.For<IDiscordChannel>();
+		welcomeChannel.SendMessageAsync(Arg.Any<string>())
+			.Returns(Task.FromResult(Substitute.For<IDiscordMessage>()));
+
+		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
+		guild.Id.Returns(_options!.Value.ServerId);
+		guild.GetChannel(_options.Value.ChannelIds.Rules).Returns(rulesChannel);
+		guild.GetChannel(_options.Value.ChannelIds.Welcome).Returns(welcomeChannel);
+
+		IDiscordRole noobRole = Substitute.For<IDiscordRole>();
+		noobRole.Id.Returns(_options.Value.RoleIds.Noob);
+		guild.GetRole(_options.Value.RoleIds.Noob).Returns(noobRole);
+
+		IDiscordRole mustReadRulesRole = Substitute.For<IDiscordRole>();
+		mustReadRulesRole.Id.Returns(_options.Value.RoleIds.MustReadRules);
+		guild.GetRole(_options.Value.RoleIds.MustReadRules).Returns(mustReadRulesRole);
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.Id.Returns(3000UL);
+		member.Mention.Returns("@ClanUser");
+		member.DisplayName.Returns("ClanUser");
+		member.Username.Returns("Tester");
+		member.Discriminator.Returns("9999");
+		member.Roles.Returns([]);
+		member.GrantRoleAsync(Arg.Any<IDiscordRole>()).Returns(Task.CompletedTask);
+		member.RevokeRoleAsync(Arg.Any<IDiscordRole>()).Returns(Task.CompletedTask);
+
+		IDiscordUser user = Substitute.For<IDiscordUser>();
+		user.Mention.Returns("@ClanUser");
+		_discordClientMock!.GetUserAsync(member.Id).Returns(Task.FromResult(user));
+
+		// AskQuestion returns a name that yields one account
+		_messageServiceMock!.AskQuestion(welcomeChannel, user, guild, Arg.Any<string>())
+			.Returns(Task.FromResult("ClanPlayer"));
+
+		WotbAccountListItem account = new()
+		{
+			Nickname = "ClanPlayer",
+			AccountId = 555
+		};
+		_accountsRepository!.SearchByNameAsync(SearchType.StartsWith, "ClanPlayer")
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([account]));
+
+		_accountsRepository.GetByIdAsync(account.AccountId)
+			.Returns(Task.FromResult<WotbAccountInfo?>(new WotbAccountInfo
+			{
+				AccountId = account.AccountId,
+				Nickname = account.Nickname
+			}));
+
+		// Clan info with a tag
+		_clansRepository!.GetAccountClanInfoAsync(account.AccountId)
+			.Returns(Task.FromResult<WotbAccountClanInfo?>(new WotbAccountClanInfo
+			{
+				Clan = new WotbClanInfo
+				{
+					Tag = "TAG123",
+					Name = "Test Clan"
+				}
+			}));
+
+		_messageServiceMock.WaitForReply(welcomeChannel, user, Arg.Any<string>(), Arg.Any<int>())
+			.Returns(Task.FromResult(0));
+
+		_userServiceMock!.ChangeMemberNickname(member, Arg.Any<string>())
+			.Returns(Task.CompletedTask);
+
+		_channelServiceMock!.CleanWelkomChannelAsync(member.Id).Returns(Task.CompletedTask);
+
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock, botState);
+
+		// Act.
+		await _handler.HandleMemberAdded(_discordClientMock, guild, member);
+
+		// Assert.
+		await _userServiceMock.Received()
+			.ChangeMemberNickname(member, Arg.Is<string>(s => s.Contains("[TAG123]")));
+	}
+
 
 	[TestMethod]
 	public async Task HandleMemberUpdated_ShouldRenameMember_IfEligible()
