@@ -13,6 +13,7 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -54,9 +55,30 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		client.MessageReactionRemoved += OnMessageReactionRemoved;
 	}
 
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnMessageCreated(DiscordClient sender, MessageCreateEventArgs e)
 	{
 		return HandleMessageCreated(new DiscordClientWrapper(sender), new DiscordChannelWrapper(e.Channel), new DiscordMessageWrapper(e.Message), new DiscordUserWrapper(e.Author), new DiscordGuildWrapper(e.Guild));
+	}
+
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
+	private Task OnMessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
+	{
+		return HandleMessageDeleted(new DiscordMessageWrapper(e.Message), new DiscordChannelWrapper(e.Channel));
+	}
+
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
+	private async Task OnMessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
+	{
+		await HandleMessageReactionAdded(new DiscordMessageWrapper(e.Message), new DiscordGuildWrapper(e.Guild), new DiscordChannelWrapper(e.Channel),
+										 new DiscordUserWrapper(e.User), new DiscordEmojiWrapper(e.Emoji));
+	}
+
+	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
+	private Task OnMessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
+	{
+		return HandleMessageReactionRemoved(new DiscordMessageWrapper(e.Message), new DiscordGuildWrapper(e.Guild), new DiscordChannelWrapper(e.Channel),
+											new DiscordUserWrapper(e.User), new DiscordEmojiWrapper(e.Emoji));
 	}
 
 	internal async Task HandleMessageCreated(IDiscordClient client, IDiscordChannel channel, IDiscordMessage message, IDiscordUser author, IDiscordGuild guild)
@@ -272,39 +294,36 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		}
 	}
 
-	internal async Task OnMessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
+	internal async Task HandleMessageDeleted(IDiscordMessage message, IDiscordChannel channel)
 	{
 		if (_botState.IgnoreEvents)
 		{
 			return;
 		}
 
-		IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannelAsync();
-		if (e.Channel.Equals(toernooiAanmeldenChannel))
+		if (Guard.ReturnIfNull(await _channelService.GetToernooiAanmeldenChannelAsync(), _logger, "Toernooi Aanmelden channel", out IDiscordChannel toernooiAanmeldenChannel))
 		{
-			DateTime timeStamp = e.Message.Timestamp.LocalDateTime;
-			IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
-			if (logChannel != null)
-			{
-				IReadOnlyList<IDiscordMessage> messages = await logChannel.GetMessagesAsync(100);
-				foreach (IDiscordMessage message in messages)
-				{
-					string[] splitted = message.Content.Split('|');
+			return;
+		}
 
-					if (DateTime.TryParse(splitted[0], new CultureInfo("nl-NL"), out DateTime tempDateTime) && tempDateTime.CompareDateTime(timeStamp))
-					{
-						await message.DeleteAsync();
-						await Task.Delay(875);
-					}
-				}
+		if (Guard.ReturnIfNull(await _channelService.GetLogChannelAsync(), _logger, "Log channel", out IDiscordChannel logChannel))
+		{
+			return;
+		}
+
+		DateTime timeStamp = message.Timestamp.LocalDateTime;
+		IReadOnlyList<IDiscordMessage> messages = await logChannel.GetMessagesAsync(100);
+
+		foreach (IDiscordMessage messageTmp in messages)
+		{
+			string[] splitted = messageTmp.Content.Split('|');
+
+			if (DateTime.TryParse(splitted[0], new CultureInfo("nl-NL"), out DateTime tempDateTime) && tempDateTime.CompareDateTime(timeStamp))
+			{
+				await messageTmp.DeleteAsync();
+				await Task.Delay(875);
 			}
 		}
-	}
-
-	private async Task OnMessageReactionAdded(DiscordClient sender, MessageReactionAddEventArgs e)
-	{
-		await HandleMessageReactionAdded(new DiscordMessageWrapper(e.Message), new DiscordGuildWrapper(e.Guild), new DiscordChannelWrapper(e.Channel),
-										 new DiscordUserWrapper(e.User), new DiscordEmojiWrapper(e.Emoji));
 	}
 
 	internal async Task HandleMessageReactionAdded(IDiscordMessage message, IDiscordGuild guild, IDiscordChannel channel, IDiscordUser user, IDiscordEmoji emoji)
@@ -404,11 +423,6 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 				}
 			}
 		}
-	}
-	private Task OnMessageReactionRemoved(DiscordClient sender, MessageReactionRemoveEventArgs e)
-	{
-		return HandleMessageReactionRemoved(new DiscordMessageWrapper(e.Message), new DiscordGuildWrapper(e.Guild), new DiscordChannelWrapper(e.Channel),
-										 new DiscordUserWrapper(e.User), new DiscordEmojiWrapper(e.Emoji));
 	}
 
 	internal async Task HandleMessageReactionRemoved(IDiscordMessage message, IDiscordGuild guild, IDiscordChannel channel, IDiscordUser user, IDiscordEmoji emoji)
