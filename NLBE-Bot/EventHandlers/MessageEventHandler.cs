@@ -301,18 +301,19 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			return;
 		}
 
-		if (Guard.ReturnIfNull(await _channelService.GetToernooiAanmeldenChannelAsync(), _logger, "Toernooi Aanmelden channel", out IDiscordChannel toernooiAanmeldenChannel))
+		if (Guard.ReturnIfNull(await _channelService.GetToernooiAanmeldenChannelAsync(), _logger, "Toernooi Aanmelden channel", out IDiscordChannel toernooiAanmeldenChannel) ||
+			Guard.ReturnIfNull(await _channelService.GetLogChannelAsync(), _logger, "Log channel", out IDiscordChannel logChannel))
 		{
 			return;
 		}
 
-		if (Guard.ReturnIfNull(await _channelService.GetLogChannelAsync(), _logger, "Log channel", out IDiscordChannel logChannel))
+		if (channel != toernooiAanmeldenChannel)
 		{
 			return;
 		}
 
 		DateTime timeStamp = message.Timestamp.LocalDateTime;
-		IReadOnlyList<IDiscordMessage> messages = await logChannel.GetMessagesAsync(100);
+		IReadOnlyList<IDiscordMessage> messages = await logChannel.GetMessagesAsync(100); // TODO: why this specific number?
 
 		foreach (IDiscordMessage messageTmp in messages)
 		{
@@ -321,7 +322,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			if (DateTime.TryParse(splitted[0], new CultureInfo("nl-NL"), out DateTime tempDateTime) && tempDateTime.CompareDateTime(timeStamp))
 			{
 				await messageTmp.DeleteAsync();
-				await Task.Delay(875);
+				await Task.Delay(875); // TODO: why this arbitrary delay?
 			}
 		}
 	}

@@ -11,7 +11,6 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -58,8 +57,10 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private async Task OnMemberUpdated(DiscordClient _, GuildMemberUpdateEventArgs e)
 	{
-		ReadOnlyCollection<IDiscordRole> rolesAfter = e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly();
-		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member), rolesAfter, e.NicknameAfter);
+		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild),
+								  new DiscordMemberWrapper(e.Member),
+								  e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly(),
+								  e.NicknameAfter);
 	}
 
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
@@ -72,44 +73,31 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Welcome), _logger, "Welcome channel", out IDiscordChannel welcomeChannel))
-			{
-				return;
-			}
-
-			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Rules), _logger, "Rules channel", out IDiscordChannel rulesChannel))
-			{
-				return;
-			}
-
-			if (Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Noob), _logger, "Noob role", out IDiscordRole noobRole))
-			{
-				return;
-			}
-
-			if (Guard.ReturnIfNull(await sender.GetUserAsync(member.Id), _logger, "User", out IDiscordUser user))
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Welcome), _logger, "Welcome channel", out IDiscordChannel welcomeChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Rules), _logger, "Rules channel", out IDiscordChannel rulesChannel) ||
+				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Noob), _logger, "Noob role", out IDiscordRole noobRole) ||
+				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.MustReadRules), _logger, "MustReadRules role", out IDiscordRole rulesNotReadRole) ||
+				Guard.ReturnIfNull(await sender.GetUserAsync(member.Id), _logger, "User", out IDiscordUser user))
 			{
 				return;
 			}
 
 			await member.GrantRoleAsync(noobRole);
-			await welcomeChannel.SendMessageAsync($"{member.Mention} welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de {rulesChannel.Mention} aub.");
+			await welcomeChannel.SendMessageAsync($"{member.Mention} welkom op de NLBE Discord-server! 👋\nBeantwoord eerst de vraag over je WoTB-spelersnaam en neem daarna even de tijd om de regels in {rulesChannel.Mention} goed door te lezen. Veel plezier!");
 
 			IReadOnlyList<WotbAccountListItem> searchResults = await FindMatchingAccountsAsync(welcomeChannel, user, guild);
-			if (searchResults.Count == 0)
-			{
-				return;
-			}
-
 			WotbAccountListItem selectedAccount = await SelectAccountAsync(searchResults, welcomeChannel, user);
 			await ProcessAccountInfoAsync(selectedAccount, member);
 
-			IDiscordRole rulesNotReadRole = guild.GetRole(_options.RoleIds.MustReadRules);
-			if (rulesNotReadRole != null)
-			{
-				await member.RevokeRoleAsync(noobRole);
-				await member.GrantRoleAsync(rulesNotReadRole);
-			}
+			await member.SendMessageAsync("We zijn er bijna!\nNeem nog even een moment om de regels in **#regels** door te nemen, dan ben je helemaal klaar ✅.");
+			await member.RevokeRoleAsync(noobRole);
+			await member.GrantRoleAsync(rulesNotReadRole);
+
+			// Note: we do not remove the MustReadRules role here. When the user reacts on the rules message (see MessageEventHandler.HandleMessageReactionAdded):
+			// - The MustReadRules role will be removed.
+			// - The member will get the Members role.
+			// - The username will be updated (if needed).
+			// - The user will be welcomed in the general channel.
 
 			await CleanWelcomeChannel(guild, member, noobRole);
 		});
@@ -212,23 +200,23 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		bool firstAttempt = true;
 
-		while (true) // TODO: add a way to exit this loop
+		while (true) // TODO: add a retry limit to prevent a never ending loop.
 		{
 			string question;
 			if (firstAttempt)
 			{
-				question = user.Mention + " Wat is je gebruikersnaam van je wargaming account?";
+				question = $"{user.Mention} Wat is je WoTB-spelersnaam?";
 				firstAttempt = false;
 			}
 			else
 			{
-				question = "**We konden dit Wargamingaccount niet vinden, probeer opnieuw! (Hoofdlettergevoelig)**\n" + user.Mention + " Wat is je gebruikersnaam van je wargaming account?";
+				question = $"**We konden je opgegeven WoTB-spelersnaam niet vinden. Kun je het nog eens proberen?** \n{user.Mention} Wat is je WoTB-spelersnaam?";
 			}
 
-			string ign = await _messageService.AskQuestion(channel, user, guild, question);
-			IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, ign);
+			string playerName = await _messageService.AskQuestion(channel, user, guild, question);
+			IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, playerName);
 
-			if (searchResults != null && searchResults.Count > 0)
+			if (searchResults.Count > 0)
 			{
 				return searchResults;
 			}
@@ -261,7 +249,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		}
 
 		int selected = -1;
-		while (selected == -1) // TODO: add a way to exit this loop
+		while (selected == -1) // TODO: add a retry limit to prevent a never ending loop.
 		{
 			selected = await _messageService.WaitForReply(channel, user, sb.ToString(), counter);
 		}
@@ -287,7 +275,6 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		}
 
 		await _userService.ChangeMemberNickname(member, "[" + clanTag + "] " + account.Nickname);
-		await member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
 	}
 
 	private static string GetCommaSeperatedRoleList(IReadOnlyDictionary<ulong, IDiscordRole> serverRoles, IEnumerable<IDiscordRole> memberRoles)
