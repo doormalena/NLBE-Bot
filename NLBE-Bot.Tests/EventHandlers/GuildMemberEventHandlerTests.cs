@@ -87,6 +87,7 @@ public class GuildMemberEventHandlerTests
 	{
 		// Arrange.
 		IDiscordGuild guild = Substitute.For<IDiscordGuild>();
+		guild.Id.Returns(12345ul);
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		member.Id.Returns(999u);
 
@@ -135,11 +136,11 @@ public class GuildMemberEventHandlerTests
 		botState.IgnoreEvents.Returns(false);
 		_handler!.Register(_discordClientMock!, botState);
 
-
 		// Act.
 		await _handler!.HandleMemberAdded(_discordClientMock!, guild, member);
 
 		// Assert.
+		guild.Received().GetChannel(Arg.Any<ulong>());
 		await member.DidNotReceive().GrantRoleAsync(Arg.Any<IDiscordRole>());
 	}
 
