@@ -79,13 +79,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 	{
 		return await GetChannelAsync(_options.ChannelIds.BotTest);
 	}
-
-	public async Task<IDiscordChannel?> GetTestChannelAsync()
-	{
-		ulong ChatID = 804477788676685874;
-		return await GetChannelAsync(ChatID);
-	}
-
 	public async Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll)
 	{
 		long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;

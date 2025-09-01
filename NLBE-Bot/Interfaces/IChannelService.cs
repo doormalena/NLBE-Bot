@@ -12,8 +12,6 @@ internal interface IChannelService
 
 	public Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll);
 
-	public Task<IDiscordChannel?> GetTestChannelAsync();
-
 	public Task<IDiscordChannel?> GetBotTestChannelAsync();
 
 	public Task<IDiscordChannel?> GetToernooiAanmeldenChannelAsync();

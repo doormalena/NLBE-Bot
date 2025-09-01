@@ -26,19 +26,16 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 									   IUserService userService,
 									   IMessageService messageService,
 									   IAccountsRepository accountRepository,
-									   IClansRepository clanRepository) : IGuildMemberEventHandler
+									   IClansRepository clanRepository) : EventHandlerBase(options), IGuildMemberEventHandler
 {
 	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 
-	private IBotState? _botState;
-
-	public void Register(IDiscordClient client, IBotState botState)
+	public override void Register(IDiscordClient client, IBotState botState)
 	{
 		_ = client ?? throw new ArgumentNullException(nameof(client));
 		_botState = botState ?? throw new ArgumentNullException(nameof(botState));
@@ -289,15 +286,5 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		}
 
 		return sbRoles.ToString();
-	}
-
-	private async Task ExecuteIfAllowedAsync(IDiscordGuild guild, Func<Task> action)
-	{
-		if (_botState!.IgnoreEvents || guild.Id != _options.ServerId)
-		{
-			return;
-		}
-
-		await action();
 	}
 }

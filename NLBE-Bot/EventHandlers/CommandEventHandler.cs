@@ -42,7 +42,7 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 
 	internal async Task HandleCommandError(IDiscordCommandContext context, IDiscordCommand? command, Exception exception)
 	{
-		if (!context.GuildId.Equals(_options.ServerId))
+		if (context.GuildId != _options.ServerId)
 		{
 			return;
 		}
@@ -53,8 +53,8 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 		}
 		else if (command != null)
 		{
-			IDiscordEmoji inProgressEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION);
-			IDiscordEmoji errorEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION);
+			IDiscordEmoji inProgressEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)!;
+			IDiscordEmoji errorEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION)!;
 
 			await context.DeleteInProgressReactionAsync(inProgressEmoji);
 			await context.AddErrorReactionAsync(errorEmoji);

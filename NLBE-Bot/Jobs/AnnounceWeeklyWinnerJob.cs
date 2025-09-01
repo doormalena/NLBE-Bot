@@ -5,6 +5,7 @@ using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Threading.Tasks;
@@ -58,7 +59,8 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 			StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
 			winnerMessage.AppendLine("Na 1 week...");
 
-			WeeklyEventItem weeklyEventItemMostDMG = _weeklyEventService!.WeeklyEvent.WeeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
+			List<WeeklyEventItem> weeklyEventItems = _weeklyEventService!.WeeklyEvent.WeeklyEventItems;
+			WeeklyEventItem? weeklyEventItemMostDMG = weeklyEventItems.Find(weeklyEventItem => weeklyEventItem.WeeklyEventType == WeeklyEventType.Most_damage);
 
 			if (weeklyEventItemMostDMG != null && !string.IsNullOrEmpty(weeklyEventItemMostDMG.Player))
 			{

@@ -90,14 +90,14 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 		else
 		{
-			IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannelAsync();
+			IDiscordChannel? algemeenChannel = await _channelService.GetAlgemeenChannelAsync();
 			if (algemeenChannel != null)
 			{
 				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 			}
 		}
 
-		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannelAsync();
+		IDiscordChannel? bottestChannel = await _channelService.GetBotTestChannelAsync();
 
 		if (userNotFound)
 		{

@@ -57,7 +57,7 @@ public class BotEventHandlerTests
 		// Assert.
 		_commandHandlerMock!.Received(1).Register(_commandsNextMock!);
 		_guildMemberHandlerMock!.Received(1).Register(_clientMock!, _botStateMock!);
-		_messageHandlerMock!.Received(1).Register(_clientMock!);
+		_messageHandlerMock!.Received(1).Register(_clientMock!, _botStateMock!);
 	}
 
 	[TestMethod]

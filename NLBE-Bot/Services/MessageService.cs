@@ -24,7 +24,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 
-	public async Task<IDiscordMessage> SendMessage(IDiscordChannel channel, IDiscordMember member, string guildName, string message)
+	public async Task<IDiscordMessage?> SendMessage(IDiscordChannel channel, IDiscordMember? member, string guildName, string message)
 	{
 		try
 		{

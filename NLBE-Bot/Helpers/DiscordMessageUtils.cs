@@ -90,9 +90,9 @@ internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<Discord
 
 	public string GetEmojiAsString(string emoji)
 	{
-		IDiscordEmoji theEmoji = GetDiscordEmoji(emoji);
+		IDiscordEmoji? theEmoji = GetDiscordEmoji(emoji);
 
-		if (!theEmoji.GetDiscordName().Equals(emoji))
+		if (theEmoji != null && !theEmoji.GetDiscordName().Equals(emoji))
 		{
 			return theEmoji.GetDiscordName();
 		}

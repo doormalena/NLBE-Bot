@@ -9,7 +9,7 @@ internal class ApiRequester(HttpClient client) : IApiRequester
 {
 	private readonly HttpClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
-	public string GetRequest(string url, Dictionary<string, string> parameters = null)
+	public string GetRequest(string url, Dictionary<string, string>? parameters = null)
 	{
 		// Set the API key header
 		if (parameters != null)

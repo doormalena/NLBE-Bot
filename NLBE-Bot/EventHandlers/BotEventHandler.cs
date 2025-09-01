@@ -46,7 +46,7 @@ internal class BotEventHandler(ICommandEventHandler commandHandler,
 		_guildMemberHandler.Register(client, botState);
 
 		// Message events
-		_messageHandler.Register(client);
+		_messageHandler.Register(client, botState);
 
 		// Generic events
 		client.Heartbeated += OnHeartbeated;

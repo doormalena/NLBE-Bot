@@ -55,9 +55,9 @@ internal class DiscordClientWrapper(DiscordClient client) : IDiscordClient
 	{
 		return new DiscordInteractivityExtensionWrapper(_inner.GetInteractivity());
 	}
-	public async Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed embed = null)
+	public async Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed? embed = null)
 	{
-		return new DiscordMessageWrapper(await _inner.SendMessageAsync(channel.Inner, content, embed.Inner));
+		return new DiscordMessageWrapper(await _inner.SendMessageAsync(channel.Inner, content, embed?.Inner));
 	}
 
 	public event AsyncEventHandler<DiscordClient, ReadyEventArgs> Ready
