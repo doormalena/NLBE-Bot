@@ -26,7 +26,7 @@ internal interface IDiscordClient
 	public Task<IDiscordUser> GetUserAsync(ulong userId);
 	public Task<IDiscordGuild> GetGuildAsync(ulong guildId);
 	public IDiscordInteractivityExtension GetInteractivity();
-	public Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed embed = null);
+	public Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed? embed = null);
 	public Task DisconnectAsync();
 
 	public event AsyncEventHandler<DiscordClient, ReadyEventArgs> Ready;

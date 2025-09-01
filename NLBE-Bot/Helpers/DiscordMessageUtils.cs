@@ -55,7 +55,7 @@ internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<Discord
 		return sortedMessages;
 	}
 
-	public IDiscordEmoji GetDiscordEmoji(string name)
+	public IDiscordEmoji? GetDiscordEmoji(string name)
 	{
 		DiscordEmoji theEmoji;
 
@@ -85,7 +85,7 @@ internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<Discord
 			_logger.LogWarning(ex, "Could not load emoji: {EmojiName}", name);
 		}
 
-		return new DiscordEmojiWrapper(theEmoji);
+		return theEmoji != null ? new DiscordEmojiWrapper(theEmoji) : null;
 	}
 
 	public string GetEmojiAsString(string emoji)

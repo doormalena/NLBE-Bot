@@ -8,7 +8,7 @@ internal class BotOptions
 	public ChannelIdsOptions ChannelIds
 	{
 		get; set;
-	}
+	} = new();
 
 	[Range(1, 300)]
 	public int DiscordTimeOutInSeconds
@@ -20,7 +20,7 @@ internal class BotOptions
 	public string DiscordToken
 	{
 		get; set;
-	}
+	} = string.Empty;
 
 	public int HofWaitTimeInSeconds
 	{
@@ -31,7 +31,7 @@ internal class BotOptions
 	public RoleIdsOptions RoleIds
 	{
 		get; set;
-	}
+	} = new();
 
 	public int NewPlayerWaitTimeInDays
 	{
@@ -48,7 +48,7 @@ internal class BotOptions
 	public WotbApiOptions WotbApi
 	{
 		get; set;
-	}
+	} = new();
 }
 
 

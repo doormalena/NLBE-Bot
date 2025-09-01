@@ -66,7 +66,8 @@ public class BotStateTests
 			// Assert.
 			Assert.IsTrue(state.IgnoreCommands);
 			Assert.IsFalse(state.IgnoreEvents);
-			Assert.AreEqual(99UL, state.WeeklyEventWinner.UserId);
+			Assert.IsNotNull(state!.WeeklyEventWinner);
+			Assert.AreEqual(99UL, state!.WeeklyEventWinner.UserId);
 			Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.WeeklyEventWinner.LastEventDate);
 			Assert.AreEqual(new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
 			Assert.AreEqual(new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);

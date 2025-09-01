@@ -8,11 +8,11 @@ internal class WotbApiOptions
 	public string BaseUri
 	{
 		get; set;
-	}
+	} = string.Empty;
 
 	[Required]
 	public string ApplicationId
 	{
 		get; set;
-	}
+	} = string.Empty;
 }

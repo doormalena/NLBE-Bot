@@ -9,7 +9,7 @@ internal interface IDiscordMessageUtils
 
 	public Dictionary<DateTime, List<IDiscordMessage>> SortMessages(IReadOnlyList<IDiscordMessage> messages);
 
-	public IDiscordEmoji GetDiscordEmoji(string name);
+	public IDiscordEmoji? GetDiscordEmoji(string name);
 
 	public string GetEmojiAsString(string emoji);
 }
