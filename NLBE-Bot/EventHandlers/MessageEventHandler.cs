@@ -272,8 +272,9 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 
 			if (channel.Id == rulesChannel.Id)
 			{
-				string rulesReadEmoji = ":ok:";
-				if (emoji.GetDiscordName().Equals(rulesReadEmoji))
+				const string rulesReadEmoji = ":ok:";
+
+				if (emoji.GetDiscordName() == rulesReadEmoji)
 				{
 					IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(emoji);
 
