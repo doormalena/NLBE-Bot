@@ -27,7 +27,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 								   IChannelService channelService,
 								   IUserService userService,
 								   IDiscordMessageUtils discordMessageUtils,
-								   IWeeklyEventService weeklyEventHandler,
+								   IWeeklyEventService weeklyEventService,
 								   IMapService mapService,
 								   IReplayService replayService,
 								   ITournamentService tournamentService,
@@ -39,7 +39,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
-	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
+	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService ?? throw new ArgumentNullException(nameof(weeklyEventService));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 	private readonly IReplayService _replayService = replayService ?? throw new ArgumentNullException(nameof(replayService));
 	private readonly ITournamentService _tournamentService = tournamentService ?? throw new ArgumentNullException(nameof(tournamentService));
@@ -241,7 +241,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 						string eventDescription = string.Empty;
 						try
 						{
-							eventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(replayInfo);
+							eventDescription = await _weeklyEventService.GetStringForWeeklyEvent(replayInfo);
 						}
 						catch (Exception ex)
 						{
@@ -543,7 +543,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		{
 			//tank was chosen
 			await channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
-			await _weeklyEventHandler.CreateNewWeeklyEvent(chosenTank, await _channelService.GetWeeklyEventChannelAsync());
+			await _weeklyEventService.CreateNewWeeklyEvent(chosenTank, await _channelService.GetWeeklyEventChannelAsync());
 			_botState.WeeklyEventWinner = null;//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
 		}
 	}
