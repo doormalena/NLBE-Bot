@@ -85,70 +85,50 @@ internal class ChannelService(IOptions<BotOptions> options,
 		ulong ChatID = 804477788676685874;
 		return await GetChannelAsync(ChatID);
 	}
+
 	public async Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll)
 	{
 		long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;
 		return await GetChannelAsync((ulong) ChatID);
 	}
 
-	public async Task CleanWelkomChannelAsync(ulong userId)
+	public Task CleanChannelAsync(ulong channelId)
 	{
-		if (Guard.ReturnIfNull(await GetChannelAsync(_options.ChannelIds.Welcome), _logger, $"Welcome channel", out IDiscordChannel welkomChannel))
-		{
-			return;
-		}
-
-		IReadOnlyList<IDiscordMessage> messages = await welkomChannel.GetMessagesAsync(100); // TODO: why this specific number?
-
-		foreach (IDiscordMessage message in messages)
-		{
-			bool deleteMessage = false;
-
-			if (!message.Pinned)
-			{
-				if (message.Author.Id.Equals(Constants.NLBE_BOT))
-				{
-					if (message.Content.Contains("<@" + userId + ">"))
-					{
-						deleteMessage = true;
-					}
-				}
-				else if (message.Author.Id.Equals(userId))
-				{
-					deleteMessage = true;
-				}
-			}
-
-			if (deleteMessage)
-			{
-				await welkomChannel.DeleteMessageAsync(message);
-				await Task.Delay(875); // TODO: why this arbitrary delay?
-			}
-		}
+		return CleanChannelInternalAsync(channelId, m => true);
 	}
 
-	public async Task CleanChannelAsync(ulong channelId)
+	public Task CleanWelkomChannelAsync(ulong userId)
 	{
-		if (Guard.ReturnIfNull(await GetChannelAsync(channelId), _logger, $"Channel with id {channelId}", out IDiscordChannel channel))
-		{
-			return;
-		}
-
-		IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100); // TODO: why this specific number?
-
-		foreach (IDiscordMessage message in messages)
-		{
-			if (!message.Pinned)
-			{
-				await channel.DeleteMessageAsync(message);
-				await Task.Delay(875); // TODO: why this arbitrary delay?
-			}
-		}
+		return CleanChannelInternalAsync(
+			_options.ChannelIds.Welcome,
+			m =>
+				(m.Author.Id == Constants.NLBE_BOT && m.Content.Contains($"<@{userId}>")) ||
+				m.Author.Id == userId
+		);
 	}
 
 	public async Task<IDiscordChannel?> GetChannelAsync(ulong channelId)
 	{
 		IDiscordGuild guild = await _discordClient.GetGuildAsync(_options.ServerId);
 		return guild?.GetChannel(channelId);
+	}
+
+	private async Task CleanChannelInternalAsync(ulong channelId, Func<IDiscordMessage, bool> shouldDelete)
+	{
+		if (Guard.ReturnIfNull(await GetChannelAsync(channelId), _logger, $"Welcome channel", out IDiscordChannel channel))
+		{
+			return;
+		}
+
+		IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
+
+		foreach (IDiscordMessage message in messages)
+		{
+			if (!message.Pinned && shouldDelete(message))
+			{
+				await channel.DeleteMessageAsync(message);
+				await Task.Delay(875); // TODO: why this arbitrary delay?
+			}
+		}
 	}
 }
