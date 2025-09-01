@@ -221,16 +221,16 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		{
 			WotbAccountListItem account = accounts[i];
 			WotbAccountInfo? accountInfo = await _accountRepository.GetByIdAsync(account.AccountId);
+			WotbAccountClanInfo? clanInfo = null;
 
-			if (accountInfo == null)
+			if (accountInfo != null)
 			{
-				continue;
+				clanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
 			}
 
-			WotbAccountClanInfo? clanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
-			string clanTag = (clanInfo != null && clanInfo.Clan != null) ? clanInfo.Clan.Tag : string.Empty;
-
-			sb.AppendLine((++counter) + ". " + accountInfo.Nickname + (string.IsNullOrEmpty(clanTag) ? "" : " `" + clanTag + "`"));
+			string? clanTag = clanInfo?.Clan?.Tag;
+			string clan = (!string.IsNullOrEmpty(clanTag) ? $" `{clanTag}`" : string.Empty);
+			sb.AppendLine($"{(++counter)}. {accountInfo?.Nickname}{clan}");
 		}
 
 		int selected = -1;

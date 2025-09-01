@@ -120,6 +120,7 @@ internal class ChannelService(IOptions<BotOptions> options,
 			return;
 		}
 
+		// Note: 100 is the max page limit, normally this amount should be sufficient.
 		IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
 
 		foreach (IDiscordMessage message in messages)
@@ -127,7 +128,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 			if (!message.Pinned && shouldDelete(message))
 			{
 				await channel.DeleteMessageAsync(message);
-				await Task.Delay(875); // TODO: why this arbitrary delay?
 			}
 		}
 	}

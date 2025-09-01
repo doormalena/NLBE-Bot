@@ -329,7 +329,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			List<IDiscordEmoji> reacted = [];
 			for (int i = 1; i <= 10; i++)
 			{
-				IDiscordEmoji emoji = _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i));
+				IDiscordEmoji? emoji = _discordMessageUtils!.GetDiscordEmoji(Emoj.GetName(i));
 				if (emoji != null)
 				{
 					IReadOnlyList<IDiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;

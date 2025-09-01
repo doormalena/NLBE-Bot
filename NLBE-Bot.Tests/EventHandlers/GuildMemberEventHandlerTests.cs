@@ -383,15 +383,28 @@ public class GuildMemberEventHandlerTests
 		_messageServiceMock.WaitForReply(welcomeChannel, user, Arg.Any<string>(), Arg.Any<int>())
 			.Returns(Task.FromResult(1)); // 0-based index in handler
 
+		_accountsRepository.GetByIdAsync(account1.AccountId)
+			.Returns(Task.FromResult<WotbAccountInfo?>(new WotbAccountInfo
+			{
+				AccountId = account1.AccountId,
+				Nickname = account1.Nickname
+			}));
+		_clansRepository!.GetAccountClanInfoAsync(account1.AccountId).Returns(Task.FromResult<WotbAccountClanInfo?>(new WotbAccountClanInfo
+		{
+			Clan = new WotbClanInfo
+			{
+				Tag = "TAG123",
+				Name = "Test Clan"
+			}
+		}));
+
 		_accountsRepository.GetByIdAsync(account2.AccountId)
 			.Returns(Task.FromResult<WotbAccountInfo?>(new WotbAccountInfo
 			{
 				AccountId = account2.AccountId,
 				Nickname = account2.Nickname
 			}));
-
-		_clansRepository!.GetAccountClanInfoAsync(account2.AccountId)
-			.Returns(Task.FromResult<WotbAccountClanInfo?>(null));
+		_clansRepository!.GetAccountClanInfoAsync(account2.AccountId).Returns(Task.FromResult<WotbAccountClanInfo?>(null));
 
 		_userServiceMock!.ChangeMemberNickname(member, Arg.Any<string>())
 			.Returns(Task.CompletedTask);
