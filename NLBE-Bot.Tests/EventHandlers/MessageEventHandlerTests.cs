@@ -1,5 +1,8 @@
 namespace NLBE_Bot.Tests.EventHandlers;
 
+using DSharpPlus;
+using DSharpPlus.AsyncEvents;
+using DSharpPlus.EventArgs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -10,6 +13,7 @@ using NSubstitute;
 [TestClass]
 public class MessageEventHandlerTests
 {
+	private IDiscordClient? _discordClientMock;
 	private IBotState? _botState;
 	private ILogger<MessageEventHandler>? _loggerMock;
 	private IOptions<BotOptions>? _options;
@@ -31,6 +35,7 @@ public class MessageEventHandlerTests
 		{
 		};
 		_options = Options.Create(botOptions);
+		_discordClientMock = Substitute.For<IDiscordClient>();
 		_botState = Substitute.For<IBotState>();
 		_loggerMock = Substitute.For<ILogger<MessageEventHandler>>();
 		_channelServiceMock = Substitute.For<IChannelService>();
@@ -57,6 +62,19 @@ public class MessageEventHandlerTests
 			_hallOfFameServiceMock,
 			_messageServiceMock
 		);
+	}
+
+	[TestMethod]
+	public void Register_RegistersAllHandlersAndEvents()
+	{
+		// Act.
+		_handler!.Register(_discordClientMock!);
+
+		// Assert.
+		_discordClientMock!.Received(1).MessageCreated += Arg.Any<AsyncEventHandler<DiscordClient, MessageCreateEventArgs>>();
+		_discordClientMock!.Received(1).MessageDeleted += Arg.Any<AsyncEventHandler<DiscordClient, MessageDeleteEventArgs>>();
+		_discordClientMock!.Received(1).MessageReactionAdded += Arg.Any<AsyncEventHandler<DiscordClient, MessageReactionAddEventArgs>>();
+		_discordClientMock!.Received(1).MessageReactionRemoved += Arg.Any<AsyncEventHandler<DiscordClient, MessageReactionRemoveEventArgs>>();
 	}
 
 	[TestMethod]

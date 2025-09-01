@@ -15,12 +15,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
 
-internal class BotEventHandlers(ICommandEventHandler commandHandler,
+internal class BotEventHandler(ICommandEventHandler commandHandler,
 								IGuildMemberEventHandler guildMemberHandler,
 								IMessageEventHandler messageHandler,
 								IJob<VerifyServerNicknamesJob> verifyServerNicknamesJob,
 								IJob<AnnounceWeeklyWinnerJob> announceWeeklyWinnerJob,
-								ILogger<BotEventHandlers> logger,
+								ILogger<BotEventHandler> logger,
 								IOptions<BotOptions> options) : IBotEventHandlers
 {
 	private readonly ICommandEventHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
@@ -28,7 +28,7 @@ internal class BotEventHandlers(ICommandEventHandler commandHandler,
 	private readonly IMessageEventHandler _messageHandler = messageHandler ?? throw new ArgumentNullException(nameof(messageHandler));
 	private readonly IJob<VerifyServerNicknamesJob> _verifyServerNicknamesJob = verifyServerNicknamesJob ?? throw new ArgumentNullException(nameof(verifyServerNicknamesJob));
 	private readonly IJob<AnnounceWeeklyWinnerJob> _announceWeeklyWinnerJob = announceWeeklyWinnerJob ?? throw new ArgumentNullException(nameof(announceWeeklyWinnerJob));
-	private readonly ILogger<BotEventHandlers> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly ILogger<BotEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
 	private int _heartBeatCounter;

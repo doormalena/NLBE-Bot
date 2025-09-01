@@ -79,7 +79,7 @@ public static class Program
 				});
 				services.AddHostedService<Bot>();
 				services.AddSingleton<BotCommands>();
-				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
+				services.AddSingleton<IBotEventHandlers, BotEventHandler>();
 				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();
 				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
 				services.AddSingleton<IGuildMemberEventHandler, GuildMemberEventHandler>();
