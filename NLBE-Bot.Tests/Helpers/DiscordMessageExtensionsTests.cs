@@ -12,14 +12,22 @@ using System.Linq;
 [TestClass()]
 public class DiscordMessageExtensionsTests
 {
+	private IDiscordClient? _discordClientMock;
+	private ILogger<DiscordMessageUtils>? _loggerMock;
+	private DiscordMessageUtils? _utils;
+
+	[TestInitialize]
+	public void Setup()
+	{
+		_discordClientMock = Substitute.For<IDiscordClient>();
+		_loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
+		_utils = new DiscordMessageUtils(_discordClientMock, _loggerMock);
+	}
+
 	[TestMethod]
 	public void SortReactionsTest()
 	{
 		// Arrange.
-		IDiscordClient discordClient = Substitute.For<IDiscordClient>();
-		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
-		DiscordMessageUtils utils = new(discordClient, loggerMock);
-
 		IDiscordEmoji emoji1Mock = Substitute.For<IDiscordEmoji>();
 		IDiscordEmoji emoji2Mock = Substitute.For<IDiscordEmoji>();
 		IDiscordUser user1Mock = Substitute.For<IDiscordUser>();
@@ -41,7 +49,7 @@ public class DiscordMessageExtensionsTests
 		messageMock.GetReactionsAsync(emoji2Mock).Returns([user2Mock]);
 
 		// Act.
-		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = utils.SortReactions(messageMock);
+		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = _utils!.SortReactions(messageMock);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);
@@ -53,10 +61,6 @@ public class DiscordMessageExtensionsTests
 	public void SortMessagesTest()
 	{
 		// Arrange.		
-		IDiscordClient discordClient = Substitute.For<IDiscordClient>();
-		ILogger<DiscordMessageUtils> loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
-		DiscordMessageUtils utils = new(discordClient, loggerMock);
-
 		// Example log format: "01-06-2024 12:34:56|rest"
 		string content1 = "01-06-2024 12:34:56|something";
 		string content2 = "01-06-2024 12:34:56|another";
@@ -71,11 +75,70 @@ public class DiscordMessageExtensionsTests
 		List<IDiscordMessage> messages = [msg1, msg2, msg3];
 
 		// Act.
-		Dictionary<DateTime, List<IDiscordMessage>> result = utils.SortMessages(messages);
+		Dictionary<DateTime, List<IDiscordMessage>> result = _utils!.SortMessages(messages);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);
 		Assert.IsTrue(result.Values.Any(list => list.Contains(msg1) && list.Contains(msg2)));
 		Assert.IsTrue(result.Values.Any(list => list.Contains(msg3)));
+	}
+
+	[TestMethod]
+	public void GetDiscordEmoji_ShouldReturnEmoji_ForValidUnicodeEmoji()
+	{
+		// Arrange.
+		string emojiUnicode = "😄";
+
+		// Act.
+		IDiscordEmoji? result = _utils!.GetDiscordEmoji(emojiUnicode);
+
+		// Assert.
+		Assert.IsNotNull(result, "Expected a DiscordEmoji object for a valid name.");
+		Assert.AreEqual(emojiUnicode, result.Name, "Emoji unicode should match the requested name.");
+	}
+
+	[TestMethod]
+	public void GetDiscordEmoji_ShouldReturnNull_ForInvalidName()
+	{
+		// Arrange.
+		string emojiName = "nonexistent_emoji_name";
+
+		// Act.
+		IDiscordEmoji? result = _utils!.GetDiscordEmoji(emojiName);
+
+		// Assert.
+		Assert.IsNull(result, "Expected null for an invalid emoji name.");
+	}
+
+	[TestMethod]
+	public void GetDiscordEmoji_ShouldReturnNull_ForNullOrEmptyName()
+	{
+		// Act & Assert.
+		Assert.IsNull(_utils!.GetDiscordEmoji(null!), "Expected null for null input.");
+		Assert.IsNull(_utils!.GetDiscordEmoji(string.Empty), "Expected null for empty input.");
+	}
+
+	[TestMethod, Ignore("Not testable due to DSharpPlus limitations.")]
+	public void GetEmojiAsString_ShouldReturnString_ForValidEmoji()
+	{
+		// Arrange.
+		IDiscordEmoji? emoji = _utils!.GetDiscordEmoji(":hourglass_flowing_sand:");
+
+		// Act.
+		string result = _utils!.GetEmojiAsString(emoji!.ToString());
+
+		// Assert.
+		Assert.IsFalse(string.IsNullOrEmpty(result), "Expected a non-empty string for a valid emoji.");
+		StringAssert.Contains(result, ":hourglass_flowing_sand:", "Expected the emoji string to contain the emoji name.");
+	}
+
+	[TestMethod]
+	public void GetEmojiAsString_ShouldReturnEmptyString_ForNullEmoji()
+	{
+		// Act.
+		string result = _utils!.GetEmojiAsString(null!);
+
+		// Assert.
+		Assert.AreEqual(string.Empty, result, "Expected empty string for null emoji.");
 	}
 }

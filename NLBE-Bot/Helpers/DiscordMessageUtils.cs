@@ -57,39 +57,26 @@ internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<Discord
 
 	public IDiscordEmoji? GetDiscordEmoji(string name)
 	{
-		DiscordEmoji theEmoji;
-
-		try
-		{
-			theEmoji = DiscordEmoji.FromName(_discordClient.Inner, name);
-			return new DiscordEmojiWrapper(theEmoji);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogDebug(ex, ex.Message);
-		}
-
-		theEmoji = DiscordEmoji.FromUnicode(name);
-
-		if (theEmoji != null)
+		if (_discordClient.Inner != null && DiscordEmoji.TryFromName(_discordClient.Inner, name, out DiscordEmoji theEmoji))
 		{
 			return new DiscordEmojiWrapper(theEmoji);
 		}
 
-		try
+		if (!string.IsNullOrEmpty(name) && DiscordEmoji.TryFromUnicode(name, out theEmoji))
 		{
-			theEmoji = DiscordEmoji.FromName(_discordClient.Inner, name);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogWarning(ex, "Could not load emoji: {EmojiName}", name);
+			return new DiscordEmojiWrapper(theEmoji);
 		}
 
-		return theEmoji != null ? new DiscordEmojiWrapper(theEmoji) : null;
+		return null;
 	}
 
 	public string GetEmojiAsString(string emoji)
 	{
+		if (string.IsNullOrEmpty(emoji))
+		{
+			return string.Empty;
+		}
+
 		IDiscordEmoji? theEmoji = GetDiscordEmoji(emoji);
 
 		if (theEmoji != null && !theEmoji.GetDiscordName().Equals(emoji))
@@ -97,13 +84,6 @@ internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<Discord
 			return theEmoji.GetDiscordName();
 		}
 
-		try
-		{
-			return DiscordEmoji.FromUnicode(_discordClient.Inner, emoji).Name;
-		}
-		catch
-		{
-			return emoji;
-		}
+		return emoji;
 	}
 }
