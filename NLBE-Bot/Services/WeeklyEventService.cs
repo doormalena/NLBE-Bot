@@ -1,6 +1,8 @@
 namespace NLBE_Bot.Services;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -13,12 +15,14 @@ using WorldOfTanksBlitzApi.Tools.Replays;
 internal class WeeklyEventService(IChannelService channelService,
 								  IUserService userService,
 								  IBotState botState,
-								  ILogger<WeeklyEventService> _logger) : IWeeklyEventService
+								  ILogger<WeeklyEventService> _logger,
+								  IOptions<BotOptions> options) : IWeeklyEventService
 {
 	private readonly ILogger<WeeklyEventService> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
 	public IDiscordMessage DiscordMessage
 	{
@@ -32,14 +36,22 @@ internal class WeeklyEventService(IChannelService channelService,
 
 	public async Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel bottestChannel) ||
+			Guard.ReturnIfNull(await _channelService.GetAlgemeenChannelAsync(), _logger, "General channel", out IDiscordChannel generalChannel))
+		{
+			return;
+		}
+
 		bool userNotFound = true;
 		IReadOnlyCollection<IDiscordMember> members = await guild.GetAllMembersAsync();
+
 		if (weeklyEventItemMostDMG.Player != null)
 		{
 			string weeklyEventItemMostDMGPlayer = weeklyEventItemMostDMG.Player
 				.Replace("\\", string.Empty)
 				.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 				.ToLower();
+
 			foreach (IDiscordMember member in members)
 			{
 				if (!member.IsBot)
@@ -49,6 +61,7 @@ internal class WeeklyEventService(IChannelService channelService,
 						.Replace("\\", string.Empty)
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();
+
 					if (x == weeklyEventItemMostDMGPlayer)
 					{
 						userNotFound = false;
@@ -69,15 +82,11 @@ internal class WeeklyEventService(IChannelService channelService,
 						}
 						try
 						{
-							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannelAsync();
-							if (algemeenChannel != null)
-							{
-								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
-																	   "\n" +
-																	   "`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
-																	   "\n\n" +
-																	   "We wachten nu af tot de winnaar een nieuwe tank kiest.");
-							}
+							await generalChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
+																	"\n" +
+																	"`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
+																	"\n\n" +
+																	"We wachten nu af tot de winnaar een nieuwe tank kiest.");
 						}
 						catch (Exception ex)
 						{
@@ -90,14 +99,8 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 		else
 		{
-			IDiscordChannel? algemeenChannel = await _channelService.GetAlgemeenChannelAsync();
-			if (algemeenChannel != null)
-			{
-				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
-			}
+			await generalChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 		}
-
-		IDiscordChannel? bottestChannel = await _channelService.GetBotTestChannelAsync();
 
 		if (userNotFound)
 		{

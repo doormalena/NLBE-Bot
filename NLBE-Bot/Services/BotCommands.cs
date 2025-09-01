@@ -556,7 +556,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			}
 			if (!validChannel)
 			{
-				IDiscordChannel bottestChannel = await _channelService.GetBotTestChannelAsync();
+				IDiscordChannel bottestChannel = ctx.Guild.GetChannel(_options.ChannelIds.BotTest);
 				if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
 				{
 					validChannel = true;

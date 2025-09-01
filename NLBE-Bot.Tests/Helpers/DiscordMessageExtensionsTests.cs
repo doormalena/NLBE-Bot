@@ -13,15 +13,13 @@ using System.Linq;
 public class DiscordMessageExtensionsTests
 {
 	private IDiscordClient? _discordClientMock;
-	private ILogger<DiscordMessageUtils>? _loggerMock;
 	private DiscordMessageUtils? _utils;
 
 	[TestInitialize]
 	public void Setup()
 	{
 		_discordClientMock = Substitute.For<IDiscordClient>();
-		_loggerMock = Substitute.For<ILogger<DiscordMessageUtils>>();
-		_utils = new DiscordMessageUtils(_discordClientMock, _loggerMock);
+		_utils = new DiscordMessageUtils(_discordClientMock);
 	}
 
 	[TestMethod]
@@ -118,6 +116,16 @@ public class DiscordMessageExtensionsTests
 		Assert.IsNull(_utils!.GetDiscordEmoji(string.Empty), "Expected null for empty input.");
 	}
 
+	[TestMethod]
+	public void GetEmojiAsString_ShouldReturnEmptyString_ForNullEmoji()
+	{
+		// Act.
+		string result = _utils!.GetEmojiAsString(null!);
+
+		// Assert.
+		Assert.AreEqual(string.Empty, result, "Expected empty string for null emoji.");
+	}
+
 	[TestMethod, Ignore("Not testable due to DSharpPlus limitations.")]
 	public void GetEmojiAsString_ShouldReturnString_ForValidEmoji()
 	{
@@ -132,13 +140,17 @@ public class DiscordMessageExtensionsTests
 		StringAssert.Contains(result, ":hourglass_flowing_sand:", "Expected the emoji string to contain the emoji name.");
 	}
 
-	[TestMethod]
-	public void GetEmojiAsString_ShouldReturnEmptyString_ForNullEmoji()
+	[TestMethod, Ignore("Not testable due to DSharpPlus limitations.")]
+	public void GetEmojiAsString_ShouldRoundTrip_WithGetDiscordEmoji()
 	{
+		// Arrange.
+		string emojiName = ":hourglass_flowing_sand:";
+		IDiscordEmoji? emoji = _utils!.GetDiscordEmoji(emojiName);
+
 		// Act.
-		string result = _utils!.GetEmojiAsString(null!);
+		string emojiString = _utils!.GetEmojiAsString(emoji!.ToString());
 
 		// Assert.
-		Assert.AreEqual(string.Empty, result, "Expected empty string for null emoji.");
+		Assert.AreEqual(emojiName, emojiString, "Round-trip conversion should preserve emoji string.");
 	}
 }

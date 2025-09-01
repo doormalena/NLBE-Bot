@@ -21,7 +21,7 @@ internal class BotEventHandler(ICommandEventHandler commandHandler,
 								IJob<VerifyServerNicknamesJob> verifyServerNicknamesJob,
 								IJob<AnnounceWeeklyWinnerJob> announceWeeklyWinnerJob,
 								ILogger<BotEventHandler> logger,
-								IOptions<BotOptions> options) : IBotEventHandlers
+								IOptions<BotOptions> options) : EventHandlerBase(options), IBotEventHandlers
 {
 	private readonly ICommandEventHandler _commandHandler = commandHandler ?? throw new ArgumentNullException(nameof(commandHandler));
 	private readonly IGuildMemberEventHandler _guildMemberHandler = guildMemberHandler ?? throw new ArgumentNullException(nameof(guildMemberHandler));
@@ -29,11 +29,10 @@ internal class BotEventHandler(ICommandEventHandler commandHandler,
 	private readonly IJob<VerifyServerNicknamesJob> _verifyServerNicknamesJob = verifyServerNicknamesJob ?? throw new ArgumentNullException(nameof(verifyServerNicknamesJob));
 	private readonly IJob<AnnounceWeeklyWinnerJob> _announceWeeklyWinnerJob = announceWeeklyWinnerJob ?? throw new ArgumentNullException(nameof(announceWeeklyWinnerJob));
 	private readonly ILogger<BotEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
 	private int _heartBeatCounter;
 
-	public void Register(IDiscordClient client, IBotState botState)
+	public override void Register(IDiscordClient client, IBotState botState)
 	{
 		_ = client ?? throw new ArgumentNullException(nameof(client));
 		_ = botState ?? throw new ArgumentNullException(nameof(botState));
@@ -63,9 +62,9 @@ internal class BotEventHandler(ICommandEventHandler commandHandler,
 	}
 
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
-	private Task OnHeartbeated(DiscordClient _, HeartbeatEventArgs e)
+	private Task OnHeartbeated(DiscordClient discordClient, HeartbeatEventArgs e)
 	{
-		return HandleHeartbeated(e.Ping, e.Timestamp, DateTime.Now);
+		return HandleHeartbeated(new DiscordClientWrapper(discordClient), e.Ping, e.Timestamp, DateTime.Now);
 	}
 
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
@@ -85,7 +84,7 @@ internal class BotEventHandler(ICommandEventHandler commandHandler,
 		_logger.LogError(exception, "An error occurred in the Discord client event: {EventName}.", eventName);
 	}
 
-	internal async Task HandleHeartbeated(int ping, DateTimeOffset timestamp, DateTime now)
+	internal async Task HandleHeartbeated(IDiscordClient discordClient, int ping, DateTimeOffset timestamp, DateTime now)
 	{
 		_logger.LogDebug("Received heartbeat. Ping: {Ping}. Timestamp: {Timestamp}.", ping, timestamp);
 
@@ -96,8 +95,10 @@ internal class BotEventHandler(ICommandEventHandler commandHandler,
 			return;
 		}
 
-		await _verifyServerNicknamesJob.Execute(now);
-		await _announceWeeklyWinnerJob.Execute(now);
+		IDiscordGuild guild = await discordClient.GetGuildAsync(_options.ServerId);
+
+		await _verifyServerNicknamesJob.Execute(guild, now);
+		await _announceWeeklyWinnerJob.Execute(guild, now);
 	}
 
 	internal async Task HandleReady(IDiscordClient discordClient)

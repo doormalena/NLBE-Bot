@@ -17,13 +17,13 @@ using WorldOfTanksBlitzApi.Models;
 public class VerifyServerNicknamesJobTests
 {
 	private IUserService? _userServiceMock;
-	private IChannelService? _channelServiceMock;
 	private IMessageService? _messageServcieMock;
 	private IAccountsRepository? _accountsRepositoryMock;
 	private IClansRepository? _clansRepositoryMock;
 	private IBotState? _botStateMock;
 	private IOptions<BotOptions>? _optionsMock;
 	private ILogger<VerifyServerNicknamesJob>? _loggerMock;
+	private IDiscordGuild? _guildMock;
 	private VerifyServerNicknamesJob? _job;
 
 	[TestInitialize]
@@ -32,20 +32,24 @@ public class VerifyServerNicknamesJobTests
 		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_optionsMock.Value.Returns(new BotOptions()
 		{
+			ChannelIds = new()
+			{
+				BotTest = 1234
+			},
 			RoleIds = new()
 			{
 				Members = 1234567890
 			}
 		});
 		_userServiceMock = Substitute.For<IUserService>();
-		_channelServiceMock = Substitute.For<IChannelService>();
 		_messageServcieMock = Substitute.For<IMessageService>();
 		_accountsRepositoryMock = Substitute.For<IAccountsRepository>();
 		_clansRepositoryMock = Substitute.For<IClansRepository>();
 		_botStateMock = Substitute.For<IBotState>();
 		_loggerMock = Substitute.For<ILogger<VerifyServerNicknamesJob>>();
+		_guildMock = Substitute.For<IDiscordGuild>();
 
-		_job = new(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, _botStateMock, _loggerMock);
+		_job = new(_userServiceMock, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, _botStateMock, _loggerMock);
 	}
 
 	[TestMethod]
@@ -57,10 +61,10 @@ public class VerifyServerNicknamesJobTests
 		_botStateMock!.LasTimeServerNicknamesWereVerified.Returns(yesterday);
 
 		// Act.
-		await _job!.Execute(now);
+		await _job!.Execute(_guildMock!, now);
 
 		// Assert.
-		await _channelServiceMock!.Received(1).GetBotTestChannelAsync();
+		_guildMock!.Received(1).GetChannel(_optionsMock!.Value.ChannelIds.BotTest);
 		Assert.AreEqual(_botStateMock!.LasTimeServerNicknamesWereVerified, now);
 	}
 
@@ -72,10 +76,10 @@ public class VerifyServerNicknamesJobTests
 		DateTime now = DateTime.Now;
 		Exception ex = new("fail");
 		_botStateMock!.LasTimeServerNicknamesWereVerified.Returns(yesterday);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns<Task<IDiscordChannel>>(x => throw ex);
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(x => throw ex);
 
 		// Act.
-		await _job!.Execute(now);
+		await _job!.Execute(_guildMock!, now);
 
 		// Assert.
 		_loggerMock!.Received().Log(
@@ -94,7 +98,7 @@ public class VerifyServerNicknamesJobTests
 		_botStateMock!.LasTimeServerNicknamesWereVerified.Returns(DateTime.Today);
 
 		// Act.
-		await _job!.Execute(DateTime.Today);
+		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert
 		_botStateMock.DidNotReceive().LasTimeServerNicknamesWereVerified = Arg.Any<DateTime>();
@@ -104,10 +108,10 @@ public class VerifyServerNicknamesJobTests
 	public async Task Execute_LogsWarning_WhenChannelIsNull()
 	{
 		// Arrange.
-		_channelServiceMock!.GetBotTestChannelAsync().Returns((IDiscordChannel?) null);
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns((IDiscordChannel?) null);
 
 		// Act.
-		await _job!.Execute(DateTime.Today);
+		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert.
 		_loggerMock!.Received().Log(
@@ -124,13 +128,11 @@ public class VerifyServerNicknamesJobTests
 	{
 		// Arrange.
 		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
-		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
-		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
-		testGuild.GetRole(Arg.Any<ulong>()).Returns((IDiscordRole?) null);
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(testChannel);
+		_guildMock!.GetRole(Arg.Any<ulong>()).Returns((IDiscordRole?) null);
 
 		// Act.
-		await _job!.Execute(DateTime.UtcNow);
+		await _job!.Execute(_guildMock!, DateTime.UtcNow);
 
 		// Assert.
 		_loggerMock!.Received().Log(
@@ -140,7 +142,7 @@ public class VerifyServerNicknamesJobTests
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
-		await testGuild.DidNotReceive().GetAllMembersAsync();
+		await _guildMock.DidNotReceive().GetAllMembersAsync();
 	}
 
 	[TestMethod]
@@ -148,19 +150,17 @@ public class VerifyServerNicknamesJobTests
 	{
 		// Arrange,
 		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
-		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
-		channelMock.Guild.Returns(guildMock);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns(channelMock);
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(channelMock);
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
-		guildMock.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+		_guildMock!.GetRole(Arg.Any<ulong>()).Returns(memberRole);
 
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		member.IsBot.Returns(false);
 		member.Roles.Returns([memberRole]);
 		member.DisplayName.Returns("[NLBE] Player");
 		member.Username.Returns("Player");
-		guildMock.GetAllMembersAsync().Returns([member]);
+		_guildMock!.GetAllMembersAsync().Returns([member]);
 
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new WotbPlayerNameInfo("[NLBE]", "Player"));
 
@@ -182,10 +182,10 @@ public class VerifyServerNicknamesJobTests
 		};
 		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, accountInfo.Nickname, 1)
 			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo]));
-		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo.AccountId).Returns(Task.FromResult(accountClanInfo));
+		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo.AccountId).Returns(Task.FromResult<WotbAccountClanInfo?>(accountClanInfo));
 
 		// Act.
-		await _job!.Execute(DateTime.Today);
+		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert.
 		await channelMock.Received().SendMessageAsync(Arg.Is<string>(s => s.Contains("geen wijzigingen waren nodig")));
@@ -202,13 +202,11 @@ public class VerifyServerNicknamesJobTests
 	public async Task Execute_SendsMessages_ForMultipleInvalidPlayerClanMatches()
 	{
 		// Arrange.
-		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
-		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
-		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
+		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(channelMock);
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
-		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+		_guildMock.GetRole(Arg.Any<ulong>()).Returns(memberRole);
 
 		IDiscordMember member1 = Substitute.For<IDiscordMember>(); // Simulate missing clan tag.
 		member1.IsBot.Returns(false);
@@ -222,7 +220,7 @@ public class VerifyServerNicknamesJobTests
 		member2.DisplayName.Returns("[NLBE2] Player2");
 		member2.Username.Returns("Player2");
 
-		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
+		_guildMock.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
 			[member1, member2]
 		));
 
@@ -264,13 +262,13 @@ public class VerifyServerNicknamesJobTests
 
 		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, accountInfo1.Nickname, 1)
 			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo1]));
-		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo1.AccountId).Returns(Task.FromResult(accountClanInfo1));
+		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo1.AccountId).Returns(Task.FromResult<WotbAccountClanInfo?>(accountClanInfo1));
 		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, accountInfo2.Nickname, 1)
 			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo2]));
-		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo2.AccountId).Returns(Task.FromResult(accountClanInfo2));
+		_clansRepositoryMock!.GetAccountClanInfoAsync(accountInfo2.AccountId).Returns(Task.FromResult<WotbAccountClanInfo?>(accountClanInfo2));
 
 		// Act.
-		await _job!.Execute(DateTime.Today);
+		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert.
 		await _userServiceMock!.Received(2).ChangeMemberNickname(
@@ -278,9 +276,9 @@ public class VerifyServerNicknamesJobTests
 			Arg.Is<string>(s => s.Contains(accountInfo1.Nickname) || s.Contains(accountInfo2.Nickname))
 		);
 		await _messageServcieMock!.Received(2).SendMessage(
-			testChannel,
+			channelMock,
 			null,
-			testGuild.Name,
+			_guildMock.Name,
 			Arg.Is<string>(msg => msg.Contains("is aangepast van"))
 		);
 		_loggerMock!.Received(2).Log(
@@ -296,13 +294,11 @@ public class VerifyServerNicknamesJobTests
 	public async Task Execute_SendsMessage_ForInvalidPlayerMatch()
 	{
 		// Arrange.
-		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
-		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
-		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
+		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(channelMock);
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
-		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+		_guildMock.GetRole(Arg.Any<ulong>()).Returns(memberRole);
 
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		member.IsBot.Returns(false);
@@ -310,7 +306,7 @@ public class VerifyServerNicknamesJobTests
 		member.DisplayName.Returns("[TAG] Player");
 		member.Username.Returns("Player");
 
-		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
+		_guildMock.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
 			[member]
 		));
 
@@ -319,18 +315,18 @@ public class VerifyServerNicknamesJobTests
 			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([]));
 
 		// Act.
-		await _job!.Execute(DateTime.Today);
+		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert.
 		await _messageServcieMock!.Received(1).SendPrivateMessage(
 			member,
-			testGuild.Name,
+			_guildMock.Name,
 			Arg.Is<string>(s => s.Contains("Voor iedere gebruiker in de NLBE discord server wordt gecontroleerd of de ingestelde bijnaam overeenkomt met je WoTB spelersnaam.\nHelaas is dit voor jou niet het geval.\nWil je dit aanpassen?"))
 		);
 		await _messageServcieMock!.Received(1).SendMessage(
-			testChannel,
+			channelMock,
 			null,
-			testGuild.Name,
+			_guildMock.Name,
 			Arg.Is<string>(msg => msg.Contains("komt niet overeen met een WoTB-spelersnaam"))
 		);
 		_loggerMock!.Received().Log(
@@ -347,13 +343,11 @@ public class VerifyServerNicknamesJobTests
 	{
 		// Arrange
 
-		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
-		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
-		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
+		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(channelMock);
 
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
-		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+		_guildMock.GetRole(Arg.Any<ulong>()).Returns(memberRole);
 
 		// 1. Member is a bot
 		IDiscordMember botMember = Substitute.For<IDiscordMember>();
@@ -370,12 +364,12 @@ public class VerifyServerNicknamesJobTests
 		noRoleMember.IsBot.Returns(false);
 		noRoleMember.Roles.Returns([]);
 
-		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
+		_guildMock.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>(
 			[botMember, nullRolesMember, noRoleMember]
 		));
 
 		// Act.
-		await _job!.Execute(DateTime.Today);
+		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert.
 		await _messageServcieMock!.DidNotReceiveWithAnyArgs().SendMessage(default, default, default, default);
@@ -392,20 +386,18 @@ public class VerifyServerNicknamesJobTests
 	public async Task Execute_SendsPrivateMessageAndHandlesError_OnUnauthorizedException()
 	{
 		// Arrange.
-		IDiscordChannel testChannel = Substitute.For<IDiscordChannel>();
-		IDiscordGuild testGuild = Substitute.For<IDiscordGuild>();
-		testChannel.Guild.Returns(testGuild);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns(Task.FromResult(testChannel));
+		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(channelMock);
 		IDiscordRole memberRole = Substitute.For<IDiscordRole>();
 		memberRole.Id.Returns(123UL);
-		testGuild.GetRole(Arg.Any<ulong>()).Returns(memberRole);
+		_guildMock.GetRole(Arg.Any<ulong>()).Returns(memberRole);
 
 		IDiscordMember member = Substitute.For<IDiscordMember>();
 		member.IsBot.Returns(false);
 		member.Roles.Returns([memberRole]);
 		member.DisplayName.Returns("Player");
 		member.Username.Returns("Player");
-		testGuild.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>([member]));
+		_guildMock.GetAllMembersAsync().Returns(Task.FromResult<IReadOnlyCollection<IDiscordMember>>([member]));
 
 		WotbAccountInfo accountInfo = new()
 		{
@@ -416,7 +408,7 @@ public class VerifyServerNicknamesJobTests
 		_userServiceMock!.GetWotbPlayerNameFromDisplayName(Arg.Any<string>()).Returns(new WotbPlayerNameInfo("", "Player"));
 		_accountsRepositoryMock!.SearchByNameAsync(SearchType.Exact, "Player", 1)
 			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([accountInfo]));
-		_accountsRepositoryMock!.GetByIdAsync(accountInfo.AccountId).Returns(Task.FromResult(accountInfo));
+		_accountsRepositoryMock!.GetByIdAsync(accountInfo.AccountId).Returns(Task.FromResult<WotbAccountInfo?>(accountInfo));
 
 		// Simulate UnauthorizedException when changing nickname.
 		Exception ex = new UnauthorizedAccessException();
@@ -425,10 +417,10 @@ public class VerifyServerNicknamesJobTests
 			.Do(_ => { throw ex; });
 
 		// Act.
-		await _job!.Execute(DateTime.UtcNow);
+		await _job!.Execute(_guildMock!, DateTime.UtcNow);
 
 		// Assert.
-		await _messageServcieMock!.Received(1).SendPrivateMessage(member, testGuild.Name, Arg.Any<string>());
+		await _messageServcieMock!.Received(1).SendPrivateMessage(member, _guildMock.Name, Arg.Any<string>());
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
@@ -442,20 +434,18 @@ public class VerifyServerNicknamesJobTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new VerifyServerNicknamesJob(null, _channelServiceMock, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, _botStateMock, _loggerMock));
+			  new VerifyServerNicknamesJob(null!, _messageServcieMock!, _accountsRepositoryMock!, _clansRepositoryMock!, _optionsMock!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, null, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock!, null!, _accountsRepositoryMock!, _clansRepositoryMock!, _optionsMock!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, null, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock!, _messageServcieMock!, null!, _clansRepositoryMock!, _optionsMock!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, null, _clansRepositoryMock, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock!, _messageServcieMock!, _accountsRepositoryMock!, null!, _optionsMock!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountsRepositoryMock, null, _optionsMock, _botStateMock, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock!, _messageServcieMock!, _accountsRepositoryMock!, _clansRepositoryMock!, _optionsMock!, null!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, null, _loggerMock));
+			new VerifyServerNicknamesJob(_userServiceMock!, _messageServcieMock!, _accountsRepositoryMock!, _clansRepositoryMock!, _optionsMock!, _botStateMock!, null!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, _botStateMock, null));
-		Assert.ThrowsException<ArgumentNullException>(() =>
-				new VerifyServerNicknamesJob(_userServiceMock, _channelServiceMock, _messageServcieMock, _accountsRepositoryMock, _clansRepositoryMock, _optionsMock, _botStateMock, null));
+				new VerifyServerNicknamesJob(_userServiceMock!, _messageServcieMock!, _accountsRepositoryMock!, _clansRepositoryMock!, _optionsMock!, _botStateMock!, null!));
 	}
 }

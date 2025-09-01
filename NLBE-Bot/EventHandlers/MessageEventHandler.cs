@@ -87,7 +87,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			if (Guard.ReturnIfNull(await _channelService.GetWeeklyEventChannelAsync(), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel) ||
 				Guard.ReturnIfNull(await _channelService.GetMasteryReplaysChannelAsync(), _logger, "Mastery Replays channel", out IDiscordChannel masteryChannel) ||
 				Guard.ReturnIfNull(await _channelService.GetReplayResultsChannelAsync(), _logger, "Replay Results channel", out IDiscordChannel replayChannel) ||
-				Guard.ReturnIfNull(await _channelService.GetBotTestChannelAsync(), _logger, "Bot Test channel", out IDiscordChannel botTestChannel))
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel))
 			{
 				return;
 			}
@@ -116,7 +116,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							{
 								if (attachment.FileName.EndsWith(".wotbreplay"))
 								{
-									Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, attachment, channel, guild.Name, guild.Id, string.Empty, await guild.GetMemberAsync(author.Id));
+									Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, attachment, channel, guild, string.Empty, await guild.GetMemberAsync(author.Id));
 									await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 									break;
 								}
@@ -126,7 +126,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 						{
 							string[] splitted = message.Content.Split(' ');
 							string url = splitted[0];
-							Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, string.Empty, channel, guild.Name, guild.Id, url, await guild.GetMemberAsync(author.Id));
+							Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, string.Empty, channel, guild, url, await guild.GetMemberAsync(author.Id));
 							await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 						}
 					}
@@ -256,7 +256,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		{
 			if (user.IsBot ||
 				Guard.ReturnIfNull(await _channelService.GetToernooiAanmeldenChannelAsync(), _logger, "Toernooi Aanmelden channel", out IDiscordChannel toernooiAanmeldenChannel) ||
-				Guard.ReturnIfNull(await _channelService.GetRegelsChannelAsync(), _logger, "Regels channel", out IDiscordChannel regelsChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Rules), _logger, "Rules channel", out IDiscordChannel rulesChannel) ||
 				Guard.ReturnIfNull(await _channelService.GetAlgemeenChannelAsync(), _logger, "Algemeen channel", out IDiscordChannel algemeenChannel) ||
 				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Members), _logger, "Members rol", out IDiscordRole membersRole))
 			{
@@ -270,7 +270,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 				return;
 			}
 
-			if (channel.Id == regelsChannel.Id)
+			if (channel.Id == rulesChannel.Id)
 			{
 				string rulesReadEmoji = ":ok:";
 				if (emoji.GetDiscordName().Equals(rulesReadEmoji))

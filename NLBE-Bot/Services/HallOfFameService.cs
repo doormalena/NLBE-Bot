@@ -29,7 +29,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 	private readonly IReplayService _replayService = replayService ?? throw new ArgumentNullException(nameof(replayService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 
-	public async Task<Tuple<string, IDiscordMessage>> Handle(string titel, object discAttach, IDiscordChannel channel, string guildName, ulong guildID, string iets, IDiscordMember member)
+	public async Task<Tuple<string, IDiscordMessage>> Handle(string titel, object discAttach, IDiscordChannel channel, IDiscordGuild guild, string iets, IDiscordMember member)
 	{
 		if (discAttach is DiscordAttachment attachment)
 		{
@@ -49,7 +49,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 				}
 				if (!validChannel)
 				{
-					goodChannel = await _channelService.GetBotTestChannelAsync();
+					goodChannel = guild.GetChannel(_options.ChannelIds.BotTest);
 					if (goodChannel.Id.Equals(channel.Id))
 					{
 						validChannel = true;
@@ -57,7 +57,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 				}
 
 				return validChannel
-					? await GoHOFDetails(replayInfo, channel, member, guildName, guildID)
+					? await GoHOFDetails(replayInfo, channel, member, guild)
 					: new Tuple<string, IDiscordMessage>("Kanaal is niet geschikt voor HOF.", null);
 			}
 			else
@@ -71,7 +71,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 		}
 	}
 
-	public async Task<Tuple<string, IDiscordMessage>> GoHOFDetails(WGBattle replayInfo, IDiscordChannel channel, IDiscordMember member, string guildName, ulong guildID)
+	public async Task<Tuple<string, IDiscordMessage>> GoHOFDetails(WGBattle replayInfo, IDiscordChannel channel, IDiscordMember member, IDiscordGuild guild)
 	{
 		_ = (await channel.GetMessagesAsync(1))[0];
 		IDiscordMessage tempMessage;
@@ -83,20 +83,20 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 				try
 				{
 					return replayInfo.details != null
-						? await ReplayHOF(replayInfo, channel, member, guildName)
+						? await ReplayHOF(replayInfo, channel, member, guild.Name)
 						: new Tuple<string, IDiscordMessage>("Replay bevatte geen details.", null);
 				}
 				catch (JsonNotFoundException ex)
 				{
-					_ = await _messageService.SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
+					_ = await _messageService.SaySomethingWentWrong(channel, member, guild.Name, "**Er ging iets mis tijdens het inlezen van de gegevens!**");
 					_logger.LogError(ex, "Error while reading json from a replay.");
 				}
 				catch (Exception ex)
 				{
-					_ = await _messageService.SaySomethingWentWrong(channel, member, guildName, "**Er ging iets mis bij het controleren van de HOF!**");
+					_ = await _messageService.SaySomethingWentWrong(channel, member, guild.Name, "**Er ging iets mis bij het controleren van de HOF!**");
 					_logger.LogError(ex, "Error while checking HOF with a replay.");
 				}
-				tempMessage = await _messageService.SendMessage(channel, member, guildName, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
+				tempMessage = await _messageService.SendMessage(channel, member, guild.Name, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
 				return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
 			}
 			else
@@ -113,12 +113,12 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 					_ => string.Empty
 				};
 
-				tempMessage = await _messageService.SayCannotBePlayedAt(channel, member, guildName, roomTypeName);
+				tempMessage = await _messageService.SayCannotBePlayedAt(channel, member, guild.Name, roomTypeName);
 			}
 		}
 		else
 		{
-			tempMessage = await _messageService.SaySomethingWentWrong(channel, member, guildName, "**Je mag enkel de standaardbattles gebruiken! (Geen speciale gamemodes)**");
+			tempMessage = await _messageService.SaySomethingWentWrong(channel, member, guild.Name, "**Je mag enkel de standaardbattles gebruiken! (Geen speciale gamemodes)**");
 		}
 		string thumbnail = string.Empty;
 		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild.Id);

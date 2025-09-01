@@ -1,17 +1,15 @@
 namespace NLBE_Bot.Helpers;
 
 using DSharpPlus.Entities;
-using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
+internal class DiscordMessageUtils(IDiscordClient discordClient) : IDiscordMessageUtils
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
-	private readonly ILogger<DiscordMessageUtils> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
 	public Dictionary<IDiscordEmoji, List<IDiscordUser>> SortReactions(IDiscordMessage message)
 	{

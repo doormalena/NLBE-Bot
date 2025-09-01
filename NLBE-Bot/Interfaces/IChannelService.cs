@@ -12,8 +12,6 @@ internal interface IChannelService
 
 	public Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll);
 
-	public Task<IDiscordChannel?> GetBotTestChannelAsync();
-
 	public Task<IDiscordChannel?> GetToernooiAanmeldenChannelAsync();
 
 	public Task<IDiscordChannel?> GetWeeklyEventChannelAsync();
@@ -22,13 +20,9 @@ internal interface IChannelService
 
 	public Task<IDiscordChannel?> GetAlgemeenChannelAsync();
 
-	public Task<IDiscordChannel?> GetRegelsChannelAsync();
-
 	public Task<IDiscordChannel?> GetMasteryReplaysChannelAsync();
 
 	public Task<IDiscordChannel?> GetMappenChannelAsync();
-
-	public Task<IDiscordChannel?> GetOudLedenChannelAsync();
 
 	public Task<IDiscordChannel?> GetChannelAsync(ulong channelId);
 

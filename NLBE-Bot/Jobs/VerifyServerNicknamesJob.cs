@@ -15,7 +15,6 @@ using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 
 internal class VerifyServerNicknamesJob(IUserService userService,
-								 IChannelService channelService,
 								 IMessageService messageService,
 								 IAccountsRepository accountRepository,
 								 IClansRepository clanRepository,
@@ -24,7 +23,6 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 								 ILogger<VerifyServerNicknamesJob> logger) : IJob<VerifyServerNicknamesJob>
 {
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
@@ -32,14 +30,14 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
-	public async Task Execute(DateTime now)
+	public async Task Execute(IDiscordGuild guild, DateTime now)
 	{
 		if (!ShouldVerifyServerNicknames(now, _botState.LasTimeServerNicknamesWereVerified))
 		{
 			return;
 		}
 
-		await VerifyServerNicknames(now);
+		await VerifyServerNicknames(guild, now);
 	}
 
 	private static bool ShouldVerifyServerNicknames(DateTime now, DateTime? lastUpdate)
@@ -48,7 +46,7 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		return !lastUpdate.HasValue || lastUpdate.Value.Date != now.Date;
 	}
 
-	private async Task VerifyServerNicknames(DateTime now)
+	private async Task VerifyServerNicknames(IDiscordGuild guild, DateTime now)
 	{
 		DateTime? lastSuccessfull = _botState.LasTimeServerNicknamesWereVerified; // Temporary store the last successful verification time.
 
@@ -56,14 +54,8 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		{
 			_botState.LasTimeServerNicknamesWereVerified = now; // Update the last successful verification time to now to prevent multiple executions in parallel.
 
-			if (Guard.ReturnIfNull(await _channelService.GetBotTestChannelAsync(), _logger, "Bot Test channel", out IDiscordChannel bottestChannel))
-			{
-				return;
-			}
-
-			IDiscordGuild guild = bottestChannel.Guild;
-
-			if (Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Members), _logger, $"Default member role with id `{_options.RoleIds.Members}`", out IDiscordRole memberRole))
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel bottestChannel) ||
+				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Members), _logger, $"Default member role with id `{_options.RoleIds.Members}`", out IDiscordRole memberRole))
 			{
 				return;
 			}

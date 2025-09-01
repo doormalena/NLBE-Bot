@@ -20,8 +20,9 @@ public class BotEventHandlerTests
 	private IJob<AnnounceWeeklyWinnerJob>? _announceWeeklyWinnerJobMock;
 	private ILogger<BotEventHandler>? _loggerMock;
 	private IBotState? _botStateMock;
-	private IDiscordClient? _clientMock;
+	private IDiscordClient? _discordClientMock;
 	private ICommandsNextExtension? _commandsNextMock;
+	private IDiscordGuild? _guildMock;
 	private BotEventHandler? _handler;
 
 	[TestInitialize]
@@ -30,6 +31,10 @@ public class BotEventHandlerTests
 		_optionsMock = Substitute.For<IOptions<BotOptions>>();
 		_optionsMock.Value.Returns(new BotOptions()
 		{
+			ChannelIds = new()
+			{
+				BotTest = 1234
+			},
 			ServerId = 1000000
 		});
 
@@ -40,10 +45,12 @@ public class BotEventHandlerTests
 		_announceWeeklyWinnerJobMock = Substitute.For<IJob<AnnounceWeeklyWinnerJob>>();
 		_loggerMock = Substitute.For<ILogger<BotEventHandler>>();
 		_botStateMock = Substitute.For<IBotState>();
-		_clientMock = Substitute.For<IDiscordClient>();
+		_discordClientMock = Substitute.For<IDiscordClient>();
 		_commandsNextMock = Substitute.For<ICommandsNextExtension>();
+		_guildMock = Substitute.For<IDiscordGuild>();
 
-		_clientMock.GetCommandsNext().Returns(_commandsNextMock);
+		_discordClientMock.GetGuildAsync(_optionsMock.Value.ServerId).Returns(_guildMock);
+		_discordClientMock.GetCommandsNext().Returns(_commandsNextMock);
 
 		_handler = new(_commandHandlerMock, _guildMemberHandlerMock, _messageHandlerMock, _verifyServerNicknamesJobMock, _announceWeeklyWinnerJobMock, _loggerMock, _optionsMock);
 	}
@@ -52,12 +59,12 @@ public class BotEventHandlerTests
 	public void Register_RegistersAllHandlersAndEvents()
 	{
 		// Act.
-		_handler!.Register(_clientMock!, _botStateMock!);
+		_handler!.Register(_discordClientMock!, _botStateMock!);
 
 		// Assert.
 		_commandHandlerMock!.Received(1).Register(_commandsNextMock!);
-		_guildMemberHandlerMock!.Received(1).Register(_clientMock!, _botStateMock!);
-		_messageHandlerMock!.Received(1).Register(_clientMock!, _botStateMock!);
+		_guildMemberHandlerMock!.Received(1).Register(_discordClientMock!, _botStateMock!);
+		_messageHandlerMock!.Received(1).Register(_discordClientMock!, _botStateMock!);
 	}
 
 	[TestMethod]
@@ -94,10 +101,10 @@ public class BotEventHandlerTests
 			{ 1000000UL, guild2 },
 		};
 
-		_clientMock!.Guilds.Returns(guilds);
+		_discordClientMock!.Guilds.Returns(guilds);
 
 		// Act.
-		await _handler!.HandleReady(_clientMock);
+		await _handler!.HandleReady(_discordClientMock);
 
 		// Assert.
 		await guild1.Received(1).LeaveAsync();
@@ -140,11 +147,11 @@ public class BotEventHandlerTests
 		DateTime now = DateTime.Now;
 
 		// Act.
-		await _handler!.HandleHeartbeated(ping, timestamp, now);
+		await _handler!.HandleHeartbeated(_discordClientMock!, ping, timestamp, now);
 
 		// Assert.
-		await _verifyServerNicknamesJobMock!.DidNotReceive().Execute(Arg.Any<DateTime>());
-		await _announceWeeklyWinnerJobMock!.DidNotReceive().Execute(Arg.Any<DateTime>());
+		await _verifyServerNicknamesJobMock!.DidNotReceive().Execute(_guildMock!, Arg.Any<DateTime>());
+		await _announceWeeklyWinnerJobMock!.DidNotReceive().Execute(_guildMock!, Arg.Any<DateTime>());
 	}
 
 	[TestMethod]
@@ -156,12 +163,12 @@ public class BotEventHandlerTests
 		DateTime now = DateTime.Now;
 
 		// Act.
-		await _handler!.HandleHeartbeated(ping, timestamp, now); // First call (should skip).
-		await _handler!.HandleHeartbeated(ping, timestamp, now); // Second call (should execute jobs).
+		await _handler!.HandleHeartbeated(_discordClientMock!, ping, timestamp, now); // First call (should skip).
+		await _handler!.HandleHeartbeated(_discordClientMock!, ping, timestamp, now); // Second call (should execute jobs).
 
 		// Assert.
-		await _verifyServerNicknamesJobMock!.Received(1).Execute(now);
-		await _announceWeeklyWinnerJobMock!.Received(1).Execute(now);
+		await _verifyServerNicknamesJobMock!.Received(1).Execute(_guildMock!, now);
+		await _announceWeeklyWinnerJobMock!.Received(1).Execute(_guildMock!, now);
 	}
 
 	[TestMethod]
@@ -200,7 +207,7 @@ public class BotEventHandlerTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() => _handler!.Register(null!, _botStateMock!));
-		Assert.ThrowsException<ArgumentNullException>(() => _handler!.Register(_clientMock!, null!));
+		Assert.ThrowsException<ArgumentNullException>(() => _handler!.Register(_discordClientMock!, null!));
 	}
 
 	[TestMethod]

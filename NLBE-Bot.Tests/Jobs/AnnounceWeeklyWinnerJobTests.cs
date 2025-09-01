@@ -1,6 +1,8 @@
 namespace NLBE_Bot.Tests.Jobs;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Jobs;
 using NLBE_Bot.Models;
@@ -11,21 +13,31 @@ using System;
 [TestClass]
 public class AnnounceWeeklyWinnerJobTests
 {
+	private IOptions<BotOptions>? _optionsMock;
 	private IWeeklyEventService? _weeklyEventServiceMock;
-	private IChannelService? _channelServiceMock;
 	private IBotState? _botStateMock;
 	private ILogger<AnnounceWeeklyWinnerJob>? _loggerMock;
+	private IDiscordGuild? _guildMock;
 	private AnnounceWeeklyWinnerJob? _job;
 
 	[TestInitialize]
 	public void Setup()
 	{
+		_optionsMock = Substitute.For<IOptions<BotOptions>>();
+		_optionsMock.Value.Returns(new BotOptions()
+		{
+			ChannelIds = new()
+			{
+				BotTest = 1234
+			},
+			ServerId = 1000000
+		});
 		_weeklyEventServiceMock = Substitute.For<IWeeklyEventService>();
-		_channelServiceMock = Substitute.For<IChannelService>();
 		_botStateMock = Substitute.For<IBotState>();
 		_loggerMock = Substitute.For<ILogger<AnnounceWeeklyWinnerJob>>();
+		_guildMock = Substitute.For<IDiscordGuild>();
 
-		_job = new(_weeklyEventServiceMock, _channelServiceMock, _botStateMock, _loggerMock);
+		_job = new(_weeklyEventServiceMock, _optionsMock, _botStateMock, _loggerMock);
 	}
 
 	[TestMethod]
@@ -38,7 +50,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_weeklyEventServiceMock!.ReadWeeklyEvent().Returns(Task.CompletedTask);
 
 		// Act.
-		await _job!.Execute(monday14);
+		await _job!.Execute(_guildMock, monday14);
 
 		// Assert.
 		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
@@ -50,9 +62,7 @@ public class AnnounceWeeklyWinnerJobTests
 	{
 		// Arrange.
 		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
-		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
-		channelMock.Guild.Returns(guildMock);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns(channelMock);
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns(channelMock);
 
 		// Setup WeeklyEventService to return a valid WeeklyEvent with a Most_damage item and player.
 		WeeklyEventItem mostDmgItem = new(WeeklyEventType.Most_damage)
@@ -66,12 +76,12 @@ public class AnnounceWeeklyWinnerJobTests
 		_weeklyEventServiceMock!.WeeklyEvent.Returns(weeklyEvent);
 
 
-		_weeklyEventServiceMock.WeHaveAWinner(guildMock, mostDmgItem, "TestTank").Returns(Task.CompletedTask); // Make WeHaveAWinner a no-op.
+		_weeklyEventServiceMock.WeHaveAWinner(_guildMock!, mostDmgItem, "TestTank").Returns(Task.CompletedTask); // Make WeHaveAWinner a no-op.
 
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null); // Set up state to trigger announcement.
 
 		// Act.
-		await _job!.Execute(DateTime.Now.Date.AddDays(-(int) DateTime.Now.DayOfWeek + (int) DayOfWeek.Monday).AddHours(15)); // Monday after 14:00.
+		await _job!.Execute(_guildMock, DateTime.Now.Date.AddDays(-(int) DateTime.Now.DayOfWeek + (int) DayOfWeek.Monday).AddHours(15)); // Monday after 14:00.
 
 		// Assert.
 		await channelMock.Received().SendMessageAsync(Arg.Any<string>());
@@ -86,7 +96,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(lastAnnouncement);
 
 		// Act.
-		await _job!.Execute(tuesday14);
+		await _job!.Execute(_guildMock, tuesday14);
 
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
@@ -101,7 +111,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
 
 		// Act.
-		await _job!.Execute(mondayBefore14);
+		await _job!.Execute(_guildMock, mondayBefore14);
 
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
@@ -116,7 +126,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(monday15.Date);
 
 		// Act.
-		await _job!.Execute(monday15);
+		await _job!.Execute(_guildMock, monday15);
 
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
@@ -131,7 +141,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
 
 		// Act.
-		await _job!.Execute(monday15);
+		await _job!.Execute(_guildMock, monday15);
 
 		// Assert.
 		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
@@ -149,7 +159,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_weeklyEventServiceMock!.ReadWeeklyEvent().Throws(ex);
 
 		// Act.
-		await _job!.Execute(monday15);
+		await _job!.Execute(_guildMock, monday15);
 
 		// Assert.
 		_loggerMock!.Received().Log(
@@ -167,10 +177,10 @@ public class AnnounceWeeklyWinnerJobTests
 		// Arrange.
 		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local);
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
-		_channelServiceMock!.GetBotTestChannelAsync().Returns((IDiscordChannel?) null);
+		_guildMock!.GetChannel(_optionsMock!.Value.ChannelIds.BotTest).Returns((IDiscordChannel?) null);
 
 		// Act.
-		await _job!.Execute(monday15);
+		await _job!.Execute(_guildMock, monday15);
 
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
@@ -188,12 +198,12 @@ public class AnnounceWeeklyWinnerJobTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new AnnounceWeeklyWinnerJob(null!, _channelServiceMock!, _botStateMock!, _loggerMock!));
+			  new AnnounceWeeklyWinnerJob(null!, _optionsMock!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
 			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, null!, _botStateMock!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, _channelServiceMock!, null!, _loggerMock!));
+			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, _optionsMock!, null!, _loggerMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, _channelServiceMock!, _botStateMock!, null!));
+			new AnnounceWeeklyWinnerJob(_weeklyEventServiceMock!, _optionsMock!, _botStateMock!, null!));
 	}
 }

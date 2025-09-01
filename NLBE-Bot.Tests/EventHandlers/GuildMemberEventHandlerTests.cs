@@ -586,7 +586,6 @@ public class GuildMemberEventHandlerTests
 		await _handler!.HandleMemberRemoved(guild, member);
 
 		// Assert.
-		await _channelServiceMock!.DidNotReceive().GetOudLedenChannelAsync();
 		await _messageServiceMock!.DidNotReceive().CreateEmbed(Arg.Any<IDiscordChannel>(), Arg.Any<EmbedOptions>());
 	}
 
@@ -630,7 +629,6 @@ public class GuildMemberEventHandlerTests
 		role.Id.Returns(noobRoleId);
 		member.Roles.Returns([role]);
 		guild.Roles.Returns(new Dictionary<ulong, IDiscordRole> { { noobRoleId, role } });
-		_channelServiceMock!.GetOudLedenChannelAsync().Returns(Substitute.For<IDiscordChannel>());
 
 		IBotState botState = Substitute.For<IBotState>();
 		botState.IgnoreEvents.Returns(false);

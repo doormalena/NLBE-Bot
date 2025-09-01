@@ -43,20 +43,10 @@ internal class ChannelService(IOptions<BotOptions> options,
 		return await GetChannelAsync(ChatID);
 	}
 
-	public async Task<IDiscordChannel?> GetOudLedenChannelAsync()
-	{
-		return await GetChannelAsync(_options.ChannelIds.OldMembers);
-	}
-
 	public async Task<IDiscordChannel?> GetDeputiesChannelAsync()
 	{
 		ulong ChatID = 668211371522916389;
 		return await GetChannelAsync(ChatID);
-	}
-
-	public async Task<IDiscordChannel?> GetRegelsChannelAsync()
-	{
-		return await GetChannelAsync(_options.ChannelIds.Rules);
 	}
 
 	public async Task<IDiscordChannel?> GetLogChannelAsync()
@@ -75,10 +65,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 		return await GetChannelAsync(ChatID);
 	}
 
-	public async Task<IDiscordChannel?> GetBotTestChannelAsync()
-	{
-		return await GetChannelAsync(_options.ChannelIds.BotTest);
-	}
 	public async Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll)
 	{
 		long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;
