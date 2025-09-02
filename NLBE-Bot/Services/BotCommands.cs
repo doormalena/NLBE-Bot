@@ -2312,7 +2312,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		return command.Name.ToLower() switch
 		{
-			"help" or "map" or "gebruiker" or "gebruikerslijst" or "clan" or "clanmembers" or "spelerinfo" => true, // These commands are allowed for everyone.
+			"help" or "map" or "gebruiker" or "gebruikerslijst" or "clan" or "clanmembers" or "spelerinfo" or "bonuscode" => true, // These commands are allowed for everyone.
 			"toernooi" or "toernooien" => HasAnyRole(member, Constants.TOERNOOI_DIRECTIE),
 			"teams" => HasAnyRole(member, Constants.NLBE_ROLE, Constants.NLBE2_ROLE, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
 			"tagteams" => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
