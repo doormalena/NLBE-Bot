@@ -12,13 +12,9 @@ internal interface IChannelService
 
 	public Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll);
 
-	public Task<IDiscordChannel?> GetToernooiAanmeldenChannelAsync();
-
 	public Task<IDiscordChannel?> GetWeeklyEventChannelAsync();
 
 	public Task<IDiscordChannel?> GetReplayResultsChannelAsync();
-
-	public Task<IDiscordChannel?> GetAlgemeenChannelAsync();
 
 	public Task<IDiscordChannel?> GetMasteryReplaysChannelAsync();
 

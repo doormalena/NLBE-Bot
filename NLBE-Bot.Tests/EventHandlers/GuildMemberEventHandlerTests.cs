@@ -638,7 +638,7 @@ public class GuildMemberEventHandlerTests
 		await _handler!.HandleMemberRemoved(guild, member);
 
 		// Assert.
-		await _channelServiceMock.Received(1).CleanWelkomChannelAsync(Arg.Any<ulong>());
+		await _channelServiceMock!.Received(1).CleanWelkomChannelAsync(Arg.Any<ulong>());
 	}
 
 	[TestMethod]
@@ -702,13 +702,4 @@ public class GuildMemberEventHandlerTests
 		Assert.ThrowsException<ArgumentNullException>(() =>
 				  new GuildMemberEventHandler(_loggerMock!, _options!, _channelServiceMock!, _userServiceMock!, _messageServiceMock!, _accountsRepository!, null!));
 	}
-}
-
-public enum MissingDependency
-{
-	WelcomeChannel,
-	RulesChannel,
-	NoobRole,
-	MustReadRulesRole,
-	User
 }

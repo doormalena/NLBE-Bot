@@ -27,6 +27,8 @@ public class MessageEventHandlerTests
 	private IMessageService? _messageServiceMock;
 	private IDiscordGuild? _guildMock;
 	private IDiscordChannel? _rulesChannelMock;
+	private IDiscordChannel? _generalChannelMock;
+	private IDiscordChannel? _tournamentSignUpChannelMock;
 	private MessageEventHandler? _handler;
 
 	[TestInitialize]
@@ -36,7 +38,9 @@ public class MessageEventHandlerTests
 		{
 			ChannelIds = new()
 			{
-				Rules = 999UL
+				Rules = 999UL,
+				General = 888UL,
+				TournamentSignUp = 777UL,
 			},
 			RoleIds = new()
 			{
@@ -49,10 +53,16 @@ public class MessageEventHandlerTests
 
 		_rulesChannelMock = Substitute.For<IDiscordChannel>();
 		_rulesChannelMock.Id.Returns(_options.Value.ChannelIds.Rules);
+		_generalChannelMock = Substitute.For<IDiscordChannel>();
+		_generalChannelMock.Id.Returns(_options.Value.ChannelIds.General);
+		_tournamentSignUpChannelMock = Substitute.For<IDiscordChannel>();
+		_tournamentSignUpChannelMock.Id.Returns(_options.Value.ChannelIds.TournamentSignUp);
 
 		_guildMock = Substitute.For<IDiscordGuild>();
 		_guildMock.Id.Returns(_options!.Value.ServerId);
 		_guildMock.GetChannel(_options.Value.ChannelIds.Rules).Returns(_rulesChannelMock);
+		_guildMock.GetChannel(_options.Value.ChannelIds.General).Returns(_generalChannelMock);
+		_guildMock.GetChannel(_options.Value.ChannelIds.TournamentSignUp).Returns(_tournamentSignUpChannelMock);
 
 		_discordClientMock = Substitute.For<IDiscordClient>();
 		_discordClientMock.GetGuildAsync(_options.Value.ServerId).Returns(Task.FromResult(_guildMock));
@@ -102,16 +112,9 @@ public class MessageEventHandlerTests
 		// Arrange.
 		ulong reactingUserId = 555UL;
 
-		IDiscordChannel algemeenChannel = Substitute.For<IDiscordChannel>();
-		_channelServiceMock!.GetAlgemeenChannelAsync().Returns(Task.FromResult<IDiscordChannel?>(algemeenChannel));
-
 		IDiscordRole membersRole = Substitute.For<IDiscordRole>();
 		membersRole.Id.Returns(_options!.Value.RoleIds.Members);
 		_guildMock!.GetRole(_options!.Value.RoleIds.Members).Returns(membersRole);
-
-		IDiscordChannel toernooiChannel = Substitute.For<IDiscordChannel>();
-		toernooiChannel.Id.Returns(888UL); // different from rulesChannelId
-		_channelServiceMock!.GetToernooiAanmeldenChannelAsync().Returns(Task.FromResult<IDiscordChannel?>(toernooiChannel));
 
 		// Emoji
 		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
@@ -144,14 +147,75 @@ public class MessageEventHandlerTests
 		_handler!.Register(_discordClientMock!, Substitute.For<IBotState>());
 
 		// Act.
-		await _handler!.HandleMessageReactionAdded(message, _guildMock, _rulesChannelMock, addingUser, emoji);
+		await _handler!.HandleMessageReactionAdded(message, _guildMock, _rulesChannelMock!, addingUser, emoji);
 
 		// Assert.
 		await message.Received(1).DeleteReactionAsync(emoji, reactingUser);
 		await member.Received(1).RevokeRoleAsync(mustReadRulesRole);
-		await _userServiceMock!.Received(1).ChangeMemberNickname(member, Arg.Is<string>(s => s.StartsWith("[] ")));
+		await _userServiceMock!.Received(1).ChangeMemberNickname(member, Arg.Is<string>(s => s.Equals("[] PlayerName")));
 		await member.Received(1).GrantRoleAsync(membersRole);
-		await algemeenChannel.Received(1).SendMessageAsync(Arg.Is<string>(s => s.Contains("@PlayerName")));
+		await _generalChannelMock!.Received(1).SendMessageAsync("@PlayerName, welkom op de NLBE discord server. Good luck, have fun!");
+	}
+
+	[DataTestMethod]
+	[DataRow(MissingDependency.TournamentSignUpChannel)]
+	[DataRow(MissingDependency.RulesChannel)]
+	[DataRow(MissingDependency.GeneralChannel)]
+	[DataRow(MissingDependency.MembersRole)]
+	public async Task HandleMessageReactionAdded_ReturnsEarly_WhenDependencyIsNull(MissingDependency missing)
+	{
+		// Arrange.
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.Id.Returns(999u);
+
+		IDiscordChannel tournamentSignUpChannel = Substitute.For<IDiscordChannel>();
+		IDiscordChannel rulesChannel = Substitute.For<IDiscordChannel>();
+		IDiscordChannel generalChannel = Substitute.For<IDiscordChannel>();
+
+		// Simulate null for the selected dependency
+		switch (missing)
+		{
+			case MissingDependency.TournamentSignUpChannel:
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.TournamentSignUp).Returns((IDiscordChannel?) null);
+				break;
+
+			case MissingDependency.RulesChannel:
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.TournamentSignUp).Returns(tournamentSignUpChannel);
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.Rules).Returns((IDiscordChannel?) null);
+				break;
+
+			case MissingDependency.GeneralChannel:
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.TournamentSignUp).Returns(tournamentSignUpChannel);
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.Rules).Returns(rulesChannel);
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.General).Returns(generalChannel);
+				break;
+
+			case MissingDependency.MembersRole:
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.Welcome).Returns(tournamentSignUpChannel);
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.Rules).Returns(rulesChannel);
+				_guildMock!.GetChannel(_options!.Value.ChannelIds.General).Returns(generalChannel);
+				_guildMock!.GetRole(_options!.Value.RoleIds.Members).Returns((IDiscordRole?) null);
+				break;
+			default:
+				break;
+		}
+
+		IBotState botState = Substitute.For<IBotState>();
+		botState.IgnoreEvents.Returns(false);
+		_handler!.Register(_discordClientMock!, botState);
+
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		IDiscordUser user = Substitute.For<IDiscordUser>();
+		user.IsBot.Returns(false);
+		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
+
+		// Act.
+		await _handler!.HandleMessageReactionAdded(message, _guildMock!, _rulesChannelMock!, user, emoji);
+
+		// Assert.
+		_guildMock!.Received().GetChannel(Arg.Any<ulong>());
+		await _tournamentServiceMock!.DidNotReceive().GenerateLogMessage(Arg.Any<IDiscordMessage>(), Arg.Any<IDiscordChannel>(), Arg.Any<ulong>(), Arg.Any<string>());
+		await message!.DidNotReceive().GetReactionsAsync(Arg.Any<IDiscordEmoji>());
 	}
 
 	[TestMethod]

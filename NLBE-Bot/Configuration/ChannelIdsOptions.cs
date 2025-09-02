@@ -10,6 +10,12 @@ public class ChannelIdsOptions
 	}
 
 	[Required]
+	public ulong General
+	{
+		get; set;
+	}
+
+	[Required]
 	public ulong OldMembers
 	{
 		get; set;
@@ -17,6 +23,12 @@ public class ChannelIdsOptions
 
 	[Required]
 	public ulong Rules
+	{
+		get; set;
+	}
+
+	[Required]
+	public ulong TournamentSignUp
 	{
 		get; set;
 	}

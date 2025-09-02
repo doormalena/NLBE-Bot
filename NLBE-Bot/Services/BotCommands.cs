@@ -73,6 +73,11 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			if (tiers_gesplitst_met_spatie.Length > 0)
 			{
@@ -93,51 +98,43 @@ internal class BotCommands(IDiscordClient discordClient,
 				{
 					if (_tournamentService.CheckIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
 					{
-						IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannelAsync();
-						if (toernooiAanmeldenChannel != null)
+						List<DEF> deflist = [];
+						DEF newDef1 = new()
 						{
-							List<DEF> deflist = [];
-							DEF newDef1 = new()
-							{
-								Name = "Type",
-								Value = (string.IsNullOrEmpty(type) ? "Quick Tournament" : type).AdaptToChat(),
-								Inline = true
-							};
-							deflist.Add(newDef1);
-							DEF newDef2 = new()
-							{
-								Name = "Wanneer?",
-								Value = wanneer.AdaptToChat(),
-								Inline = true
-							};
-							deflist.Add(newDef2);
-							DEF newDef3 = new()
-							{
-								Name = "Organisator",
-								Value = ctx.Member.DisplayName.AdaptToChat(),
-								Inline = true
-							};
-							deflist.Add(newDef3);
-
-							List<IDiscordEmoji> emojiList = [];
-							for (int i = 0; i < tiers_gesplitst_met_spatie.Length; i++)
-							{
-								emojiList.Add(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
-							}
-
-							EmbedOptions embedOptions = new()
-							{
-								Content = "@everyone",
-								Title = "Toernooi",
-								Fields = deflist,
-								Emojis = emojiList
-							};
-							await _messageService.CreateEmbed(toernooiAanmeldenChannel, embedOptions);
-						}
-						else
+							Name = "Type",
+							Value = (string.IsNullOrEmpty(type) ? "Quick Tournament" : type).AdaptToChat(),
+							Inline = true
+						};
+						deflist.Add(newDef1);
+						DEF newDef2 = new()
 						{
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #Toernooi-aanmelden kon niet gevonden worden!**");
+							Name = "Wanneer?",
+							Value = wanneer.AdaptToChat(),
+							Inline = true
+						};
+						deflist.Add(newDef2);
+						DEF newDef3 = new()
+						{
+							Name = "Organisator",
+							Value = ctx.Member.DisplayName.AdaptToChat(),
+							Inline = true
+						};
+						deflist.Add(newDef3);
+
+						List<IDiscordEmoji> emojiList = [];
+						for (int i = 0; i < tiers_gesplitst_met_spatie.Length; i++)
+						{
+							emojiList.Add(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
 						}
+
+						EmbedOptions embedOptions = new()
+						{
+							Content = "@everyone",
+							Title = "Toernooi",
+							Fields = deflist,
+							Emojis = emojiList
+						};
+						await _messageService.CreateEmbed(tournamentSignUpChannel, embedOptions);
 					}
 					else
 					{
@@ -993,7 +990,7 @@ internal class BotCommands(IDiscordClient discordClient,
 							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") niet verwijderen!**");
 							_logger.LogWarning(ex, "Could not remove reaction ({Emoji}) from message ({MessageNumber}) in channel ({ChannelName}): {Message}", emoji, hoeveelste + 1, naam_van_kanaal, ex.Message);
 						}
-						if (channel.Id.Equals(Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID))
+						if (channel.Id == options.Value.ChannelIds.TournamentSignUp)
 						{
 							List<IDiscordMessage> messages = [];
 							try

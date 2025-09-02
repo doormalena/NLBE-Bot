@@ -37,11 +37,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 		ulong ChatID = 897749692895596565;
 		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel?> GetAlgemeenChannelAsync()
-	{
-		ulong ChatID = 507575682046492692;
-		return await GetChannelAsync(ChatID);
-	}
 
 	public async Task<IDiscordChannel?> GetDeputiesChannelAsync()
 	{
@@ -54,11 +49,7 @@ internal class ChannelService(IOptions<BotOptions> options,
 		ulong ChatID = 782308602882031660;
 		return await GetChannelAsync(ChatID);
 	}
-	public async Task<IDiscordChannel?> GetToernooiAanmeldenChannelAsync()
-	{
-		ulong ChatID = Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID;
-		return await GetChannelAsync(ChatID);
-	}
+
 	public async Task<IDiscordChannel?> GetMappenChannelAsync()
 	{
 		ulong ChatID = 782240999190953984;

@@ -22,7 +22,7 @@ public static class Constants
 	public const ulong BEHEERDER_ROLE = 681865080803033109;
 	public const ulong NLBE_BOT = 781618903314202644;
 	public const ulong MASTERY_REPLAYS_ID = 734359875253174323;
-	public const ulong NLBE_TOERNOOI_AANMELDEN_KANAAL_ID = 714860361894854780;
+
 	public const long NLBE_CLAN_ID = 865;
 	public const long NLBE2_CLAN_ID = 48814;
 	public const char UNDERSCORE_REPLACEMENT_CHAR = 'ˍ';

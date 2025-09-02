@@ -24,20 +24,20 @@ internal class WeeklyEventService(IChannelService channelService,
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
-	public IDiscordMessage DiscordMessage
+	public IDiscordMessage? DiscordMessage
 	{
 		get; set;
 	} //The last message in Weekly events
 
-	public WeeklyEvent WeeklyEvent
+	public WeeklyEvent? WeeklyEvent
 	{
 		get; set;
 	}
 
 	public async Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
-		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel bottestChannel) ||
-			Guard.ReturnIfNull(await _channelService.GetAlgemeenChannelAsync(), _logger, "General channel", out IDiscordChannel generalChannel))
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel) ||
+			Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.General), _logger, "General channel", out IDiscordChannel generalChannel))
 		{
 			return;
 		}
@@ -105,14 +105,14 @@ internal class WeeklyEventService(IChannelService channelService,
 		if (userNotFound)
 		{
 			string message = "Een weekly event winnaar was niet gevonden. Je zal handmatig een nieuw weekly event moeten aanmaken middels het `weekly` commando.";
-			await bottestChannel.SendMessageAsync(message);
+			await botTestChannel.SendMessageAsync(message);
 
 			_logger.LogWarning("A weekly event winner was not found. You will have setup a new weeky event using the `weekly` command.");
 		}
 		else
 		{
 			string message = "Weekly event winnaar gevonden!";
-			await bottestChannel.SendMessageAsync(message);
+			await botTestChannel.SendMessageAsync(message);
 
 			_logger.LogInformation("Weekly event winner found and notified.");
 		}

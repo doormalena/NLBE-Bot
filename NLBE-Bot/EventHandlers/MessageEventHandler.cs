@@ -221,13 +221,13 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			if (Guard.ReturnIfNull(await _channelService.GetToernooiAanmeldenChannelAsync(), _logger, "Toernooi Aanmelden channel", out IDiscordChannel toernooiAanmeldenChannel) ||
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel) ||
 				Guard.ReturnIfNull(await _channelService.GetLogChannelAsync(), _logger, "Log channel", out IDiscordChannel logChannel))
 			{
 				return;
 			}
 
-			if (channel.Id != toernooiAanmeldenChannel.Id)
+			if (channel.Id != tournamentSignUpChannel.Id)
 			{
 				return;
 			}
@@ -255,18 +255,18 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
 			if (user.IsBot ||
-				Guard.ReturnIfNull(await _channelService.GetToernooiAanmeldenChannelAsync(), _logger, "Toernooi Aanmelden channel", out IDiscordChannel toernooiAanmeldenChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel) ||
 				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Rules), _logger, "Rules channel", out IDiscordChannel rulesChannel) ||
-				Guard.ReturnIfNull(await _channelService.GetAlgemeenChannelAsync(), _logger, "Algemeen channel", out IDiscordChannel algemeenChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.General), _logger, "General channel", out IDiscordChannel generalChannel) ||
 				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Members), _logger, "Members rol", out IDiscordRole membersRole))
 			{
 				return;
 			}
 
-			if (channel.Id == toernooiAanmeldenChannel.Id)
+			if (channel.Id == tournamentSignUpChannel.Id)
 			{
-				IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
-				await _tournamentService.GenerateLogMessage(messageTmp, toernooiAanmeldenChannel, user.Id, _discordMessageUtils.GetDiscordEmoji(emoji!.Name)?.ToString() ?? string.Empty);
+				IDiscordMessage messageTmp = await tournamentSignUpChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
+				await _tournamentService.GenerateLogMessage(messageTmp, tournamentSignUpChannel, user.Id, _discordMessageUtils.GetDiscordEmoji(emoji!.Name)?.ToString() ?? string.Empty);
 				return;
 			}
 
@@ -326,7 +326,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 									}
 
 									await member.GrantRoleAsync(membersRole);
-									await algemeenChannel.SendMessageAsync(user.Mention + " , welkom op de NLBE discord server. GLHF!");
+									await generalChannel.SendMessageAsync($"{user.Mention}, welkom op de NLBE discord server. Good luck, have fun!");
 								}
 							}
 						}
@@ -351,19 +351,19 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			if (Guard.ReturnIfNull(await _channelService.GetToernooiAanmeldenChannelAsync(), _logger, "Toernooi Aanmelden channel", out IDiscordChannel toernooiAanmeldenChannel) ||
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel) ||
 				Guard.ReturnIfNull(await _channelService.GetLogChannelAsync(), _logger, "Log channel", out IDiscordChannel logChannel))
 			{
 				return;
 			}
 
-			if (channel.Id != toernooiAanmeldenChannel.Id)
+			if (channel.Id != tournamentSignUpChannel.Id)
 			{
 				return;
 			}
 
 			bool removeInLog = true;
-			IDiscordMessage messageTmp = await toernooiAanmeldenChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
+			IDiscordMessage messageTmp = await tournamentSignUpChannel.GetMessageAsync(message.Id); // TODO: why not use message directly?
 
 			if (messageTmp.Author != null && !messageTmp.Author.Id.Equals(Constants.NLBE_BOT))
 			{

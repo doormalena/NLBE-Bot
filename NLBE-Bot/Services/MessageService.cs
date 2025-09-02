@@ -71,7 +71,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		if (roomType.Length == 0)
 		{
-			return await member.SendMessageAsync("Geef aub even door welk type room dit is want het werd niet herkent door de  Tag gebruiker thibeastmo#9998");
+			return await member.SendMessageAsync("Geef aub even door welk type room dit is want het werd niet herkent door de bot. Tag gebruiker thibeastmo#9998");
 		}
 
 		return await SendMessage(channel, member, guildName, "**De battle mag niet in een " + roomType + " room gespeeld zijn!**");
