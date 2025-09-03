@@ -202,28 +202,28 @@ internal class WeeklyEventService(IChannelService channelService,
 
 	public async Task ReadWeeklyEvent()
 	{
+		if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel))
+		{
+			return;
+		}
+
 		try
 		{
-			IDiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannelAsync();
+			IReadOnlyList<IDiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
 
-			if (weeklyEventChannel != null)
+			if (msgs.Count > 0)
 			{
-				IReadOnlyList<IDiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
+				//hier lastmessage bij dm
+				IDiscordMessage message = msgs[0];
 
-				if (msgs.Count > 0)
+				if (message != null)
 				{
-					//hier lastmessage bij dm
-					IDiscordMessage message = msgs[0];
-
-					if (message != null)
-					{
-						DiscordMessage = message;
-						WeeklyEvent = new WeeklyEvent(message);
-					}
-					else
-					{
-						_logger.LogError("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
-					}
+					DiscordMessage = message;
+					WeeklyEvent = new WeeklyEvent(message);
+				}
+				else
+				{
+					_logger.LogError("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
 				}
 			}
 		}

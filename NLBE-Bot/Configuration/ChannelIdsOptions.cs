@@ -59,6 +59,12 @@ public class ChannelIdsOptions
 	}
 
 	[Required]
+	public ulong WeeklyEvent
+	{
+		get; set;
+	}
+
+	[Required]
 	public ulong Welcome
 	{
 		get; set;

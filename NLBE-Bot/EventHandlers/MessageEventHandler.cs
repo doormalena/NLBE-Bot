@@ -22,7 +22,6 @@ using WorldOfTanksBlitzApi.Vehicles;
 
 internal class MessageEventHandler(IOptions<BotOptions> options,
 								   ILogger<MessageEventHandler> logger,
-								   IChannelService channelService,
 								   IUserService userService,
 								   IDiscordMessageUtils discordMessageUtils,
 								   IWeeklyEventService weeklyEventService,
@@ -32,7 +31,6 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 								   IHallOfFameService hallOfFameService,
 								   IMessageService messageService) : EventHandlerBase(options), IMessageEventHandler
 {
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService ?? throw new ArgumentNullException(nameof(weeklyEventService));
@@ -84,7 +82,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			if (Guard.ReturnIfNull(await _channelService.GetWeeklyEventChannelAsync(), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel) ||
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.WeeklyEvent), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel) ||
 				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.MasteryReplays), _logger, "Mastery Replays channel", out IDiscordChannel masteryChannel) ||
 				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.ReplayResults), _logger, "Replay Results channel", out IDiscordChannel replayChannel) ||
 				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel))

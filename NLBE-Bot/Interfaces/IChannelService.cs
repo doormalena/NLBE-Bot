@@ -8,8 +8,6 @@ internal interface IChannelService
 
 	public Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll);
 
-	public Task<IDiscordChannel?> GetWeeklyEventChannelAsync();
-
 	public Task<IDiscordChannel?> GetMappenChannelAsync();
 
 	public Task<IDiscordChannel?> GetChannelAsync(ulong channelId);

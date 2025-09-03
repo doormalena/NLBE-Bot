@@ -2226,6 +2226,11 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 
 			if (options.Length > 0)
@@ -2242,7 +2247,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					sb.Append(options[i]);
 				}
 
-				await _weeklyEventHandler.CreateNewWeeklyEvent(sb.ToString(), await _channelService.GetWeeklyEventChannelAsync());
+				await _weeklyEventHandler.CreateNewWeeklyEvent(sb.ToString(), weeklyEventChannel);
 			}
 			else
 			{
