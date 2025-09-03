@@ -165,7 +165,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 								_logger.LogError(ex, "Error while getting weekly event description for replay.");
 							}
 
-							List<Tuple<string, string>> images = await _mapService.GetAllMaps(guild.Id);
+							List<Tuple<string, string>> images = await _mapService.GetAllMaps(guild);
 
 							foreach (Tuple<string, string> map in from Tuple<string, string> map in images
 																  where replayInfo.map_name.Contains(map.Item1, StringComparison.OrdinalIgnoreCase)

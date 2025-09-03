@@ -2,22 +2,23 @@ namespace NLBE_Bot.Services;
 
 using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-internal class MapService(ILogger<MapService> logger, IChannelService channelService) : IMapService
+internal class MapService(IOptions<BotOptions> options, ILogger<MapService> logger) : IMapService
 {
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly ILogger<MapService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public async Task<List<Tuple<string, string>>> GetAllMaps(ulong guildId)
+	public async Task<List<Tuple<string, string>>> GetAllMaps(IDiscordGuild guild)
 	{
-		IDiscordChannel mapChannel = await _channelService.GetMappenChannelAsync();
-
-		if (mapChannel == null)
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Maps), _logger, "Maps channel", out IDiscordChannel mapChannel))
 		{
 			return null;
 		}

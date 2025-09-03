@@ -796,7 +796,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			List<Tuple<string, string>> images = await _mapService.GetAllMaps(ctx.Guild.Id);
+			List<Tuple<string, string>> images = await _mapService.GetAllMaps(ctx.Guild);
 			if (images != null)
 			{
 				StringBuilder sbMap = new();

@@ -198,7 +198,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			Title = "Helaas...",
 			Description = "De statistieken van deze replay waren onvoldoende om in de Hall Of Fame te komen te staan!\n\n" + extraDescription
 		};
-		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild.Id);
+		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
 		foreach (Tuple<string, string> map in images)
 		{
 			if (map.Item1.ToLower() == battle.map_name.ToLower())
@@ -248,7 +248,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			Title = "Hoera! :trophy:",
 			Description = "Je replay heeft een plaatsje gekregen in onze Hall Of Fame!\n\n" + extraDescription
 		};
-		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild.Id);
+		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
 		foreach (Tuple<string, string> map in images)
 		{
 			if (map.Item1.ToLower() == battle.map_name.ToLower())

@@ -35,6 +35,12 @@ public class ChannelIdsOptions
 	}
 
 	[Required]
+	public ulong Maps
+	{
+		get; set;
+	}
+
+	[Required]
 	public ulong MasteryReplays
 	{
 		get; set;

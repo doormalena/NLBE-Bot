@@ -16,12 +16,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<ChannelService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public async Task<IDiscordChannel?> GetMappenChannelAsync()
-	{
-		ulong ChatID = 782240999190953984;
-		return await GetChannelAsync(ChatID);
-	}
-
 	public async Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll)
 	{
 		long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;

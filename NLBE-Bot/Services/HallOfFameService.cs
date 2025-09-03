@@ -120,7 +120,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 			tempMessage = await _messageService.SaySomethingWentWrong(channel, member, guild.Name, "**Je mag enkel de standaardbattles gebruiken! (Geen speciale gamemodes)**");
 		}
 		string thumbnail = string.Empty;
-		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild.Id);
+		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
 		foreach (Tuple<string, string> map in images)
 		{
 			if (map.Item1.ToLower() == replayInfo.map_name.ToLower())
@@ -224,7 +224,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 					else
 					{
 						string thumbnail = string.Empty;
-						List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild.Id);
+						List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
 						foreach (Tuple<string, string> map in images)
 						{
 							if (map.Item1.ToLower() == battle.map_name.ToLower())
