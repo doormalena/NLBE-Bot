@@ -1,5 +1,6 @@
 namespace NLBE_Bot.Tests.Services;
 
+using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -914,4 +915,142 @@ public class MessageServiceTests
 		// Assert.
 		Assert.AreSame(expectedMessage, result);
 	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldBuildEmbedAndSendViaRespondAsync_WhenIsForReplay()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+		IDiscordMessage lastCreated = Substitute.For<IDiscordMessage>();
+		_botStateMock!.LastCreatedDiscordMessage.Returns(lastCreated);
+
+		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
+
+		EmbedOptions options = new()
+		{
+			Color = DiscordColor.Red,
+			Title = "MyTitle",
+			Description = "MyDescription",
+			Thumbnail = "http://thumb.url/",
+			Author = new DiscordEmbedBuilder.EmbedAuthor { Name = "AuthorName" },
+			ImageUrl = "http://image.url/",
+			Fields = [new DEF { Name = "Field1", Value = "Value1", Inline = false }],
+			Footer = "Footer text",
+			IsForReplay = true,
+			Content = "Some content",
+			Emojis = [emoji],
+			NextMessage = "Follow-up"
+		};
+
+		lastCreated.RespondAsync(options.Content, Arg.Do<IDiscordEmbed>(embed =>
+		{
+			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embed;
+			Assert.AreEqual("MyTitle", wrapper.Title);
+			Assert.AreEqual("MyDescription", wrapper.Description);
+			Assert.AreEqual("http://thumb.url/", wrapper.Thumbnail.Url.ToString());
+			Assert.AreEqual("http://image.url/", wrapper.Image.Url.ToString());
+			Assert.AreEqual("Footer text", wrapper.Footer.Text);
+		}))
+		.Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+		await lastCreated.Received(1).RespondAsync(options.Content, Arg.Any<IDiscordEmbed>());
+		await expectedMessage.Received(1).CreateReactionAsync(emoji);
+		await _channelMock!.Received(1).SendMessageAsync("Follow-up");
+	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldSendViaDiscordClient_WhenNotForReplay()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+
+		EmbedOptions options = new()
+		{
+			Title = "Title",
+			Description = "Description",
+			IsForReplay = false,
+			Content = "Content"
+		};
+
+		_discordClientMock!.SendMessageAsync(_channelMock!, options.Content, Arg.Any<IDiscordEmbed>())
+						   .Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+		await _discordClientMock!.Received(1).SendMessageAsync(_channelMock!, options.Content, Arg.Any<IDiscordEmbed>());
+	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldNotAddThumbnailOrFooter_WhenEmpty()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+
+		EmbedOptions options = new()
+		{
+			Title = "Title",
+			Description = "Description",
+			Thumbnail = "",
+			Footer = "",
+			IsForReplay = false,
+			Content = "Content"
+		};
+
+		_discordClientMock!.SendMessageAsync(_channelMock!, options.Content, Arg.Do<IDiscordEmbed>(embed =>
+		{
+			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embed;
+			Assert.IsNull(wrapper.Thumbnail);
+			Assert.IsNull(wrapper.Footer);
+		}))
+		.Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldOnlyAddFieldsWithNonEmptyValue()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+
+		EmbedOptions options = new()
+		{
+			Title = "Title",
+			Description = "Description",
+			Fields =
+			[
+				new() { Name = "Field1", Value = "Value1", Inline = false },
+				new() { Name = "Field2", Value = "", Inline = true }
+			],
+			IsForReplay = false,
+			Content = "Content"
+		};
+
+		_discordClientMock!.SendMessageAsync(_channelMock!, options.Content, Arg.Do<IDiscordEmbed>(embed =>
+		{
+			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embed;
+			Assert.AreEqual(1, wrapper.Fields.Count); // Only one field added
+			Assert.AreEqual("Field1", wrapper.Fields[0].Name);
+		}))
+		.Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+	}
+
 }

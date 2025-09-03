@@ -382,7 +382,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}.Build());
 	}
 
-	public virtual async Task<IDiscordMessage?> CreateEmbed(IDiscordChannel channel, EmbedOptions options)
+	public virtual async Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -393,14 +393,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		if (!string.IsNullOrEmpty(options.Thumbnail))
 		{
-			try
-			{
-				newDiscEmbedBuilder.WithThumbnail(options.Thumbnail);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Could not set thumbnail for embed: {Thumbnail}", options.Thumbnail);
-			}
+			newDiscEmbedBuilder.WithThumbnail(options.Thumbnail);
 		}
 		if (options.Author != null)
 		{
@@ -409,23 +402,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		if (!string.IsNullOrEmpty(options.ImageUrl))
 		{
-			try
-			{
-				newDiscEmbedBuilder.ImageUrl = options.ImageUrl;
-			}
-			catch (Exception ex)
-			{
-				_logger.LogDebug(ex, ex.Message);
-
-				try
-				{
-					newDiscEmbedBuilder.WithImageUrl(new Uri(options.ImageUrl.Replace("\\", string.Empty)));
-				}
-				catch (Exception innerEx)
-				{
-					_logger.LogError(innerEx, "Could not set image URL for embed: {ImageUrl}", options.ImageUrl);
-				}
-			}
+			newDiscEmbedBuilder.ImageUrl = options.ImageUrl;
 		}
 
 		if (options.Fields != null && options.Fields.Count > 0)
@@ -434,14 +411,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			{
 				if (field.Value.Length > 0)
 				{
-					try
-					{
-						newDiscEmbedBuilder.AddField(field.Name, field.Value, field.Inline);
-					}
-					catch (Exception ex)
-					{
-						_logger.LogError(ex, "Could not add field to embed: {FieldName} - {FieldValue}", field.Name, field.Value);
-					}
+					newDiscEmbedBuilder.AddField(field.Name, field.Value, field.Inline);
 				}
 			}
 		}
@@ -456,38 +426,24 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		IDiscordEmbed embed = new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
 
-		try
-		{
-			IDiscordMessage theMessage = options.IsForReplay && _botState.LastCreatedDiscordMessage != null
-				? await _botState.LastCreatedDiscordMessage.RespondAsync(options.Content, embed)
-				: await _discordClient.SendMessageAsync(channel, options.Content, embed);
+		IDiscordMessage theMessage = options.IsForReplay && _botState.LastCreatedDiscordMessage != null
+			? await _botState.LastCreatedDiscordMessage.RespondAsync(options.Content, embed)
+			: await _discordClient.SendMessageAsync(channel, options.Content, embed);
 
-			try
-			{
-				if (options.Emojis != null)
-				{
-					foreach (IDiscordEmoji anEmoji in options.Emojis)
-					{
-						await theMessage.CreateReactionAsync(anEmoji);
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Could not add emojis to message");
-			}
-			if (!string.IsNullOrEmpty(options.NextMessage))
-			{
-				await channel.SendMessageAsync(options.NextMessage);
-			}
-			return theMessage;
-		}
-		catch (Exception ex)
+		if (options.Emojis != null)
 		{
-			_logger.LogError(ex, "Could not send embed message to channel {ChannelName} in guild {GuildName}: {EmbedTitle}", channel.Name, channel.Guild.Name, options.Title);
+			foreach (IDiscordEmoji anEmoji in options.Emojis)
+			{
+				await theMessage.CreateReactionAsync(anEmoji);
+			}
 		}
 
-		return null;
+		if (!string.IsNullOrEmpty(options.NextMessage))
+		{
+			await channel.SendMessageAsync(options.NextMessage);
+		}
+
+		return theMessage;
 	}
 
 	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WGBattle battle, string title, string description)

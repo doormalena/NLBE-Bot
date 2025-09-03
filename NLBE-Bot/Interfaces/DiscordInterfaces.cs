@@ -412,7 +412,7 @@ internal interface IDiscordEmbed
 	{
 		get;
 	}
-	public IEnumerable<DiscordEmbedField> Fields
+	public IReadOnlyList<DiscordEmbedField> Fields
 	{
 		get;
 	}

@@ -523,9 +523,13 @@ internal class DiscordEmbedWrapper(DiscordEmbed embed) : IDiscordEmbed
 
 	public string Title => _embed.Title;
 
-	public string Description => _embed.Title;
+	public string Description => _embed.Description;
 
-	public IEnumerable<DiscordEmbedField> Fields => _embed.Fields;
+	public DiscordEmbedFooter Footer => _embed.Footer;
+
+	public DiscordEmbedImage Image => _embed.Image;
+
+	public IReadOnlyList<DiscordEmbedField> Fields => _embed.Fields;
 
 	public DiscordEmbedThumbnail Thumbnail => _embed.Thumbnail;
 }

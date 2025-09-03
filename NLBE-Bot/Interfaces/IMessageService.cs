@@ -47,5 +47,5 @@ internal interface IMessageService
 
 	public IDiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color);
 
-	public Task<IDiscordMessage?> CreateEmbed(IDiscordChannel channel, EmbedOptions options);
+	public Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options);
 }
