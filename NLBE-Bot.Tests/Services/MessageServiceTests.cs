@@ -702,4 +702,38 @@ public class MessageServiceTests
 		);
 	}
 
+	[TestMethod]
+	public async Task SayNoAttachments_ShouldCallSendMessage_WithExpectedParameters_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage to return our expected message
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "**Geen documenten in de bijlage gevonden!**")
+				  .Returns(Task.FromResult<IDiscordMessage?>(message));
+
+		// Act.
+		await serviceSub.SayNoAttachments(_channelMock!, _memberMock!, "TestGuild");
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"**Geen documenten in de bijlage gevonden!**"
+		);
+	}
+
+
 }
