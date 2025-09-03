@@ -172,4 +172,120 @@ public class MessageServiceTests
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>());
 	}
+
+	[TestMethod]
+	public async Task SaySomethingWentWrong_ShouldCallSendMessage_WithExpectedParameters()
+	{
+		// Arrange.
+		string guildName = "TestGuild";
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage so it doesn't run the real implementation
+		serviceSub.SendMessage(_channelMock!, _memberMock!, guildName, "**Er ging iets mis, probeer het opnieuw!**")
+				  .Returns(Task.FromResult<IDiscordMessage?>(null));
+
+		// Act.
+		await serviceSub.SaySomethingWentWrong(_channelMock!, _memberMock!, guildName);
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			guildName,
+			"**Er ging iets mis, probeer het opnieuw!**"
+		);
+	}
+
+	[TestMethod]
+	public async Task SayTooManyCharacters_ShouldSendEmbed_WhenNoException()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(null, Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult<IDiscordMessage>(null!));
+
+		// Act.
+		await _service!.SayTooManyCharacters(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayTooManyCharacters_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayTooManyCharacters(_channelMock!);
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayBotNotAuthorized_ShouldSendEmbed_WhenNoException()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(null!, Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult<IDiscordMessage>(null!));
+
+		// Act.
+		await _service!.SayBotNotAuthorized(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayBotNotAuthorized_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayBotNotAuthorized(_channelMock!);
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
 }

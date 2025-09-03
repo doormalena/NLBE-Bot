@@ -52,21 +52,21 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return null;
 	}
 
-	public async Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string Message)
+	public async Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string message)
 	{
 		try
 		{
-			return await member.SendMessageAsync(Message);
+			return await member.SendMessageAsync(message);
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Could not send private message to member {MemberName} in guild {GuildName}: {Message}", member.DisplayName, guildName, Message);
+			_logger.LogError(ex, "Could not send private message to member {MemberName} in guild {GuildName}: {Message}", member.DisplayName, guildName, message);
 		}
 
 		return null;
 	}
 
-	public async Task<IDiscordMessage> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType)
+	public async Task<IDiscordMessage?> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType)
 	{
 		if (roomType.Length == 0)
 		{
@@ -81,7 +81,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		await SendMessage(channel, member, guildName, "**Er ging iets mis, probeer het opnieuw!**");
 	}
 
-	public Task<IDiscordMessage> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text)
+	public Task<IDiscordMessage?> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text)
 	{
 		return SendMessage(channel, member, guildName, text);
 	}
@@ -90,6 +90,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		await SendMessage(channel, member, guildName, "**Geen bruikbare documenten in de bijlage gevonden!**");
 	}
+
 	public async Task SayNoAttachments(IDiscordChannel channel, IDiscordMember member, string guildName)
 	{
 		await SendMessage(channel, member, guildName, "**Geen documenten in de bijlage gevonden!**");
@@ -102,33 +103,38 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		await SendMessage(channel, member, guildName, "`Time-out: Geen antwoord.`");
 	}
+
 	public async Task SayMustBeNumber(IDiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Je moest een cijfer geven!**");
 	}
+
 	public async Task SayNumberTooSmall(IDiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Dat cijfer was te klein!**");
 	}
+
 	public async Task SayNumberTooBig(IDiscordChannel channel)
 	{
 		await channel.SendMessageAsync("**Dat cijfer was te groot!**");
 	}
+
 	public async Task SayBeMoreSpecific(IDiscordChannel channel)
 	{
-		EmbedOptions options = new()
+		EmbedOptions embedOptions = new()
 		{
 			Title = "Wees specifieker",
 			Description = "Er waren te veel resultaten, probeer iets specifieker te zijn!",
 		};
-		await CreateEmbed(channel, options);
+		await CreateEmbed(channel, embedOptions);
 	}
-	public IDiscordMessage SayMultipleResults(IDiscordChannel channel, string description)
+
+	public async Task<IDiscordMessage?> SayMultipleResults(IDiscordChannel channel, string description)
 	{
 		try
 		{
 			IDiscordEmbed embed = CreateStandardEmbed("Meerdere resultaten gevonden", description.AdaptToChat(), DiscordColor.Red);
-			return channel.SendMessageAsync(null, embed).Result;
+			return await channel.SendMessageAsync(embed);
 		}
 		catch (Exception ex)
 		{
@@ -142,7 +148,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		try
 		{
 			IDiscordEmbed embed = CreateStandardEmbed("Geen resultaten gevonden", description.Replace('_', '▁'), DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
+			await channel.SendMessageAsync(embed);
 		}
 		catch (Exception ex)
 		{
@@ -155,7 +161,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		try
 		{
 			IDiscordEmbed embed = CreateStandardEmbed("Geen toegang", ":raised_back_of_hand: Je hebt onvoldoende rechten om dit commando uit te voeren!", DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
+			await channel.SendMessageAsync(embed);
 		}
 		catch (Exception ex)
 		{
@@ -168,7 +174,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		try
 		{
 			IDiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: De bot heeft onvoldoende rechten om dit uit te voeren!", DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
+			await channel.SendMessageAsync(embed);
 		}
 		catch (Exception ex)
 		{
@@ -181,7 +187,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		try
 		{
 			IDiscordEmbed embed = CreateStandardEmbed("Onvoldoende rechten", ":raised_back_of_hand: Er zaten te veel characters in het bericht dat de bot wilde verzenden!", DiscordColor.Red);
-			await channel.SendMessageAsync(null, embed);
+			await channel.SendMessageAsync(embed);
 		}
 		catch (Exception ex)
 		{
@@ -287,7 +293,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 	public async Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count)
 	{
-		IDiscordMessage discMessage = SayMultipleResults(channel, description);
+		IDiscordMessage? discMessage = await SayMultipleResults(channel, description);
 		IDiscordInteractivityExtension interactivity = _discordClient.GetInteractivity();
 		IDiscordInteractivityResult<IDiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel == channel && x.Author == user);
 		if (!message.TimedOut)

@@ -1386,7 +1386,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					}
 					if (sbFound.Length < 1024)
 					{
-						IDiscordMessage discMessage = _messageService.SayMultipleResults(ctx.Channel, sbFound.ToString());
+						IDiscordMessage? discMessage = await _messageService.SayMultipleResults(ctx.Channel, sbFound.ToString());
 						IDiscordInteractivityExtension interactivity = ctx.Client.GetInteractivity();
 						IDiscordInteractivityResult<IDiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel.Id == ctx.Channel.Id && x.Author.Id == ctx.User.Id);
 						if (!message.TimedOut)
