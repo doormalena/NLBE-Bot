@@ -766,4 +766,18 @@ public class MessageServiceTests
 		);
 	}
 
+	[TestMethod]
+	public async Task SayMustBeNumber_ShouldSendMessage_WithExpectedParameters()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync("**Je moest een cijfer geven!**")
+					 .Returns(Task.FromResult(message));
+
+		// Act.
+		await _service!.SayMustBeNumber(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync("**Je moest een cijfer geven!**");
+	}
 }
