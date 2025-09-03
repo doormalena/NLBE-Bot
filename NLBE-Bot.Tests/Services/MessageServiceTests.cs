@@ -780,4 +780,20 @@ public class MessageServiceTests
 		// Assert.
 		await _channelMock!.Received(1).SendMessageAsync("**Je moest een cijfer geven!**");
 	}
+
+	[TestMethod]
+	public async Task SayNumberTooSmall_ShouldSendMessage_WithExpectedParameters()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync("**Dat cijfer was te klein!**")
+					 .Returns(Task.FromResult(message));
+
+		// Act.
+		await _service!.SayNumberTooSmall(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync("**Dat cijfer was te klein!**");
+	}
+
 }
