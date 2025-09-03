@@ -21,7 +21,6 @@ public static class Constants
 	public const ulong DEPUTY_NLBE2_ROLE = 805783828312227840;
 	public const ulong BEHEERDER_ROLE = 681865080803033109;
 	public const ulong NLBE_BOT = 781618903314202644;
-	public const ulong MASTERY_REPLAYS_ID = 734359875253174323;
 
 	public const long NLBE_CLAN_ID = 865;
 	public const long NLBE2_CLAN_ID = 48814;

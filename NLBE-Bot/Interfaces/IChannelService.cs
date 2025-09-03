@@ -10,10 +10,6 @@ internal interface IChannelService
 
 	public Task<IDiscordChannel?> GetWeeklyEventChannelAsync();
 
-	public Task<IDiscordChannel?> GetReplayResultsChannelAsync();
-
-	public Task<IDiscordChannel?> GetMasteryReplaysChannelAsync();
-
 	public Task<IDiscordChannel?> GetMappenChannelAsync();
 
 	public Task<IDiscordChannel?> GetChannelAsync(ulong channelId);

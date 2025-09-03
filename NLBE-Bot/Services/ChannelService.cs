@@ -17,16 +17,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<ChannelService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public async Task<IDiscordChannel?> GetMasteryReplaysChannelAsync()
-	{
-		ulong ChatID = Constants.MASTERY_REPLAYS_ID;
-		return await GetChannelAsync(ChatID);
-	}
-	public async Task<IDiscordChannel?> GetReplayResultsChannelAsync()
-	{
-		ulong ChatID = 583958593129414677;
-		return await GetChannelAsync(ChatID);
-	}
 	public async Task<IDiscordChannel?> GetWeeklyEventChannelAsync()
 	{
 		ulong ChatID = 897749692895596565;

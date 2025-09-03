@@ -85,8 +85,8 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
 			if (Guard.ReturnIfNull(await _channelService.GetWeeklyEventChannelAsync(), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel) ||
-				Guard.ReturnIfNull(await _channelService.GetMasteryReplaysChannelAsync(), _logger, "Mastery Replays channel", out IDiscordChannel masteryChannel) ||
-				Guard.ReturnIfNull(await _channelService.GetReplayResultsChannelAsync(), _logger, "Replay Results channel", out IDiscordChannel replayChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.MasteryReplays), _logger, "Mastery Replays channel", out IDiscordChannel masteryChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.ReplayResults), _logger, "Replay Results channel", out IDiscordChannel replayChannel) ||
 				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel))
 			{
 				return;
@@ -106,8 +106,8 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 					_botState!.LastCreatedDiscordMessage = message;
 					IDiscordMember member = await guild.GetMemberAsync(author.Id);
 
-					if ((member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) && (channel.Id.Equals(Constants.MASTERY_REPLAYS_ID))) ||
-						(member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE)) && (channel.Id.Equals(Constants.MASTERY_REPLAYS_ID))))
+					if (channel.Id == _options.ChannelIds.MasteryReplays &&
+						(member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) || member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE))))
 					{
 						//MasteryChannel (komt wel in HOF)
 						if (message.Attachments.Count > 0)

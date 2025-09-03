@@ -29,7 +29,19 @@ public class ChannelIdsOptions
 	}
 
 	[Required]
+	public ulong MasteryReplays
+	{
+		get; set;
+	}
+
+	[Required]
 	public ulong OldMembers
+	{
+		get; set;
+	}
+
+	[Required]
+	public ulong ReplayResults
 	{
 		get; set;
 	}

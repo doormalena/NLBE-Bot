@@ -17,20 +17,30 @@ using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Exceptions;
 using WorldOfTanksBlitzApi.Tools.Replays;
 
-internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<BotOptions> options,
-		IDiscordMessageUtils discordMessageUtils, IChannelService channelService, IMessageService messageService, IMapService mapService, IReplayService replayService, IUserService userService) : IHallOfFameService
+internal class HallOfFameService(ILogger<HallOfFameService> logger,
+							 	 IOptions<BotOptions> options,
+							 	 IDiscordMessageUtils discordMessageUtils,
+							 	 IMessageService messageService,
+								 IMapService mapService,
+								 IReplayService replayService,
+								 IUserService userService) : IHallOfFameService
 {
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly ILogger<HallOfFameService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 	private readonly IReplayService _replayService = replayService ?? throw new ArgumentNullException(nameof(replayService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 
-	public async Task<Tuple<string, IDiscordMessage>> Handle(string titel, object discAttach, IDiscordChannel channel, IDiscordGuild guild, string iets, IDiscordMember member)
+	public async Task<Tuple<string, IDiscordMessage?>> Handle(string titel, object discAttach, IDiscordChannel channel, IDiscordGuild guild, string iets, IDiscordMember member)
 	{
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel) ||
+			Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.MasteryReplays), _logger, "Replay Results channel", out IDiscordChannel masteryReplaysChannel))
+		{
+			return new Tuple<string, IDiscordMessage?>("Kanaal is niet geschikt voor HOF.", null);
+		}
+
 		if (discAttach is DiscordAttachment attachment)
 		{
 			discAttach = attachment;
@@ -40,38 +50,27 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 		{
 			if (replayInfo != null)
 			{
-				bool validChannel = false;
-
-				IDiscordChannel goodChannel = await _channelService.GetMasteryReplaysChannelAsync();
-				if (goodChannel != null && goodChannel.Id.Equals(channel.Id))
+				if (channel.Id == masteryReplaysChannel.Id || channel.Id == botTestChannel.Id)
 				{
-					validChannel = true;
+					return await GoHOFDetails(replayInfo, channel, member, guild);
 				}
-				if (!validChannel)
+				else
 				{
-					goodChannel = guild.GetChannel(_options.ChannelIds.BotTest);
-					if (goodChannel.Id.Equals(channel.Id))
-					{
-						validChannel = true;
-					}
+					return new Tuple<string, IDiscordMessage?>("Kanaal is niet geschikt voor HOF.", null);
 				}
-
-				return validChannel
-					? await GoHOFDetails(replayInfo, channel, member, guild)
-					: new Tuple<string, IDiscordMessage>("Kanaal is niet geschikt voor HOF.", null);
 			}
 			else
 			{
-				return new Tuple<string, IDiscordMessage>("Replayobject was null.", null);
+				return new Tuple<string, IDiscordMessage?>("Replayobject was null.", null);
 			}
 		}
 		catch
 		{
-			return new Tuple<string, IDiscordMessage>("Er ging iets mis.", null);
+			return new Tuple<string, IDiscordMessage?>("Er ging iets mis.", null);
 		}
 	}
 
-	public async Task<Tuple<string, IDiscordMessage>> GoHOFDetails(WGBattle replayInfo, IDiscordChannel channel, IDiscordMember member, IDiscordGuild guild)
+	private async Task<Tuple<string, IDiscordMessage?>> GoHOFDetails(WGBattle replayInfo, IDiscordChannel channel, IDiscordMember member, IDiscordGuild guild)
 	{
 		_ = (await channel.GetMessagesAsync(1))[0];
 		IDiscordMessage tempMessage;
@@ -84,7 +83,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 				{
 					return replayInfo.details != null
 						? await ReplayHOF(guild, replayInfo, channel, member)
-						: new Tuple<string, IDiscordMessage>("Replay bevatte geen details.", null);
+						: new Tuple<string, IDiscordMessage?>("Replay bevatte geen details.", null);
 				}
 				catch (JsonNotFoundException ex)
 				{
@@ -97,7 +96,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 					_logger.LogError(ex, "Error while checking HOF with a replay.");
 				}
 				tempMessage = await _messageService.SendMessage(channel, member, guild.Name, "**Dit is een speciale replay waardoor de gegevens niet fatsoenlijk ingelezen konden worden!**");
-				return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
+				return new Tuple<string, IDiscordMessage?>(tempMessage.Content, tempMessage);
 			}
 			else
 			{
@@ -141,17 +140,17 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 			}
 		}
 
-		EmbedOptions options = new()
+		EmbedOptions embedOptions = new()
 		{
 			Thumbnail = thumbnail,
 			Title = "Resultaat",
 			Description = await _replayService.GetDescriptionForReplay(replayInfo, -1),
 		};
-		await _messageService.CreateEmbed(channel, options);
-		return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
+		await _messageService.CreateEmbed(channel, embedOptions);
+		return new Tuple<string, IDiscordMessage?>(tempMessage.Content, tempMessage);
 	}
 
-	private async Task<Tuple<string, IDiscordMessage>> ReplayHOF(IDiscordGuild guild, WGBattle battle, IDiscordChannel channel, IDiscordMember member)
+	private async Task<Tuple<string, IDiscordMessage?>> ReplayHOF(IDiscordGuild guild, WGBattle battle, IDiscordChannel channel, IDiscordMember member)
 	{
 		if (battle.details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.details.clanid.Equals(Constants.NLBE2_CLAN_ID))
 		{
