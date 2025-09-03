@@ -65,6 +65,19 @@ public class DiscordStringExtensionsTests
 	}
 
 	[TestMethod]
+	public void AddaptLink_ShouldReturnEmpty_WhenInputIsNull()
+	{
+		// Arrange.
+		string? input = null;
+
+		// Act.
+		string result = input!.AdaptLink();
+
+		// Assert.
+		Assert.AreEqual(string.Empty, result);
+	}
+
+	[TestMethod]
 	public void AdaptMutlipleLines_ShouldCollapseExcessiveLineBreaks()
 	{
 		// Arrange.

@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Tests.Helpers;
 
-using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
