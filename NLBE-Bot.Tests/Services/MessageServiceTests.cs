@@ -639,4 +639,35 @@ public class MessageServiceTests
 		Assert.IsNotNull(result);
 		await _memberMock!.DidNotReceiveWithAnyArgs().SendMessageAsync(default!);
 	}
+
+	[TestMethod]
+	public async Task SaySomethingWentWrong_WithText_ShouldCallSendMessage_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage to return our expected message
+		serviceSub.SendMessage(channel, member, "TestGuild", "Test text")
+				  .Returns(Task.FromResult<IDiscordMessage?>(expectedMessage));
+
+		// Act.
+		IDiscordMessage? result = await serviceSub.SaySomethingWentWrong(channel, member, "TestGuild", "Test text");
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+		await serviceSub.Received(1).SendMessage(channel, member, "TestGuild", "Test text");
+	}
 }
