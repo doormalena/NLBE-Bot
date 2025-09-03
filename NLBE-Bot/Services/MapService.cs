@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Services;
 
-using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
@@ -30,20 +29,21 @@ internal class MapService(IOptions<BotOptions> options, ILogger<MapService> logg
 			IReadOnlyList<IDiscordMessage> xMessages = await mapChannel.GetMessagesAsync(100);
 			foreach (IDiscordMessage message in xMessages)
 			{
-				IReadOnlyList<DiscordAttachment> attachments = message.Attachments;
-				foreach (DiscordAttachment item in attachments)
+				IReadOnlyList<IDiscordAttachment> attachments = message.Attachments;
+				foreach (IDiscordAttachment item in attachments)
 				{
 					images.Add(new Tuple<string, string>(GetProperFileName(item.Url), item.Url));
 				}
 			}
+
+			images.Sort((x, y) => y.Item1.CompareTo(x.Item1));
+			images.Reverse();
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error while getting map images from channel {ChannelName}.", mapChannel.Name);
 		}
 
-		images.Sort((x, y) => y.Item1.CompareTo(x.Item1));
-		images.Reverse();
 		return images;
 	}
 	public static string GetProperFileName(string file)

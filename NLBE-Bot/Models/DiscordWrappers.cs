@@ -187,8 +187,8 @@ internal class DiscordMessageWrapper(DiscordMessage message) : IDiscordMessage
 
 	public DateTimeOffset Timestamp => _message.Timestamp;
 
-	public IReadOnlyList<DiscordAttachment> Attachments => _message.Attachments;
-
+	public IReadOnlyList<IDiscordAttachment> Attachments =>
+		_message.Attachments.Select(r => (IDiscordAttachment) new DiscordAttachmentWrapper(r)).ToList().AsReadOnly();
 
 	public IReadOnlyList<IDiscordReaction> Reactions =>
 		_message.Reactions.Select(r => (IDiscordReaction) new DiscordReactionWrapper(r)).ToList().AsReadOnly();
@@ -245,6 +245,21 @@ internal class DiscordMessageWrapper(DiscordMessage message) : IDiscordMessage
 	{
 		return _message.DeleteReactionsEmojiAsync(emoji.Inner);
 	}
+}
+
+internal class DiscordAttachmentWrapper(DiscordAttachment attachment) : IDiscordAttachment
+{
+	private readonly DiscordAttachment _attachment = attachment ?? throw new ArgumentNullException(nameof(attachment));
+
+	public ulong Id => _attachment.Id;
+
+	public string Url => _attachment.Url;
+
+	public string FileName => _attachment.FileName;
+
+	public DiscordAttachment Inner => _attachment;
+
+	public int FileSize => _attachment.FileSize;
 }
 
 internal class DiscordReactionWrapper(DiscordReaction reaction) : IDiscordReaction

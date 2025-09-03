@@ -131,7 +131,7 @@ internal interface IDiscordMessage
 	{
 		get;
 	}
-	public IReadOnlyList<DiscordAttachment> Attachments
+	public IReadOnlyList<IDiscordAttachment> Attachments
 	{
 		get;
 	}
@@ -421,6 +421,30 @@ internal interface IDiscordEmbed
 		get;
 	}
 	public string Description
+	{
+		get;
+	}
+}
+
+public interface IDiscordAttachment
+{
+	public ulong Id
+	{
+		get;
+	}
+	public string Url
+	{
+		get;
+	}
+	public string FileName
+	{
+		get;
+	}
+	public DiscordAttachment Inner
+	{
+		get;
+	}
+	public int FileSize
 	{
 		get;
 	}
