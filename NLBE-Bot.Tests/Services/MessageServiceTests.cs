@@ -605,9 +605,9 @@ public class MessageServiceTests
 	public async Task SayCannotBePlayedAt_ShouldSendPrivateMessage_WhenRoomTypeIsEmpty()
 	{
 		// Arrange.
-		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
 		_memberMock!.SendMessageAsync(Arg.Any<string>())
-					.Returns(Task.FromResult(expectedMessage));
+					.Returns(Task.FromResult(message));
 
 		// Act.
 		IDiscordMessage? result = await _service!.SayCannotBePlayedAt(
@@ -618,7 +618,7 @@ public class MessageServiceTests
 		);
 
 		// Assert.
-		Assert.AreSame(expectedMessage, result);
+		Assert.AreSame(message, result);
 		await _memberMock!.Received(1).SendMessageAsync(
 			"Geef aub even door welk type room dit is want het werd niet herkent door de bot. Tag gebruiker thibeastmo#9998"
 		);
@@ -644,9 +644,7 @@ public class MessageServiceTests
 	public async Task SaySomethingWentWrong_WithText_ShouldCallSendMessage_AndReturnResult()
 	{
 		// Arrange.
-		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
-		IDiscordMember member = Substitute.For<IDiscordMember>();
-		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
 
 		// Create partial substitute so we can verify SendMessage was called
 		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
@@ -660,14 +658,48 @@ public class MessageServiceTests
 		);
 
 		// Stub SendMessage to return our expected message
-		serviceSub.SendMessage(channel, member, "TestGuild", "Test text")
-				  .Returns(Task.FromResult<IDiscordMessage?>(expectedMessage));
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "Test text")
+				  .Returns(Task.FromResult<IDiscordMessage?>(message));
 
 		// Act.
-		IDiscordMessage? result = await serviceSub.SaySomethingWentWrong(channel, member, "TestGuild", "Test text");
+		IDiscordMessage? result = await serviceSub.SaySomethingWentWrong(_channelMock!, _memberMock!, "TestGuild", "Test text");
 
 		// Assert.
-		Assert.AreSame(expectedMessage, result);
-		await serviceSub.Received(1).SendMessage(channel, member, "TestGuild", "Test text");
+		Assert.AreSame(message, result);
+		await serviceSub.Received(1).SendMessage(_channelMock!, _memberMock!, "TestGuild", "Test text");
 	}
+
+	[TestMethod]
+	public async Task SayWrongAttachments_ShouldCallSendMessage_WithExpectedParameters_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage to return our expected message
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "**Geen bruikbare documenten in de bijlage gevonden!**")
+				  .Returns(Task.FromResult<IDiscordMessage?>(message));
+
+		// Act.
+		await serviceSub.SayWrongAttachments(_channelMock!, _memberMock!, "TestGuild");
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"**Geen bruikbare documenten in de bijlage gevonden!**"
+		);
+	}
+
 }
