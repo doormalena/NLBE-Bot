@@ -52,19 +52,18 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return null;
 	}
 
-	public async Task<bool> SendPrivateMessage(IDiscordMember member, string guildName, string Message)
+	public async Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string Message)
 	{
 		try
 		{
-			await member.SendMessageAsync(Message);
-			return true;
+			return await member.SendMessageAsync(Message);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Could not send private message to member {MemberName} in guild {GuildName}: {Message}", member.DisplayName, guildName, Message);
 		}
 
-		return false;
+		return null;
 	}
 
 	public async Task<IDiscordMessage> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType)

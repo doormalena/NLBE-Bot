@@ -1,0 +1,175 @@
+namespace NLBE_Bot.Tests.Services;
+
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NLBE_Bot.Configuration;
+using NLBE_Bot.Interfaces;
+using NLBE_Bot.Services;
+using NSubstitute;
+using System;
+using System.Threading.Tasks;
+
+[TestClass]
+public class MessageServiceTests
+{
+	private IDiscordClient? _discordClientMock;
+	private ILogger<MessageService>? _loggerMock;
+	private IOptions<BotOptions>? _optionsMock;
+	private IBotState? _botStateMock;
+	private IChannelService? _channelServiceMock;
+	private IDiscordMessageUtils? _discordMessageUtilsMock;
+	private IMapService? _mapServiceMock;
+	private MessageService? _service;
+	private IDiscordChannel? _channelMock;
+	private IDiscordMember? _memberMock;
+
+	[TestInitialize]
+	public void Setup()
+	{
+		_discordClientMock = Substitute.For<IDiscordClient>();
+		_loggerMock = Substitute.For<ILogger<MessageService>>();
+		_optionsMock = Options.Create(new BotOptions());
+		_botStateMock = Substitute.For<IBotState>();
+		_channelServiceMock = Substitute.For<IChannelService>();
+		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
+		_mapServiceMock = Substitute.For<IMapService>();
+
+		_service = new MessageService(
+			_discordClientMock,
+			_loggerMock,
+			_optionsMock,
+			_botStateMock,
+			_channelServiceMock,
+			_discordMessageUtilsMock,
+			_mapServiceMock
+		);
+
+		_channelMock = Substitute.For<IDiscordChannel>();
+		_memberMock = Substitute.For<IDiscordMember>();
+	}
+
+	[TestMethod]
+	public async Task SendMessage_ShouldReturnMessage_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync("hello").Returns(Task.FromResult(message));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SendMessage(_channelMock!, _memberMock!, "GuildName", "hello");
+
+		// Assert.
+		Assert.AreSame(message, result);
+	}
+
+	[TestMethod]
+	public async Task SendMessage_ShouldCallSayBotNotAuthorized_AndSendPrivateMessage_WhenUnauthorized()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync("msg")
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("unauthorized"));
+
+		// Create partial substitute so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Act.
+		IDiscordMessage? result = await serviceSub.SendMessage(_channelMock!, _memberMock!, "GuildName", "msg");
+
+		// Assert.
+		Assert.IsNull(result);
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Could not send message to channel")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>());
+		await serviceSub.Received(1).SayBotNotAuthorized(_channelMock!);
+		await serviceSub.Received(1).SendPrivateMessage(_memberMock!, "GuildName", "msg");
+		await serviceSub.DidNotReceiveWithAnyArgs().SayTooManyCharacters(default!);
+	}
+
+	[TestMethod]
+	public async Task SendMessage_ShouldCallSayTooManyCharacters_AndSendPrivateMessage_WhenOtherException()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync("msg")
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("Some other error"));
+
+		// Create partial mock of MessageService so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Act.
+		IDiscordMessage? result = await serviceSub.SendMessage(_channelMock!, _memberMock!, "GuildName", "msg");
+
+		// Assert.
+		Assert.IsNull(result);
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Could not send message to channel")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>());
+		await serviceSub.Received(1).SayTooManyCharacters(_channelMock!);
+		await serviceSub.Received(1).SendPrivateMessage(_memberMock!, "GuildName", "msg");
+		await serviceSub.DidNotReceiveWithAnyArgs().SayBotNotAuthorized(default!);
+	}
+
+	[TestMethod]
+	public async Task SendPrivateMessage_ShouldReturnTrue_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		_memberMock!.SendMessageAsync("Test message").Returns(Task.FromResult(message));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SendPrivateMessage(_memberMock!, "TestGuild", "Test message");
+
+		// Assert.
+		Assert.IsNotNull(result);
+		_loggerMock!.Received(0).Log(
+			   LogLevel.Error,
+			   Arg.Any<EventId>(),
+			   Arg.Any<object>(),
+			   Arg.Any<Exception>(),
+			   Arg.Any<Func<object, Exception?, string>>()
+		   );
+	}
+
+	[TestMethod]
+	public async Task SendPrivateMessage_ShouldReturnFalse_AndLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_memberMock!.DisplayName.Returns("TestUser");
+		_memberMock.SendMessageAsync("Test message")
+				   .Returns<Task>(_ => throw new Exception("fail"));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SendPrivateMessage(_memberMock!, "TestGuild", "Test message");
+
+		// Assert.
+		Assert.IsNull(result);
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Could not send private message to member")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>());
+	}
+}

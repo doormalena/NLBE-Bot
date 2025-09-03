@@ -9,7 +9,7 @@ internal interface IMessageService
 {
 	public Task<IDiscordMessage?> SendMessage(IDiscordChannel channel, IDiscordMember? member, string guildName, string message);
 
-	public Task<bool> SendPrivateMessage(IDiscordMember member, string guildName, string Message);
+	public Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string Message);
 
 	public Task SayTheUserIsNotAllowed(IDiscordChannel channel);
 
