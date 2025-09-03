@@ -54,6 +54,143 @@ public class MessageServiceTests
 	}
 
 	[TestMethod]
+	public async Task AskQuestion_ShouldThrow_WhenChannelIsNull()
+	{
+		// Act & Assert.
+		await Assert.ThrowsExceptionAsync<ArgumentNullException>(() =>
+			_service!.AskQuestion(null!, _userMock!, _guildMock!, "Q"));
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldReturnContent_WhenNotTimedOut()
+	{
+		// Arrange.
+		IDiscordMessage discordMessage = Substitute.For<IDiscordMessage>();
+		discordMessage.Content.Returns("Answer");
+
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(false);
+		resultMock.Result.Returns(discordMessage);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual("Answer", answer);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldCleanChannel_WhenTimedOut_AndMemberIsNull()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns((IDiscordMember?) null);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldRemoveMember_WhenTimedOut_AndRemoveSucceeds()
+	{
+
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await member.Received(1).RemoveAsync("[New member] No answer");
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldBanAndUnban_WhenRemoveThrows()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		_guildMock.BanMemberAsync(member).Returns(Task.CompletedTask);
+		_guildMock.UnbanMemberAsync(_userMock!).Returns(Task.CompletedTask);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await _guildMock.Received(1).BanMemberAsync(member);
+		await _guildMock.Received(1).UnbanMemberAsync(_userMock!);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldLogWarning_WhenBanFails()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.DisplayName.Returns("Name");
+		member.Username.Returns("User");
+		member.Discriminator.Returns("1234");
+		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		_guildMock.BanMemberAsync(member).Returns(_ => throw new Exception("ban fail"));
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		_loggerMock!.Received(1).Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
 	public async Task SendMessage_ShouldReturnMessage_WhenNoException()
 	{
 		// Arrange.
@@ -337,140 +474,89 @@ public class MessageServiceTests
 	}
 
 	[TestMethod]
-	public async Task AskQuestion_ShouldThrow_WhenChannelIsNull()
-	{
-		// Act & Assert.
-		await Assert.ThrowsExceptionAsync<ArgumentNullException>(() =>
-			_service!.AskQuestion(null!, _userMock!, _guildMock!, "Q"));
-	}
-
-	[TestMethod]
-	public async Task AskQuestion_ShouldReturnContent_WhenNotTimedOut()
+	public async Task SayTheUserIsNotAllowed_ShouldSendEmbed_WhenNoException()
 	{
 		// Arrange.
-		IDiscordMessage discordMessage = Substitute.For<IDiscordMessage>();
-		discordMessage.Content.Returns("Answer");
-
-		IDiscordInteractivityResult<IDiscordMessage> resultMock =
-			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
-		resultMock.TimedOut.Returns(false);
-		resultMock.Result.Returns(discordMessage);
-
-		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
-					 .Returns(Task.FromResult(resultMock));
+		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
+		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult<IDiscordMessage>(null));
 
 		// Act.
-		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+		await _service!.SayTheUserIsNotAllowed(channel);
 
 		// Assert.
-		Assert.AreEqual("Answer", answer);
-	}
-
-	[TestMethod]
-	public async Task AskQuestion_ShouldCleanChannel_WhenTimedOut_AndMemberIsNull()
-	{
-		// Arrange.
-		IDiscordInteractivityResult<IDiscordMessage> resultMock =
-			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
-		resultMock.TimedOut.Returns(true);
-
-		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
-					 .Returns(Task.FromResult(resultMock));
-		_guildMock!.GetMemberAsync(_userMock!.Id).Returns((IDiscordMember?) null);
-
-		// Act.
-		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
-
-		// Assert.
-		Assert.AreEqual(string.Empty, answer);
-		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
-	}
-
-	[TestMethod]
-	public async Task AskQuestion_ShouldRemoveMember_WhenTimedOut_AndRemoveSucceeds()
-	{
-
-		// Arrange.
-		IDiscordInteractivityResult<IDiscordMessage> resultMock =
-			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
-		resultMock.TimedOut.Returns(true);
-
-		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
-					 .Returns(Task.FromResult(resultMock));
-
-		IDiscordMember member = Substitute.For<IDiscordMember>();
-		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
-
-		// Act.
-		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
-
-		// Assert.
-		Assert.AreEqual(string.Empty, answer);
-		await member.Received(1).RemoveAsync("[New member] No answer");
-		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
-	}
-
-	[TestMethod]
-	public async Task AskQuestion_ShouldBanAndUnban_WhenRemoveThrows()
-	{
-		// Arrange.
-		IDiscordInteractivityResult<IDiscordMessage> resultMock =
-			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
-		resultMock.TimedOut.Returns(true);
-
-		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
-					 .Returns(Task.FromResult(resultMock));
-
-		IDiscordMember member = Substitute.For<IDiscordMember>();
-		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
-		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
-
-		_guildMock.BanMemberAsync(member).Returns(Task.CompletedTask);
-		_guildMock.UnbanMemberAsync(_userMock!).Returns(Task.CompletedTask);
-
-		// Act.
-		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
-
-		// Assert.
-		Assert.AreEqual(string.Empty, answer);
-		await _guildMock.Received(1).BanMemberAsync(member);
-		await _guildMock.Received(1).UnbanMemberAsync(_userMock!);
-		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
-	}
-
-	[TestMethod]
-	public async Task AskQuestion_ShouldLogWarning_WhenBanFails()
-	{
-		// Arrange.
-		IDiscordInteractivityResult<IDiscordMessage> resultMock =
-			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
-		resultMock.TimedOut.Returns(true);
-
-		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
-					 .Returns(Task.FromResult(resultMock));
-
-		IDiscordMember member = Substitute.For<IDiscordMember>();
-		member.DisplayName.Returns("Name");
-		member.Username.Returns("User");
-		member.Discriminator.Returns("1234");
-		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
-		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
-
-		_guildMock.BanMemberAsync(member).Returns(_ => throw new Exception("ban fail"));
-
-		// Act.
-		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
-
-		// Assert.
-		Assert.AreEqual(string.Empty, answer);
-		_loggerMock!.Received(1).Log(
-			LogLevel.Warning,
+		await channel.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
 			Arg.Any<EventId>(),
 			Arg.Any<object>(),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>()
 		);
-		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task SayTheUserIsNotAllowed_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
+		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayTheUserIsNotAllowed(channel);
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayNoResults_ShouldSendEmbed_WhenNoException()
+	{
+		// Arrange.
+		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
+		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult<IDiscordMessage>(null));
+
+		// Act.
+		await _service!.SayNoResults(channel, "Test_description");
+
+		// Assert.
+		await channel.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayNoResults_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
+		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayNoResults(channel, "Test_description");
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
 	}
 
 }
