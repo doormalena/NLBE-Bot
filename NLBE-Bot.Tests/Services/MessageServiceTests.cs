@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using NSubstitute;
 using System;
@@ -810,4 +811,42 @@ public class MessageServiceTests
 		// Assert.
 		await _channelMock!.Received(1).SendMessageAsync("**Dat cijfer was te groot!**");
 	}
+
+	[TestMethod]
+	public async Task SayBeMoreSpecific_ShouldCallCreateEmbed_WithExpectedParameters()
+	{
+		// Arrange.
+		EmbedOptions options = new()
+		{
+			Title = "Wees specifieker",
+			Description = "Er waren te veel resultaten, probeer iets specifieker te zijn!"
+		};
+
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub CreateEmbed so it doesn't run the real implementation
+		serviceSub.CreateEmbed(_channelMock!, Arg.Any<EmbedOptions>())
+				  .Returns(Task.CompletedTask);
+
+		// Act.
+		await serviceSub.SayBeMoreSpecific(_channelMock!);
+
+		// Assert.
+		await serviceSub.Received(1).CreateEmbed(
+			_channelMock!,
+			Arg.Is<EmbedOptions>(opts =>
+				opts.Title == options.Title &&
+				opts.Description == options.Description
+			)
+		);
+	}
+
 }
