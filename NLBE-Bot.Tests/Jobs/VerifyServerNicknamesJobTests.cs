@@ -372,7 +372,7 @@ public class VerifyServerNicknamesJobTests
 		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert.
-		await _messageServcieMock!.DidNotReceiveWithAnyArgs().SendMessage(default, default, default, default);
+		await _messageServcieMock!.DidNotReceiveWithAnyArgs().SendMessage(default!, default!, default!, default!);
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),

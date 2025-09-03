@@ -16,7 +16,7 @@ internal interface IHallOfFameService
 
 	public Task EditHOFMessage(IDiscordMessage message, List<Tuple<string, List<TankHof>>> tierHOF);
 
-	public Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID);
+	public Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(IDiscordGuild guild);
 
 	public List<Tuple<string, List<TankHof>>> ConvertHOFMessageToTupleListAsync(IDiscordMessage message, int TIER);
 

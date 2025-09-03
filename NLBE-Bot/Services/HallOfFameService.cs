@@ -83,7 +83,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 				try
 				{
 					return replayInfo.details != null
-						? await ReplayHOF(replayInfo, channel, member, guild.Name)
+						? await ReplayHOF(guild, replayInfo, channel, member)
 						: new Tuple<string, IDiscordMessage>("Replay bevatte geen details.", null);
 				}
 				catch (JsonNotFoundException ex)
@@ -150,11 +150,12 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 		await _messageService.CreateEmbed(channel, options);
 		return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
 	}
-	public async Task<Tuple<string, IDiscordMessage>> ReplayHOF(WGBattle battle, IDiscordChannel channel, IDiscordMember member, string guildName)
+
+	private async Task<Tuple<string, IDiscordMessage>> ReplayHOF(IDiscordGuild guild, WGBattle battle, IDiscordChannel channel, IDiscordMember member)
 	{
 		if (battle.details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.details.clanid.Equals(Constants.NLBE2_CLAN_ID))
 		{
-			IDiscordMessage message = await GetHOFMessage(battle.vehicle_tier, battle.vehicle);
+			IDiscordMessage? message = await GetHOFMessage(guild, battle.vehicle_tier, battle.vehicle);
 			if (message != null)
 			{
 				List<Tuple<string, List<TankHof>>> tierHOF = ConvertHOFMessageToTupleListAsync(message, battle.vehicle_tier);
@@ -262,54 +263,52 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 			}
 			else
 			{
-				IDiscordMessage tempMessage = await _messageService.SaySomethingWentWrong(channel, member, guildName, "**Het bericht van de tier van de replay kon niet gevonden worden!**");
+				IDiscordMessage tempMessage = await _messageService.SaySomethingWentWrong(channel, member, guild.Name, "**Het bericht van de tier van de replay kon niet gevonden worden!**");
 				return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
 			}
 		}
 		else
 		{
-			IDiscordMessage tempMessage = await _messageService.SaySomethingWentWrong(channel, member, guildName, "**Enkel replays van NLBE-clanleden mogen gebruikt worden!**");
+			IDiscordMessage tempMessage = await _messageService.SaySomethingWentWrong(channel, member, guild.Name, "**Enkel replays van NLBE-clanleden mogen gebruikt worden!**");
 			return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
 		}
 		return null;
 	}
-	public async Task<IDiscordMessage> GetHOFMessage(int tier, string vehicle)
+
+	private async Task<IDiscordMessage?> GetHOFMessage(IDiscordGuild guild, int tier, string vehicle)
 	{
-		IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
-		if (channel != null)
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
 		{
-			IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-			if (messages != null)
+			return null;
+		}
+
+		IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+		if (messages != null)
+		{
+			List<IDiscordMessage> tierMessages = GetTierMessages(tier, messages);
+			foreach (IDiscordMessage tierMessage in tierMessages)
 			{
-				List<IDiscordMessage> tierMessages = GetTierMessages(tier, messages);
-				foreach (IDiscordMessage tierMessage in tierMessages)
+				if (tierMessage.Embeds[0].Fields != null)
 				{
-					if (tierMessage.Embeds[0].Fields != null)
+					if (tierMessage.Embeds[0].Fields.Count() > 0)
 					{
-						if (tierMessage.Embeds[0].Fields.Count() > 0)
+						foreach (DiscordEmbedField field in tierMessage.Embeds[0].Fields)
 						{
-							foreach (DiscordEmbedField field in tierMessage.Embeds[0].Fields)
-							{
-								if (field.Name.Equals(vehicle))
-								{
-									return tierMessage;
-								}
-							}
-						}
-					}
-				}
-				foreach (IDiscordMessage tierMessage in tierMessages)
-				{
-					if (tierMessage.Embeds[0].Fields != null)
-					{
-						if (tierMessage.Embeds[0].Fields.Count() > 0)
-						{
-							if (tierMessage.Embeds[0].Fields.Count() < 15)//15 fields in embed
+							if (field.Name.Equals(vehicle))
 							{
 								return tierMessage;
 							}
 						}
-						else
+					}
+				}
+			}
+			foreach (IDiscordMessage tierMessage in tierMessages)
+			{
+				if (tierMessage.Embeds[0].Fields != null)
+				{
+					if (tierMessage.Embeds[0].Fields.Count() > 0)
+					{
+						if (tierMessage.Embeds[0].Fields.Count() < 15)//15 fields in embed
 						{
 							return tierMessage;
 						}
@@ -319,58 +318,58 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 						return tierMessage;
 					}
 				}
-				//Tier exists but message is must be created (move all the lower tiers to the front)
-				//Get messages that should be moved
-				List<IDiscordMessage> LTmessages = [];
-				foreach (IDiscordMessage tierMessage in messages)
+				else
 				{
-					if (tierMessage.Embeds != null)
+					return tierMessage;
+				}
+			}
+			//Tier exists but message is must be created (move all the lower tiers to the front)
+			//Get messages that should be moved
+			List<IDiscordMessage> LTmessages = [];
+			foreach (IDiscordMessage tierMessage in messages)
+			{
+				if (tierMessage.Embeds != null)
+				{
+					if (tierMessage.Embeds.Count > 0)
 					{
-						if (tierMessage.Embeds.Count > 0)
+						string emojiAsString = tierMessage.Embeds[0].Title.Replace("Tier ", string.Empty);
+						int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(emojiAsString));
+						if (index < tier)
 						{
-							string emojiAsString = tierMessage.Embeds[0].Title.Replace("Tier ", string.Empty);
-							int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(emojiAsString));
-							if (index < tier)
-							{
-								LTmessages.Add(tierMessage);
-							}
-							else
-							{
-								break;
-							}
+							LTmessages.Add(tierMessage);
+						}
+						else
+						{
+							break;
 						}
 					}
 				}
-				LTmessages.Reverse();
-				ulong messageToReturnID = 0;
-				//Move them
-				for (int i = 0; i <= LTmessages.Count; i++)
-				{
-					if (i == 0)
-					{
-						//set new message for the tier
-						await LTmessages[i].ModifyAsync(CreateHOFResetEmbed(tier));
-						messageToReturnID = LTmessages[i].Id;
-					}
-					else if (i == LTmessages.Count)
-					{
-						//Create new message for tier 1
-						await channel.SendMessageAsync(null, LTmessages[i - 1].Embeds[0]);
-					}
-					else
-					{
-						//modify
-						await LTmessages[i].ModifyAsync(null, LTmessages[i - 1].Embeds[0]);
-					}
-				}
-				return await channel.GetMessageAsync(messageToReturnID);
 			}
-			return null;
+			LTmessages.Reverse();
+			ulong messageToReturnID = 0;
+			//Move them
+			for (int i = 0; i <= LTmessages.Count; i++)
+			{
+				if (i == 0)
+				{
+					//set new message for the tier
+					await LTmessages[i].ModifyAsync(CreateHOFResetEmbed(tier));
+					messageToReturnID = LTmessages[i].Id;
+				}
+				else if (i == LTmessages.Count)
+				{
+					//Create new message for tier 1
+					await hallOfFameChannel.SendMessageAsync(null, LTmessages[i - 1].Embeds[0]);
+				}
+				else
+				{
+					//modify
+					await LTmessages[i].ModifyAsync(null, LTmessages[i - 1].Embeds[0]);
+				}
+			}
+			return await hallOfFameChannel.GetMessageAsync(messageToReturnID);
 		}
-		else
-		{
-			return null;
-		}
+		return null;
 	}
 	public List<IDiscordMessage> GetTierMessages(int tier, IReadOnlyList<IDiscordMessage> messages)
 	{
@@ -545,48 +544,50 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger, IOptions<Bot
 		string extraDescription = await _replayService.GetDescriptionForReplay(battle, position);
 		return await _messageService.SayReplayIsWorthy(channel, battle, extraDescription, position);
 	}
-	public async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(ulong guildID)
+	public async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(IDiscordGuild guild)
 	{
 		List<Tuple<string, List<TankHof>>> players = [];
-		IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
-		if (channel != null)
-		{
-			IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-			if (messages != null && messages.Count > 0)
-			{
-				List<Tuple<IDiscordMessage, int>> allTierMessages = [];
-				for (int i = 1; i <= 10; i++)
-				{
-					List<IDiscordMessage> tierMessages = GetTierMessages(i, messages);
-					foreach (IDiscordMessage tempMessage in tierMessages)
-					{
-						allTierMessages.Add(new Tuple<IDiscordMessage, int>(tempMessage, i));
-					}
-				}
 
-				//Has all HOF messages
-				foreach (Tuple<IDiscordMessage, int> message in allTierMessages)
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
+		{
+			return players;
+		}
+
+		IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+		if (messages != null && messages.Count > 0)
+		{
+			List<Tuple<IDiscordMessage, int>> allTierMessages = [];
+			for (int i = 1; i <= 10; i++)
+			{
+				List<IDiscordMessage> tierMessages = GetTierMessages(i, messages);
+				foreach (IDiscordMessage tempMessage in tierMessages)
 				{
-					List<Tuple<string, List<TankHof>>> tempTanks = ConvertHOFMessageToTupleListAsync(message.Item1, message.Item2);
-					if (tempTanks != null)
+					allTierMessages.Add(new Tuple<IDiscordMessage, int>(tempMessage, i));
+				}
+			}
+
+			//Has all HOF messages
+			foreach (Tuple<IDiscordMessage, int> message in allTierMessages)
+			{
+				List<Tuple<string, List<TankHof>>> tempTanks = ConvertHOFMessageToTupleListAsync(message.Item1, message.Item2);
+				if (tempTanks != null)
+				{
+					foreach (Tuple<string, List<TankHof>> tank in tempTanks)
 					{
-						foreach (Tuple<string, List<TankHof>> tank in tempTanks)
+						foreach (TankHof th in tank.Item2)
 						{
-							foreach (TankHof th in tank.Item2)
+							bool found = false;
+							for (int i = 0; i < players.Count; i++)
 							{
-								bool found = false;
-								for (int i = 0; i < players.Count; i++)
+								if (players[i].Item1.Equals(th.Speler))
 								{
-									if (players[i].Item1.Equals(th.Speler))
-									{
-										found = true;
-										players[i].Item2.Add(th);
-									}
+									found = true;
+									players[i].Item2.Add(th);
 								}
-								if (!found)
-								{
-									players.Add(new Tuple<string, List<TankHof>>(th.Speler, []));
-								}
+							}
+							if (!found)
+							{
+								players.Add(new Tuple<string, List<TankHof>>(th.Speler, []));
 							}
 						}
 					}

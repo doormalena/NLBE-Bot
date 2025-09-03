@@ -50,7 +50,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_weeklyEventServiceMock!.ReadWeeklyEvent().Returns(Task.CompletedTask);
 
 		// Act.
-		await _job!.Execute(_guildMock, monday14);
+		await _job!.Execute(_guildMock!, monday14);
 
 		// Assert.
 		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
@@ -96,7 +96,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(lastAnnouncement);
 
 		// Act.
-		await _job!.Execute(_guildMock, tuesday14);
+		await _job!.Execute(_guildMock!, tuesday14);
 
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
@@ -111,7 +111,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
 
 		// Act.
-		await _job!.Execute(_guildMock, mondayBefore14);
+		await _job!.Execute(_guildMock!, mondayBefore14);
 
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
@@ -126,7 +126,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(monday15.Date);
 
 		// Act.
-		await _job!.Execute(_guildMock, monday15);
+		await _job!.Execute(_guildMock!, monday15);
 
 		// Assert.
 		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
@@ -141,7 +141,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns((DateTime?) null);
 
 		// Act.
-		await _job!.Execute(_guildMock, monday15);
+		await _job!.Execute(_guildMock!, monday15);
 
 		// Assert.
 		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
@@ -159,7 +159,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_weeklyEventServiceMock!.ReadWeeklyEvent().Throws(ex);
 
 		// Act.
-		await _job!.Execute(_guildMock, monday15);
+		await _job!.Execute(_guildMock!, monday15);
 
 		// Assert.
 		_loggerMock!.Received().Log(

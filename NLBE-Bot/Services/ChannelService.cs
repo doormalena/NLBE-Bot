@@ -17,11 +17,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<ChannelService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public async Task<IDiscordChannel?> GetHallOfFameChannelAsync()
-	{
-		ulong ChatID = 793268894454251570;
-		return await GetChannelAsync(ChatID);
-	}
 	public async Task<IDiscordChannel?> GetMasteryReplaysChannelAsync()
 	{
 		ulong ChatID = Constants.MASTERY_REPLAYS_ID;

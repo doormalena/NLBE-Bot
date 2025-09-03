@@ -1857,67 +1857,67 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
-			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
-			if (channel != null)
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
 			{
-				bool noErrors = true;
-				List<Tuple<int, IDiscordMessage>> tiersFound = [];
-				try
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gevonden worden!**");
+				return;
+			}
+
+			await _messageService.ConfirmCommandExecuting(ctx.Message);
+
+			bool noErrors = true;
+			List<Tuple<int, IDiscordMessage>> tiersFound = [];
+			try
+			{
+				IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+
+				foreach (IDiscordMessage message in messages)
 				{
-					IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-
-					foreach (IDiscordMessage message in messages)
+					if (!message.Pinned && message.Embeds != null && message.Embeds.Count > 0)
 					{
-						if (!message.Pinned && message.Embeds != null && message.Embeds.Count > 0)
+						for (int i = 1; i <= 10; i++)
 						{
-							for (int i = 1; i <= 10; i++)
+							bool containsItem = false;
+							foreach (var _ in from IDiscordEmbed embed in message.Embeds
+											  where embed.Title != null && embed.Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)).ToString())
+											  select new
+											  {
+											  })
 							{
-								bool containsItem = false;
-								foreach (var _ in from IDiscordEmbed embed in message.Embeds
-												  where embed.Title != null && embed.Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)).ToString())
-												  select new
-												  {
-												  })
-								{
-									tiersFound.Add(new Tuple<int, IDiscordMessage>(i, message));
-									containsItem = true;
-									break;
-								}
+								tiersFound.Add(new Tuple<int, IDiscordMessage>(i, message));
+								containsItem = true;
+								break;
+							}
 
-								if (containsItem)
-								{
-									break;
-								}
+							if (containsItem)
+							{
+								break;
 							}
 						}
 					}
 				}
-				catch (Exception ex)
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error while getting the Hall Of Fame messages.");
+				noErrors = false;
+			}
+			if (noErrors)
+			{
+				if (await _hallOfFameService.CreateOrCleanHOFMessages(hallOfFameChannel, tiersFound))
 				{
-					_logger.LogError(ex, "Error while getting the Hall Of Fame messages.");
-					noErrors = false;
-				}
-				if (noErrors)
-				{
-					if (await _hallOfFameService.CreateOrCleanHOFMessages(channel, tiersFound))
-					{
-						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame is gereset!**");
-					}
-					else
-					{
-						await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon de berichten niet resetten!**");
-					}
+					await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame is gereset!**");
 				}
 				else
 				{
-					await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon niet gereset worden door een interne reden!**");
+					await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon de berichten niet resetten!**");
 				}
 			}
 			else
 			{
-				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gereset worden!**");
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon niet gereset worden door een interne reden!**");
 			}
+
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		});
 	}
@@ -1934,60 +1934,64 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
+			{
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gevonden worden!**");
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			bool foundAtLeastOnce = false;
 			naam = naam.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			naam = naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
-			if (channel != null)
+
+			IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+			for (int i = 1; i <= 10; i++)
 			{
-				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-				for (int i = 1; i <= 10; i++)
+				List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
+				foreach (IDiscordMessage message in tempTierMessages)
 				{
-					List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
-					foreach (IDiscordMessage message in tempTierMessages)
+					bool playerRemoved = false;
+					List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
+					if (tupleList != null)
 					{
-						bool playerRemoved = false;
-						List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
-						if (tupleList != null)
+						List<Tuple<string, List<TankHof>>> tempTupleList = [];
+						for (int j = 0; j < tupleList.Count; j++)
 						{
-							List<Tuple<string, List<TankHof>>> tempTupleList = [];
-							for (int j = 0; j < tupleList.Count; j++)
+							if (tupleList[j].Item2 != null)
 							{
-								if (tupleList[j].Item2 != null)
+								List<TankHof> tempTupleListItem2 = [];
+								for (int k = 0; k < tupleList[j].Item2.Count; k++)
 								{
-									List<TankHof> tempTupleListItem2 = [];
-									for (int k = 0; k < tupleList[j].Item2.Count; k++)
+									if (!tupleList[j].Item2[k].Speler.Equals(naam))
 									{
-										if (!tupleList[j].Item2[k].Speler.Equals(naam))
-										{
-											tempTupleListItem2.Add(tupleList[j].Item2[k]);
-										}
-										else
-										{
-											playerRemoved = true;
-										}
+										tempTupleListItem2.Add(tupleList[j].Item2[k]);
 									}
-									if (tempTupleListItem2.Count > 0)
+									else
 									{
-										tempTupleList.Add(new Tuple<string, List<TankHof>>(tempTupleListItem2[0].Tank, tempTupleListItem2));
+										playerRemoved = true;
 									}
 								}
+								if (tempTupleListItem2.Count > 0)
+								{
+									tempTupleList.Add(new Tuple<string, List<TankHof>>(tempTupleListItem2[0].Tank, tempTupleListItem2));
+								}
 							}
-							tupleList = tempTupleList;
 						}
-						if (playerRemoved)
+						tupleList = tempTupleList;
+					}
+					if (playerRemoved)
+					{
+						if (!foundAtLeastOnce)
 						{
-							if (!foundAtLeastOnce)
-							{
-								foundAtLeastOnce = true;
-							}
-							await _hallOfFameService.EditHOFMessage(message, tupleList);
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
+							foundAtLeastOnce = true;
 						}
+						await _hallOfFameService.EditHOFMessage(message, tupleList);
+						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
 					}
 				}
 			}
+
 			if (!foundAtLeastOnce)
 			{
 				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + naam + "` als naam komt niet voor in de HOF.**");
@@ -2008,46 +2012,50 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
+			{
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gevonden worden!**");
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			bool foundAtLeastOnce = false;
 			oldName = oldName.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			oldName = oldName.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 			niewe_naam = niewe_naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannelAsync();
-			if (channel != null)
+
+			IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+			for (int i = 1; i <= 10; i++)
 			{
-				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-				for (int i = 1; i <= 10; i++)
+				List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
+				foreach (IDiscordMessage message in tempTierMessages)
 				{
-					List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
-					foreach (IDiscordMessage message in tempTierMessages)
+					bool nameChanged = false;
+					List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
+					if (tupleList != null)
 					{
-						bool nameChanged = false;
-						List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
-						if (tupleList != null)
+						foreach (TankHof tankHofItem in from Tuple<string, List<TankHof>> tupleItem in tupleList
+														where tupleItem.Item2 != null
+														from TankHof tankHofItem in tupleItem.Item2
+														where tankHofItem.Speler.Equals(oldName)
+														select tankHofItem)
 						{
-							foreach (TankHof tankHofItem in from Tuple<string, List<TankHof>> tupleItem in tupleList
-															where tupleItem.Item2 != null
-															from TankHof tankHofItem in tupleItem.Item2
-															where tankHofItem.Speler.Equals(oldName)
-															select tankHofItem)
-							{
-								nameChanged = true;
-								tankHofItem.Speler = niewe_naam;
-							}
+							nameChanged = true;
+							tankHofItem.Speler = niewe_naam;
 						}
-						if (nameChanged)
+					}
+					if (nameChanged)
+					{
+						if (!foundAtLeastOnce)
 						{
-							if (!foundAtLeastOnce)
-							{
-								foundAtLeastOnce = true;
-							}
-							await _hallOfFameService.EditHOFMessage(message, tupleList);
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
+							foundAtLeastOnce = true;
 						}
+						await _hallOfFameService.EditHOFMessage(message, tupleList);
+						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
 					}
 				}
 			}
+
 			if (!foundAtLeastOnce)
 			{
 				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + oldName + "` als naam komt niet voor in de HOF.**");
@@ -2070,7 +2078,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild.Id);
+			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild);
 			playerList = [.. playerList.OrderBy(x => x.Item2.Count)];
 			playerList.Reverse();
 			StringBuilder sb = new("```");
@@ -2118,7 +2126,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		{
 			name = name.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild.Id);
+			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild);
 			List<DEF> defList = [];
 			playerList.Reverse();
 			bool found = false;

@@ -1,4 +1,5 @@
 namespace NLBE_Bot.Configuration;
+
 using System.ComponentModel.DataAnnotations;
 
 public class ChannelIdsOptions
@@ -11,6 +12,12 @@ public class ChannelIdsOptions
 
 	[Required]
 	public ulong General
+	{
+		get; set;
+	}
+
+	[Required]
+	public ulong HallOfFame
 	{
 		get; set;
 	}

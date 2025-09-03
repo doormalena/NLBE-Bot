@@ -6,7 +6,6 @@ using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using NSubstitute;
-using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Interfaces;
 
 [TestClass]
