@@ -23,6 +23,8 @@ public class MessageServiceTests
 	private MessageService? _service;
 	private IDiscordChannel? _channelMock;
 	private IDiscordMember? _memberMock;
+	private IDiscordGuild? _guildMock;
+	private IDiscordUser? _userMock;
 
 	[TestInitialize]
 	public void Setup()
@@ -47,6 +49,8 @@ public class MessageServiceTests
 
 		_channelMock = Substitute.For<IDiscordChannel>();
 		_memberMock = Substitute.For<IDiscordMember>();
+		_guildMock = Substitute.For<IDiscordGuild>();
+		_userMock = Substitute.For<IDiscordUser>();
 	}
 
 	[TestMethod]
@@ -286,6 +290,187 @@ public class MessageServiceTests
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>()
 		);
+	}
+
+	[TestMethod]
+	public async Task ConfirmCommandExecuting_ShouldAddInProgressReaction()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		IDiscordEmoji inProgressEmoji = Substitute.For<IDiscordEmoji>();
+
+		_discordMessageUtilsMock!
+			.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)
+			.Returns(inProgressEmoji);
+
+		// Act.
+		await _service!.ConfirmCommandExecuting(message);
+
+		// Assert.
+		_discordMessageUtilsMock.Received(1).GetDiscordEmoji(Constants.IN_PROGRESS_REACTION);
+		await message.Received(1).CreateReactionAsync(inProgressEmoji);
+	}
+
+	[TestMethod]
+	public async Task ConfirmCommandExecuted_ShouldRemoveInProgressAndAddCompletedReaction()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		IDiscordEmoji inProgressEmoji = Substitute.For<IDiscordEmoji>();
+		IDiscordEmoji completedEmoji = Substitute.For<IDiscordEmoji>();
+
+		_discordMessageUtilsMock!
+			.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)
+			.Returns(inProgressEmoji);
+		_discordMessageUtilsMock!
+			.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION)
+			.Returns(completedEmoji);
+
+		// Act.
+		await _service!.ConfirmCommandExecuted(message);
+
+		// Assert.
+		_discordMessageUtilsMock.Received(1).GetDiscordEmoji(Constants.IN_PROGRESS_REACTION);
+		_discordMessageUtilsMock.Received(1).GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION);
+		await message.Received(1).DeleteReactionsEmojiAsync(inProgressEmoji);
+		await message.Received(1).CreateReactionAsync(completedEmoji);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldThrow_WhenChannelIsNull()
+	{
+		// Act & Assert.
+		await Assert.ThrowsExceptionAsync<ArgumentNullException>(() =>
+			_service!.AskQuestion(null!, _userMock!, _guildMock!, "Q"));
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldReturnContent_WhenNotTimedOut()
+	{
+		// Arrange.
+		IDiscordMessage discordMessage = Substitute.For<IDiscordMessage>();
+		discordMessage.Content.Returns("Answer");
+
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(false);
+		resultMock.Result.Returns(discordMessage);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual("Answer", answer);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldCleanChannel_WhenTimedOut_AndMemberIsNull()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns((IDiscordMember?) null);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldRemoveMember_WhenTimedOut_AndRemoveSucceeds()
+	{
+
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await member.Received(1).RemoveAsync("[New member] No answer");
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldBanAndUnban_WhenRemoveThrows()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		_guildMock.BanMemberAsync(member).Returns(Task.CompletedTask);
+		_guildMock.UnbanMemberAsync(_userMock!).Returns(Task.CompletedTask);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await _guildMock.Received(1).BanMemberAsync(member);
+		await _guildMock.Received(1).UnbanMemberAsync(_userMock!);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldLogWarning_WhenBanFails()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.DisplayName.Returns("Name");
+		member.Username.Returns("User");
+		member.Discriminator.Returns("1234");
+		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		_guildMock.BanMemberAsync(member).Returns(_ => throw new Exception("ban fail"));
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		_loggerMock!.Received(1).Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
 	}
 
 }

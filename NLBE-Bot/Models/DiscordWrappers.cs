@@ -424,9 +424,10 @@ internal class DiscordGuildWrapper(DiscordGuild guild) : IDiscordGuild
 		return [.. members.Select(m => (IDiscordMember) new DiscordMemberWrapper(m))];
 	}
 
-	public async Task<IDiscordMember> GetMemberAsync(ulong userId)
+	public async Task<IDiscordMember?> GetMemberAsync(ulong userId)
 	{
-		return new DiscordMemberWrapper(await _guild.GetMemberAsync(userId));
+		DiscordMember member = await _guild.GetMemberAsync(userId);
+		return member != null ? new DiscordMemberWrapper(member) : null;
 	}
 
 	public Task LeaveAsync()

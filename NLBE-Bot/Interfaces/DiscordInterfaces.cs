@@ -314,7 +314,7 @@ internal interface IDiscordGuild
 		get;
 	}
 	public Task<IReadOnlyCollection<IDiscordMember>> GetAllMembersAsync();
-	public Task<IDiscordMember> GetMemberAsync(ulong userId);
+	public Task<IDiscordMember?> GetMemberAsync(ulong userId);
 	public Task LeaveAsync();
 	public IDiscordRole? GetRole(ulong roleId);
 	public IDiscordChannel? GetChannel(ulong id);

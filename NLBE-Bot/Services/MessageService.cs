@@ -378,90 +378,72 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 	public async Task<string> AskQuestion(IDiscordChannel channel, IDiscordUser user, IDiscordGuild guild, string question)
 	{
-		if (channel != null)
-		{
-			try
-			{
-				await channel.SendMessageAsync(question);
-				TimeSpan newPlayerWaitTime = TimeSpan.FromDays(_options.NewPlayerWaitTimeInDays);
-				IDiscordInteractivityResult<IDiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
+		channel = channel ?? throw new ArgumentNullException(nameof(channel));
 
-				if (!message.TimedOut)
+		try
+		{
+			await channel.SendMessageAsync(question);
+			TimeSpan newPlayerWaitTime = TimeSpan.FromDays(_options.NewPlayerWaitTimeInDays);
+			IDiscordInteractivityResult<IDiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
+
+			if (!message.TimedOut)
+			{
+				return message.Result.Content;
+			}
+			else
+			{
+				await SayNoResponse(channel);
+				IDiscordMember? member = await guild.GetMemberAsync(user.Id);
+
+				if (member != null)
 				{
-					return message.Result.Content;
-				}
-				else
-				{
-					await SayNoResponse(channel);
-					IDiscordMember member = await guild.GetMemberAsync(user.Id);
-					if (member != null)
+					try
 					{
+						await member.RemoveAsync("[New member] No answer");
+					}
+					catch
+					{
+						bool isBanned = false;
 						try
 						{
-							await member.RemoveAsync("[New member] No answer");
+							await guild.BanMemberAsync(member);
+							isBanned = true;
 						}
-						catch
+						catch (Exception ex)
 						{
-							bool isBanned = false;
+							_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
+						}
+
+						if (isBanned)
+						{
 							try
 							{
-								await guild.BanMemberAsync(member);
-								isBanned = true;
+								await guild.UnbanMemberAsync(user);
 							}
-							catch (Exception ex)
-							{
-								_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
-							}
-
-							if (isBanned)
+							catch
 							{
 								try
 								{
-									await guild.UnbanMemberAsync(user);
+									await user.UnbanAsync(guild);
 								}
-								catch
+								catch (Exception ex)
 								{
-									try
-									{
-										await user.UnbanAsync(guild);
-									}
-									catch (Exception ex)
-									{
-										_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
-									}
+									_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
 								}
 							}
 						}
 					}
-					await _channelService.CleanChannelAsync(channel);
 				}
+
+				await _channelService.CleanChannelAsync(channel);
 			}
-			catch (Exception e)
-			{
-				Console.WriteLine("goOverAllQuestions:\n" + e.StackTrace);
-			}
-			return null;
 		}
-		else
+		catch (Exception e)
 		{
-			_logger.LogWarning("Channel for new members couldn't be found! Giving the noob role to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
-			bool roleWasGiven = false;
-			if (noobRole != null)
-			{
-				IDiscordMember member = guild.GetMemberAsync(user.Id).Result;
-				if (member != null)
-				{
-					await member.GrantRoleAsync(noobRole);
-					roleWasGiven = true;
-				}
-			}
-			if (!roleWasGiven)
-			{
-				_logger.LogWarning("The noob role could not be given to user: {Username}#{Discriminator}", user.Username, user.Discriminator);
-			}
+			Console.WriteLine("goOverAllQuestions:\n" + e.StackTrace);
 		}
-		return null;
+
+		return string.Empty;
 	}
 
 	public async Task ConfirmCommandExecuting(IDiscordMessage message)
