@@ -543,23 +543,16 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.Deputies), _logger, "Deputies channel", out IDiscordChannel deputiesChannel) ||
+				Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel))
+			{
+				return;
+			}
+
 			// 3 reacties voorzien, :thumbsup: :thinking: :thumbsdown:
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			bool validChannel = false;
-			IDiscordChannel deputiesChannel = await _channelService.GetDeputiesChannelAsync();
-			if (deputiesChannel != null && ctx.Channel.Id.Equals(deputiesChannel.Id))
-			{
-				validChannel = true;
-			}
-			if (!validChannel)
-			{
-				IDiscordChannel bottestChannel = ctx.Guild.GetChannel(_options.ChannelIds.BotTest);
-				if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
-				{
-					validChannel = true;
-				}
-			}
-			if (validChannel)
+
+			if (ctx.Channel.Id.Equals(deputiesChannel.Id) || ctx.Channel.Id.Equals(botTestChannel.Id))
 			{
 				StringBuilder sb = new();
 				for (int i = 0; i < optioneel_clan_naam_indien_nieuwe_kandidaat.Length; i++)

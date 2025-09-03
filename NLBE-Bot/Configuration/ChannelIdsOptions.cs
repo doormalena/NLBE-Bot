@@ -11,6 +11,12 @@ public class ChannelIdsOptions
 	}
 
 	[Required]
+	public ulong Deputies
+	{
+		get; set;
+	}
+
+	[Required]
 	public ulong General
 	{
 		get; set;
