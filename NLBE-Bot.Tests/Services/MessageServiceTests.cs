@@ -735,5 +735,35 @@ public class MessageServiceTests
 		);
 	}
 
+	[TestMethod]
+	public async Task SayNoResponse_ShouldCallSendMessage_WithExpectedParameters_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "`Time-out: Geen antwoord.`")
+				  .Returns(Task.FromResult<IDiscordMessage?>(message));
+
+		// Act.
+		await serviceSub.SayNoResponse(_channelMock!, _memberMock!, "TestGuild");
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"`Time-out: Geen antwoord.`"
+		);
+	}
 
 }
