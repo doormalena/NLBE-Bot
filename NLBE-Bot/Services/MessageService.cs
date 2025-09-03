@@ -9,6 +9,7 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Tools.Replays;
 
@@ -457,19 +458,16 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
 
-		foreach (Tuple<string, string> map in images)
+		Tuple<string, string>? matchingMap = images.FirstOrDefault(map =>
+					!string.IsNullOrEmpty(map.Item1) &&
+					string.Equals(map.Item1, battle.map_name, StringComparison.OrdinalIgnoreCase));
+
+		if (matchingMap != null)
 		{
-			if (string.Equals(map.Item1, battle.map_name, StringComparison.OrdinalIgnoreCase))
+			embedBuilder.Thumbnail = new()
 			{
-				if (!string.IsNullOrEmpty(map.Item1))
-				{
-					embedBuilder.Thumbnail = new()
-					{
-						Url = map.Item2
-					};
-				}
-				break;
-			}
+				Url = matchingMap.Item2
+			};
 		}
 
 		IDiscordEmbed embed = new DiscordEmbedWrapper(embedBuilder.Build());
