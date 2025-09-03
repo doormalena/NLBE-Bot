@@ -196,100 +196,18 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 	}
 
-	public async Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription)
+	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Helaas...",
-			Description = "De statistieken van deze replay waren onvoldoende om in de Hall Of Fame te komen te staan!\n\n" + extraDescription
-		};
-		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
-		foreach (Tuple<string, string> map in images)
-		{
-			if (map.Item1.ToLower() == battle.map_name.ToLower())
-			{
-				try
-				{
-					if (map.Item1 != string.Empty)
-					{
-						newDiscEmbedBuilder.Thumbnail = new()
-						{
-							Url = map.Item2
-						};
-					}
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
-				}
-				break;
-			}
-		}
-		IDiscordEmbed embed = new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
-
-		if (_botState.LastCreatedDiscordMessage != null)
-		{
-			try
-			{
-				return await _botState.LastCreatedDiscordMessage.RespondAsync(null, embed);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
-			}
-		}
-		else
-		{
-			return await channel.SendMessageAsync(embed);
-		}
-		return null;
+		string description = "De statistieken van deze replay waren onvoldoende om in de Hall Of Fame te komen te staan!\n\n"
+							 + extraDescription;
+		return SendReplayMessage(channel, battle, "Helaas...", description);
 	}
 
-	public async Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position)
+	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position)
 	{
-		DiscordEmbedBuilder newDiscEmbedBuilder = new()
-		{
-			Color = DiscordColor.Red,
-			Title = "Hoera! :trophy:",
-			Description = "Je replay heeft een plaatsje gekregen in onze Hall Of Fame!\n\n" + extraDescription
-		};
-		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
-		foreach (Tuple<string, string> map in images)
-		{
-			if (map.Item1.ToLower() == battle.map_name.ToLower())
-			{
-				try
-				{
-					if (map.Item1 != string.Empty)
-					{
-						newDiscEmbedBuilder.Thumbnail = new()
-						{
-							Url = map.Item2
-						};
-					}
-				}
-				catch (Exception ex)
-				{
-					_logger.LogError(ex, "Something went wrong while trying to set the thumbnail for an embedded message.");
-				}
-				break;
-			}
-		}
-		IDiscordEmbed embed = new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
-		if (_botState.LastCreatedDiscordMessage != null)
-		{
-			try
-			{
-				return await _botState.LastCreatedDiscordMessage.RespondAsync(embed);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Something went wrong while trying to send an embedded message.");
-			}
-		}
-
-		return await channel.SendMessageAsync(embed);
+		string description = "Je replay heeft een plaatsje gekregen in onze Hall Of Fame!\n\n"
+							 + extraDescription;
+		return SendReplayMessage(channel, battle, "Hoera! :trophy:", description);
 	}
 
 	public async Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count)
@@ -443,15 +361,15 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	public async Task ConfirmCommandExecuting(IDiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)!);
 	}
 
 	public async Task ConfirmCommandExecuted(IDiscordMessage message)
 	{
 		await Task.Delay(875);
-		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION));
+		await message.DeleteReactionsEmojiAsync(_discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)!);
 		await Task.Delay(875);
-		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION));
+		await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION)!);
 	}
 
 	public IDiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color)
@@ -464,7 +382,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}.Build());
 	}
 
-	public async Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options)
+	public virtual async Task<IDiscordMessage?> CreateEmbed(IDiscordChannel channel, EmbedOptions options)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -540,8 +458,8 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		try
 		{
-			IDiscordMessage theMessage = options.IsForReplay
-				? _botState.LastCreatedDiscordMessage.RespondAsync(options.Content, embed).Result
+			IDiscordMessage theMessage = options.IsForReplay && _botState.LastCreatedDiscordMessage != null
+				? await _botState.LastCreatedDiscordMessage.RespondAsync(options.Content, embed)
 				: await _discordClient.SendMessageAsync(channel, options.Content, embed);
 
 			try
@@ -570,5 +488,38 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 
 		return null;
+	}
+
+	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WGBattle battle, string title, string description)
+	{
+		DiscordEmbedBuilder embedBuilder = new()
+		{
+			Color = DiscordColor.Red,
+			Title = title,
+			Description = description
+		};
+
+		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
+
+		foreach (Tuple<string, string> map in images)
+		{
+			if (string.Equals(map.Item1, battle.map_name, StringComparison.OrdinalIgnoreCase))
+			{
+				if (!string.IsNullOrEmpty(map.Item1))
+				{
+					embedBuilder.Thumbnail = new()
+					{
+						Url = map.Item2
+					};
+				}
+				break;
+			}
+		}
+
+		IDiscordEmbed embed = new DiscordEmbedWrapper(embedBuilder.Build());
+
+		return _botState.LastCreatedDiscordMessage != null
+			? await _botState.LastCreatedDiscordMessage.RespondAsync(embed)
+			: await channel.SendMessageAsync(embed);
 	}
 }

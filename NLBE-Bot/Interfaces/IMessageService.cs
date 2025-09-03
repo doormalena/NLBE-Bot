@@ -9,7 +9,7 @@ internal interface IMessageService
 {
 	public Task<IDiscordMessage?> SendMessage(IDiscordChannel channel, IDiscordMember? member, string guildName, string message);
 
-	public Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string Message);
+	public Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string message);
 
 	public Task SayTheUserIsNotAllowed(IDiscordChannel channel);
 
@@ -47,5 +47,5 @@ internal interface IMessageService
 
 	public IDiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color);
 
-	public Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options);
+	public Task<IDiscordMessage?> CreateEmbed(IDiscordChannel channel, EmbedOptions options);
 }

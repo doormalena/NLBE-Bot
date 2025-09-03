@@ -117,7 +117,7 @@ namespace WorldOfTanksBlitzApi.Tools.Replays
 		}
 		public string map_name
 		{
-			get; private set;
+			get; internal set;
 		}
 		public int room_type
 		{
@@ -150,6 +150,9 @@ namespace WorldOfTanksBlitzApi.Tools.Replays
 			}
 		}
 		public static StringBuilder log;
+		public WGBattle()
+		{
+		}
 
 		/// <summary>
 		/// Instantiate this object with the the replay url. This url is from a downloadable place such as discord or wotinspector.com
