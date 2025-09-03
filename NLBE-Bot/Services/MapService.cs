@@ -18,15 +18,16 @@ internal class MapService(IOptions<BotOptions> options, ILogger<MapService> logg
 
 	public async Task<List<Tuple<string, string>>> GetAllMaps(IDiscordGuild guild)
 	{
+		List<Tuple<string, string>> images = [];
+
 		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Maps), _logger, "Maps channel", out IDiscordChannel mapChannel))
 		{
-			return null;
+			return images;
 		}
 
-		List<Tuple<string, string>> images = [];
 		try
 		{
-			IReadOnlyList<IDiscordMessage> xMessages = mapChannel.GetMessagesAsync(100).Result;
+			IReadOnlyList<IDiscordMessage> xMessages = await mapChannel.GetMessagesAsync(100);
 			foreach (IDiscordMessage message in xMessages)
 			{
 				IReadOnlyList<DiscordAttachment> attachments = message.Attachments;

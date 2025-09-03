@@ -837,7 +837,7 @@ public class MessageServiceTests
 		// Stub CreateEmbed so it doesn't run the real implementation
 		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
 		serviceSub.CreateEmbed(_channelMock!, Arg.Any<EmbedOptions>())
-				  .Returns(Task.FromResult<IDiscordMessage?>(messageMock));
+				  .Returns(Task.FromResult(messageMock));
 
 		// Act.
 		await serviceSub.SayBeMoreSpecific(_channelMock!);

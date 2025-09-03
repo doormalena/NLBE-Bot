@@ -794,62 +794,57 @@ internal class BotCommands(IDiscordClient discordClient,
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			List<Tuple<string, string>> images = await _mapService.GetAllMaps(ctx.Guild);
-			if (images != null)
-			{
-				StringBuilder sbMap = new();
-				for (int i = 0; i < map.Length; i++)
-				{
-					if (i > 0)
-					{
-						sbMap.Append(' ');
-					}
-					sbMap.Append(map[i]);
-				}
-				if (sbMap.ToString().ToLower().Equals("list") || sbMap.Length == 0)
-				{
-					StringBuilder sb = new();
-					foreach (Tuple<string, string> item in images)
-					{
-						sb.AppendLine(item.Item1);
-					}
-					EmbedOptions embedOptions = new()
-					{
-						Title = "Mappen",
-						Description = sb.ToString(),
-					};
-					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-				}
-				else
-				{
-					bool mapFound = false;
-					foreach (Tuple<string, string> item in from Tuple<string, string> item in images
-														   where item.Item1.Contains(sbMap.ToString(), StringComparison.OrdinalIgnoreCase)
-														   select item)
-					{
-						mapFound = true;
-						EmbedOptions embedOptions = new()
-						{
-							Title = item.Item1,
-							ImageUrl = item.Item2
-						};
-						await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-						break;
-					}
 
-					if (!mapFound)
-					{
-						EmbedOptions embedOptions = new()
-						{
-							Title = "De map `" + sbMap.ToString() + "` kon niet gevonden worden."
-						};
-						await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-					}
+			StringBuilder sbMap = new();
+			for (int i = 0; i < map.Length; i++)
+			{
+				if (i > 0)
+				{
+					sbMap.Append(' ');
 				}
+				sbMap.Append(map[i]);
+			}
+			if (sbMap.ToString().ToLower().Equals("list") || sbMap.Length == 0)
+			{
+				StringBuilder sb = new();
+				foreach (Tuple<string, string> item in images)
+				{
+					sb.AppendLine(item.Item1);
+				}
+				EmbedOptions embedOptions = new()
+				{
+					Title = "Mappen",
+					Description = sb.ToString(),
+				};
+				await _messageService.CreateEmbed(ctx.Channel, embedOptions);
 			}
 			else
 			{
-				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon de mappen niet uit een kanaal halen.**");
+				bool mapFound = false;
+				foreach (Tuple<string, string> item in from Tuple<string, string> item in images
+														where item.Item1.Contains(sbMap.ToString(), StringComparison.OrdinalIgnoreCase)
+														select item)
+				{
+					mapFound = true;
+					EmbedOptions embedOptions = new()
+					{
+						Title = item.Item1,
+						ImageUrl = item.Item2
+					};
+					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
+					break;
+				}
+
+				if (!mapFound)
+				{
+					EmbedOptions embedOptions = new()
+					{
+						Title = "De map `" + sbMap.ToString() + "` kon niet gevonden worden."
+					};
+					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
+				}
 			}
+
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		});
 	}
