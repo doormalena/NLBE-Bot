@@ -167,10 +167,11 @@ internal class WeeklyEventService(IChannelService channelService,
 
 		return weeklyEventTypes;
 	}
-	public async Task<string> GetStringForWeeklyEvent(WGBattle battle)
+
+	public async Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WGBattle battle)
 	{
 		string content = string.Empty;
-		await ReadWeeklyEvent();
+		await ReadWeeklyEvent(guild);
 
 		if (WeeklyEvent != null && WeeklyEvent.Tank == battle.vehicle && DiscordMessage != null && battle.room_type is 1 or 5 or 7 or 4 && battle.battle_start_time.HasValue && WeeklyEvent.StartDate < battle.battle_start_time.Value && WeeklyEvent.StartDate.AddDays(7) > battle.battle_start_time.Value)
 		{
@@ -200,16 +201,16 @@ internal class WeeklyEventService(IChannelService channelService,
 		return content + (content.Length > 0 ? Environment.NewLine : string.Empty);
 	}
 
-	public async Task ReadWeeklyEvent()
+	public async Task ReadWeeklyEvent(IDiscordGuild guild)
 	{
-		if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel))
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel))
 		{
 			return;
 		}
 
 		try
 		{
-			IReadOnlyList<IDiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
+			IReadOnlyList<IDiscordMessage> msgs = await weeklyEventChannel.GetMessagesAsync(1);
 
 			if (msgs.Count > 0)
 			{

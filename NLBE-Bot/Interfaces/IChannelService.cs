@@ -12,7 +12,7 @@ internal interface IChannelService
 
 	public Task<IDiscordChannel?> GetChannelAsync(ulong channelId);
 
-	public Task CleanChannelAsync(ulong channelId);
+	public Task CleanChannelAsync(IDiscordChannel channel);
 
-	public Task CleanWelkomChannelAsync(ulong userId);
+	public Task CleanChannelAsync(IDiscordChannel channel, IDiscordMember member);
 }

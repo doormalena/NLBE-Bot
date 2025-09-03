@@ -29,12 +29,12 @@ internal class ReplayService(ILogger<ReplayService> logger,
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 
-	public async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
+	public async Task<string> GetDescriptionForReplay(IDiscordGuild guild, WGBattle battle, int position, string preDescription = "")
 	{
 		StringBuilder sb = new(preDescription);
 		try
 		{
-			string weeklyEventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(battle);
+			string weeklyEventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(guild, battle);
 			if (weeklyEventDescription.Length > 0)
 			{
 				sb.Append(Environment.NewLine + weeklyEventDescription);

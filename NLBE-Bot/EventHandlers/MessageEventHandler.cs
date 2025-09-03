@@ -158,7 +158,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							string eventDescription = string.Empty;
 							try
 							{
-								eventDescription = await _weeklyEventService.GetStringForWeeklyEvent(replayInfo);
+								eventDescription = await _weeklyEventService.GetStringForWeeklyEvent(guild, replayInfo);
 							}
 							catch (Exception ex)
 							{
@@ -189,7 +189,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							{
 								Thumbnail = thumbnail,
 								Title = "Resultaat",
-								Description = await _replayService.GetDescriptionForReplay(replayInfo, -1, eventDescription),
+								Description = await _replayService.GetDescriptionForReplay(guild, replayInfo, -1, eventDescription),
 								IsForReplay = true,
 							};
 							await _messageService.CreateEmbed(channel, embedOptions);

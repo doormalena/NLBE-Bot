@@ -16,7 +16,6 @@ public class MessageEventHandlerTests
 	private IDiscordClient? _discordClientMock;
 	private ILogger<MessageEventHandler>? _loggerMock;
 	private IOptions<BotOptions>? _options;
-	private IChannelService? _channelServiceMock;
 	private IUserService? _userServiceMock;
 	private IDiscordMessageUtils? _discordMessageUtilsMock;
 	private IWeeklyEventService? _weeklyEventServiceMock;
@@ -68,7 +67,6 @@ public class MessageEventHandlerTests
 		_discordClientMock.GetGuildAsync(_options.Value.ServerId).Returns(Task.FromResult(_guildMock));
 
 		_loggerMock = Substitute.For<ILogger<MessageEventHandler>>();
-		_channelServiceMock = Substitute.For<IChannelService>();
 		_userServiceMock = Substitute.For<IUserService>();
 		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
 		_weeklyEventServiceMock = Substitute.For<IWeeklyEventService>();
@@ -81,7 +79,6 @@ public class MessageEventHandlerTests
 		_handler = new MessageEventHandler(
 			_options,
 			_loggerMock,
-			_channelServiceMock,
 			_userServiceMock,
 			_discordMessageUtilsMock,
 			_weeklyEventServiceMock,
@@ -223,26 +220,24 @@ public class MessageEventHandlerTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new MessageEventHandler(null!, _loggerMock!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(null!, _loggerMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, null!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, null!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, null!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, _loggerMock!, null!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, null!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, _loggerMock!, _userServiceMock!, null!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, _userServiceMock!, null!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, _loggerMock!, _userServiceMock!, _discordMessageUtilsMock!, null!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, null!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, _loggerMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, null!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, null!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, _loggerMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, null!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, null!, _tournamentServiceMock!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, _loggerMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, null!, _hallOfFameServiceMock!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, null!, _hallOfFameServiceMock!, _messageServiceMock!));
+				new MessageEventHandler(_options!, _loggerMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, null!, _messageServiceMock!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, null!, _messageServiceMock!));
-		Assert.ThrowsException<ArgumentNullException>(() =>
-					  new MessageEventHandler(_options!, _loggerMock!, _channelServiceMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, null!));
+				new MessageEventHandler(_options!, _loggerMock!, _userServiceMock!, _discordMessageUtilsMock!, _weeklyEventServiceMock!, _mapServiceMock!, _replayServiceMock!, _tournamentServiceMock!, _hallOfFameServiceMock!, null!));
 	}
 }

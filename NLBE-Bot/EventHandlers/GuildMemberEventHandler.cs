@@ -96,7 +96,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 			// - The username will be updated (if needed).
 			// - The user will be welcomed in the general channel.
 
-			await _channelService.CleanWelkomChannelAsync(member.Id);
+			await _channelService.CleanChannelAsync(welcomeChannel, member);
 		});
 	}
 
@@ -125,7 +125,8 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.OldMembers), _logger, "Old Members channel", out IDiscordChannel oudLedenChannel))
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.OldMembers), _logger, "Old Members channel", out IDiscordChannel oudLedenChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Welcome), _logger, "Welcome channel", out IDiscordChannel welcomeChannel))
 			{
 				return;
 			}
@@ -135,7 +136,7 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 
 			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)))
 			{
-				await _channelService.CleanWelkomChannelAsync(member.Id);
+				await _channelService.CleanChannelAsync(welcomeChannel, member);
 			}
 
 			List<DEF> fields = [];

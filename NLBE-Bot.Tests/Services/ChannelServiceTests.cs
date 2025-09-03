@@ -39,12 +39,15 @@ public class ChannelServiceTests
 	}
 
 	[TestMethod]
-	public async Task CleanWelkomChannelAsync_ShouldDeleteBotAndUserMessages()
+	public async Task CleanChannelAsync_ShouldDeleteBotAndUserMessages()
 	{
 		// Arrange.
-		ulong userId = 42UL;
 		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
 		_guildMock!.GetChannel(_options!.Value.ChannelIds.Welcome).Returns(channelMock);
+
+		ulong userId = 777UL;
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.Id.Returns(userId);
 
 		IDiscordMessage botMessageMentioningUser = Substitute.For<IDiscordMessage>();
 		botMessageMentioningUser.Pinned.Returns(false);
@@ -69,7 +72,7 @@ public class ChannelServiceTests
 		));
 
 		// Act.
-		await _channelService!.CleanWelkomChannelAsync(userId);
+		await _channelService!.CleanChannelAsync(channelMock, member);
 
 		// Assert.
 		await channelMock.Received(1).DeleteMessageAsync(botMessageMentioningUser);
@@ -97,7 +100,7 @@ public class ChannelServiceTests
 		 ));
 
 		// Act.
-		await _channelService!.CleanChannelAsync(channelId);
+		await _channelService!.CleanChannelAsync(channelMock);
 
 		// Assert.
 		await channelMock.Received(1).DeleteMessageAsync(unpinnedMessage);

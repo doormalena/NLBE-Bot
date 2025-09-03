@@ -47,13 +47,13 @@ public class AnnounceWeeklyWinnerJobTests
 		DateTime monday14 = new(2025, 6, 23, 14, 0, 0, DateTimeKind.Local); // Monday, 14:00, last announcement was a week ago.
 		DateTime lastAnnouncement = monday14.AddDays(-7);
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(lastAnnouncement);
-		_weeklyEventServiceMock!.ReadWeeklyEvent().Returns(Task.CompletedTask);
+		_weeklyEventServiceMock!.ReadWeeklyEvent(_guildMock!).Returns(Task.CompletedTask);
 
 		// Act.
 		await _job!.Execute(_guildMock!, monday14);
 
 		// Assert.
-		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
+		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent(_guildMock!);
 		_botStateMock.Received().LastWeeklyWinnerAnnouncement = monday14;
 	}
 
@@ -99,7 +99,7 @@ public class AnnounceWeeklyWinnerJobTests
 		await _job!.Execute(_guildMock!, tuesday14);
 
 		// Assert.
-		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
+		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent(_guildMock!);
 		_botStateMock.DidNotReceive().LastWeeklyWinnerAnnouncement = Arg.Any<DateTime>();
 	}
 
@@ -114,7 +114,7 @@ public class AnnounceWeeklyWinnerJobTests
 		await _job!.Execute(_guildMock!, mondayBefore14);
 
 		// Assert.
-		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
+		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent(_guildMock!);
 		_botStateMock.DidNotReceive().LastWeeklyWinnerAnnouncement = Arg.Any<DateTime>();
 	}
 
@@ -129,7 +129,7 @@ public class AnnounceWeeklyWinnerJobTests
 		await _job!.Execute(_guildMock!, monday15);
 
 		// Assert.
-		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
+		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent(_guildMock!);
 		_botStateMock.DidNotReceive().LastWeeklyWinnerAnnouncement = Arg.Any<DateTime>();
 	}
 
@@ -144,7 +144,7 @@ public class AnnounceWeeklyWinnerJobTests
 		await _job!.Execute(_guildMock!, monday15);
 
 		// Assert.
-		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent();
+		await _weeklyEventServiceMock!.Received(1).ReadWeeklyEvent(_guildMock!);
 		_botStateMock.Received().LastWeeklyWinnerAnnouncement = monday15;
 	}
 
@@ -156,7 +156,7 @@ public class AnnounceWeeklyWinnerJobTests
 		DateTime monday15 = new(2025, 6, 23, 15, 0, 0, DateTimeKind.Local); // Monday, 15:00, last announcement is null.
 		DateTime monday15Minus1Day = monday15.AddDays(-1);
 		_botStateMock!.LastWeeklyWinnerAnnouncement.Returns(monday15Minus1Day);
-		_weeklyEventServiceMock!.ReadWeeklyEvent().Throws(ex);
+		_weeklyEventServiceMock!.ReadWeeklyEvent(_guildMock!).Throws(ex);
 
 		// Act.
 		await _job!.Execute(_guildMock!, monday15);
@@ -183,7 +183,7 @@ public class AnnounceWeeklyWinnerJobTests
 		await _job!.Execute(_guildMock, monday15);
 
 		// Assert.
-		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent();
+		await _weeklyEventServiceMock!.DidNotReceive().ReadWeeklyEvent(_guildMock!);
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),

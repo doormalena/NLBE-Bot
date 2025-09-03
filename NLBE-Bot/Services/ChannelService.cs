@@ -3,7 +3,6 @@ namespace NLBE_Bot.Services;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
-using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -34,34 +33,30 @@ internal class ChannelService(IOptions<BotOptions> options,
 		long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;
 		return await GetChannelAsync((ulong) ChatID);
 	}
-
-	public Task CleanChannelAsync(ulong channelId)
-	{
-		return CleanChannelInternalAsync(channelId, m => true);
-	}
-
-	public Task CleanWelkomChannelAsync(ulong userId)
-	{
-		return CleanChannelInternalAsync(
-			_options.ChannelIds.Welcome,
-			m =>
-				(m.Author.Id == Constants.NLBE_BOT && m.Content.Contains($"<@{userId}>")) ||
-				m.Author.Id == userId
-		);
-	}
-
 	public async Task<IDiscordChannel?> GetChannelAsync(ulong channelId)
 	{
 		IDiscordGuild guild = await _discordClient.GetGuildAsync(_options.ServerId);
 		return guild?.GetChannel(channelId);
 	}
 
-	private async Task CleanChannelInternalAsync(ulong channelId, Func<IDiscordMessage, bool> shouldDelete)
+	public Task CleanChannelAsync(IDiscordChannel channel)
 	{
-		if (Guard.ReturnIfNull(await GetChannelAsync(channelId), _logger, $"Welcome channel", out IDiscordChannel channel))
-		{
-			return;
-		}
+		return CleanChannelInternalAsync(channel, m => true);
+	}
+
+	public Task CleanChannelAsync(IDiscordChannel channel, IDiscordMember member)
+	{
+		return CleanChannelInternalAsync(
+			channel,
+			m =>
+				(m.Author.Id == Constants.NLBE_BOT && m.Content.Contains($"<@{member.Id}>")) ||
+				m.Author.Id == member.Id
+		);
+	}
+
+	private async Task CleanChannelInternalAsync(IDiscordChannel channel, Func<IDiscordMessage, bool> shouldDelete)
+	{
+		channel = channel ?? throw new ArgumentNullException(nameof(channel));
 
 		// Note: 100 is the max page limit, normally this amount should be sufficient.
 		IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
@@ -70,6 +65,7 @@ internal class ChannelService(IOptions<BotOptions> options,
 		{
 			if (!message.Pinned && shouldDelete(message))
 			{
+				_logger.LogDebug("Deleting message {MessageId} in channel {ChannelId}", message.Id, channel.Id);
 				await channel.DeleteMessageAsync(message);
 			}
 		}

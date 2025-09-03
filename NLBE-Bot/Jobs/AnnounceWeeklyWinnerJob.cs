@@ -56,7 +56,7 @@ internal class AnnounceWeeklyWinnerJob(IWeeklyEventService weeklyEventService,
 				return;
 			}
 
-			await _weeklyEventService!.ReadWeeklyEvent();
+			await _weeklyEventService!.ReadWeeklyEvent(guild);
 
 			StringBuilder winnerMessage = new("Het wekelijkse event is afgelopen.");
 			winnerMessage.AppendLine("Na 1 week...");

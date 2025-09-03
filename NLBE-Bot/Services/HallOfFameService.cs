@@ -144,7 +144,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		{
 			Thumbnail = thumbnail,
 			Title = "Resultaat",
-			Description = await _replayService.GetDescriptionForReplay(replayInfo, -1),
+			Description = await _replayService.GetDescriptionForReplay(guild, replayInfo, -1),
 		};
 		await _messageService.CreateEmbed(channel, embedOptions);
 		return new Tuple<string, IDiscordMessage?>(tempMessage.Content, tempMessage);
@@ -202,20 +202,20 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 											item.Place = (short) position;
 										}
 										await EditHOFMessage(message, tierHOF);
-										string extraDescription = await _replayService.GetDescriptionForReplay(battle, position);
+										string extraDescription = await _replayService.GetDescriptionForReplay(guild, battle, position);
 										IDiscordMessage tempMessage = await _messageService.SayReplayIsWorthy(channel, battle, extraDescription, position);
 										return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
 									}
 									else
 									{
-										string extraDescription = await _replayService.GetDescriptionForReplay(battle, 0);
+										string extraDescription = await _replayService.GetDescriptionForReplay(guild, battle, 0);
 										IDiscordMessage tempMessage = await _messageService.SayReplayNotWorthy(channel, battle, extraDescription);
 										return new Tuple<string, IDiscordMessage>(tempMessage.Content, tempMessage);
 									}
 								}
 								else
 								{
-									IDiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, tierHOF);
+									IDiscordMessage tempMessage = await AddReplayToMessage(guild, battle, message, channel, tierHOF);
 									return new Tuple<string, IDiscordMessage>(tempMessage != null ? tempMessage.Content : string.Empty, tempMessage);
 								}
 							}
@@ -248,7 +248,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 						{
 							Thumbnail = thumbnail,
 							Title = "Helaas... Deze replay staat er al in.",
-							Description = await _replayService.GetDescriptionForReplay(battle, 0),
+							Description = await _replayService.GetDescriptionForReplay(guild, battle, 0),
 						};
 						IDiscordMessage tempMessage = await _messageService.CreateEmbed(channel, options);
 						return new Tuple<string, IDiscordMessage>(string.Empty, tempMessage);//string empty omdat dan hofafterupload het niet verkeerd opvat
@@ -256,7 +256,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 				}
 				else
 				{
-					IDiscordMessage tempMessage = await AddReplayToMessage(battle, message, channel, []);
+					IDiscordMessage tempMessage = await AddReplayToMessage(guild, battle, message, channel, []);
 					return new Tuple<string, IDiscordMessage>(tempMessage != null ? tempMessage.Content : string.Empty, tempMessage);
 				}
 			}
@@ -500,7 +500,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 			await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.MAINTENANCE_REACTION));
 		}
 	}
-	public async Task<IDiscordMessage> AddReplayToMessage(WGBattle battle, IDiscordMessage message, IDiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
+	private async Task<IDiscordMessage> AddReplayToMessage(IDiscordGuild guild, WGBattle battle, IDiscordMessage message, IDiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
 	{
 		bool foundItem = false;
 		int position = 1;
@@ -540,7 +540,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		}
 		await EditHOFMessage(message, tierHOF);
 
-		string extraDescription = await _replayService.GetDescriptionForReplay(battle, position);
+		string extraDescription = await _replayService.GetDescriptionForReplay(guild, battle, position);
 		return await _messageService.SayReplayIsWorthy(channel, battle, extraDescription, position);
 	}
 	public async Task<List<Tuple<string, List<TankHof>>>> GetTankHofsPerPlayer(IDiscordGuild guild)
