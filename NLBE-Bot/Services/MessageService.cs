@@ -70,6 +70,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		if (roomType.Length == 0)
 		{
+			// TODO: seen this happening once for a valid replay, possible issue with json parsing / exception handling.
 			return await member.SendMessageAsync("Geef aub even door welk type room dit is want het werd niet herkent door de bot. Tag gebruiker thibeastmo#9998");
 		}
 

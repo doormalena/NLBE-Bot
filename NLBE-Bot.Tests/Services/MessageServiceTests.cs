@@ -601,4 +601,42 @@ public class MessageServiceTests
 		);
 	}
 
+	[TestMethod]
+	public async Task SayCannotBePlayedAt_ShouldSendPrivateMessage_WhenRoomTypeIsEmpty()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+		_memberMock!.SendMessageAsync(Arg.Any<string>())
+					.Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SayCannotBePlayedAt(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			string.Empty // triggers branch
+		);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+		await _memberMock!.Received(1).SendMessageAsync(
+			"Geef aub even door welk type room dit is want het werd niet herkent door de bot. Tag gebruiker thibeastmo#9998"
+		);
+	}
+
+	[TestMethod]
+	public async Task SayCannotBePlayedAt_ShouldNotSendPrivateMessage_WhenRoomTypeIsNotEmpty()
+	{
+		// Act.
+		IDiscordMessage? result = await _service!.SayCannotBePlayedAt(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"someRoomType" // does not trigger branch
+		);
+
+		// Assert.
+		Assert.IsNotNull(result);
+		await _memberMock!.DidNotReceiveWithAnyArgs().SendMessageAsync(default!);
+	}
 }
