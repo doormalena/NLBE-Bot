@@ -1053,4 +1053,170 @@ public class MessageServiceTests
 		Assert.AreSame(expectedMessage, result);
 	}
 
+	[DataTestMethod]
+	[DataRow("2", 5, 1, false, false, false, DisplayName = "Valid number in range")]
+	[DataRow("99", 5, -1, true, false, false, DisplayName = "Number too big")]
+	[DataRow("0", 5, -1, false, true, false, DisplayName = "Number too small")]
+	[DataRow("abc", 5, -1, false, false, true, DisplayName = "Not a number")]
+	public async Task WaitForReply_ShouldHandleMessageInputScenarios(
+		string input,
+		int count,
+		int expectedResult,
+		bool expectTooBig,
+		bool expectTooSmall,
+		bool expectMustBeNumber)
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		message.Content.Returns(input);
+
+		// Create partial substitute so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		IDiscordInteractivityResult<IDiscordMessage> result = Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		result.TimedOut.Returns(false);
+		result.Result.Returns(message);
+
+		IDiscordInteractivityExtension interactivity = Substitute.For<IDiscordInteractivityExtension>();
+		interactivity.WaitForMessageAsync(Arg.Any<Func<IDiscordMessage, bool>>())
+					 .Returns(Task.FromResult(result));
+
+		_discordClientMock!.GetInteractivity().Returns(interactivity);
+
+		serviceSub.WhenForAnyArgs(s => s.SayMultipleResults(default!, default!))
+				 .DoNotCallBase();
+		serviceSub.SayMultipleResults(_channelMock!, "desc").Returns(Task.FromResult<IDiscordMessage?>(null));
+
+		serviceSub.WhenForAnyArgs(s => s.SayNumberTooBig(default!)).DoNotCallBase();
+		serviceSub.WhenForAnyArgs(s => s.SayNumberTooSmall(default!)).DoNotCallBase();
+		serviceSub.WhenForAnyArgs(s => s.SayMustBeNumber(default!)).DoNotCallBase();
+
+		// Act.
+		int resultIndex = await serviceSub.WaitForReply(_channelMock!, _userMock!, "desc", count);
+
+		// Assert.
+		Assert.AreEqual(expectedResult, resultIndex);
+
+		if (expectTooBig)
+		{
+			await serviceSub.Received(1).SayNumberTooBig(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayNumberTooBig(_channelMock!);
+		}
+
+		if (expectTooSmall)
+		{
+			await serviceSub.Received(1).SayNumberTooSmall(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayNumberTooSmall(_channelMock!);
+		}
+
+		if (expectMustBeNumber)
+		{
+			await serviceSub.Received(1).SayMustBeNumber(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayMustBeNumber(_channelMock!);
+		}
+	}
+
+	[DataTestMethod]
+	[DataRow(true, new[] { 1 }, 5, 0, null, false, DisplayName = "Valid emoji reaction")]
+	[DataRow(true, new[] { 10 }, 5, -1, "**Dat was geen van de optionele emoji's!**", false, DisplayName = "Invalid emoji index")]
+	[DataRow(true, new[] { 1, 2 }, 5, -1, "**Je mocht maar 1 reactie geven!**", false, DisplayName = "Multiple emoji reactions")]
+	[DataRow(true, new int[0], 5, -1, null, true, DisplayName = "No emoji reactions")]
+	[DataRow(false, null, 5, -1, null, true, DisplayName = "No original message")]
+	public async Task WaitForReply_ShouldHandleEmojiTimeoutScenarios(
+		bool hasMessage,
+		int[]? emojiIndices,
+		int count,
+		int expectedResult,
+		string? expectedText,
+		bool expectSayNoResponse)
+	{
+		// Arrange.
+		IDiscordMessage? discMessage = hasMessage ? Substitute.For<IDiscordMessage>() : null;
+
+		IDiscordInteractivityResult<IDiscordMessage> result = Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		result.TimedOut.Returns(true);
+
+		IDiscordInteractivityExtension interactivity = Substitute.For<IDiscordInteractivityExtension>();
+		interactivity.WaitForMessageAsync(Arg.Any<Func<IDiscordMessage, bool>>())
+					 .Returns(Task.FromResult(result));
+
+		_discordClientMock!.GetInteractivity().Returns(interactivity);
+
+		// Create partial substitute so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		if (discMessage != null && emojiIndices != null)
+		{
+			List<IDiscordEmoji> emojis = [];
+			foreach (int i in emojiIndices)
+			{
+				string emojiName = Emoj.GetName(i);
+				IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
+				emoji.Name.Returns(emojiName);
+
+				_discordMessageUtilsMock!.GetDiscordEmoji(emojiName).Returns(emoji);
+				_discordMessageUtilsMock.GetEmojiAsString(emojiName).Returns(emojiName);
+
+				discMessage.GetReactionsAsync(emoji)
+						   .Returns(Task.FromResult<IReadOnlyList<IDiscordUser>>([_userMock!]));
+
+				emojis.Add(emoji);
+			}
+		}
+
+		if (expectedText != null)
+		{
+			IDiscordMessage message = Substitute.For<IDiscordMessage>();
+			_channelMock!.SendMessageAsync(expectedText).Returns(Task.FromResult(message));
+		}
+
+		serviceSub.SayMultipleResults(_channelMock!, "desc").ReturnsForAnyArgs(Task.FromResult(discMessage));
+		serviceSub.WhenForAnyArgs(s => s.SayNoResponse(default!)).DoNotCallBase();
+
+		// Act.
+		int resultIndex = await serviceSub.WaitForReply(_channelMock!, _userMock!, "desc", count);
+
+		// Assert.
+		Assert.AreEqual(expectedResult, resultIndex);
+
+		if (expectedText != null)
+		{
+			await _channelMock!.Received(1).SendMessageAsync(expectedText);
+		}
+
+		if (expectSayNoResponse)
+		{
+			await serviceSub.Received(1).SayNoResponse(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayNoResponse(_channelMock!);
+		}
+	}
+
 }

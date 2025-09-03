@@ -10,6 +10,7 @@ using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Tools.Replays;
 
@@ -145,6 +146,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		return null;
 	}
+
 	public async Task SayNoResults(IDiscordChannel channel, string description)
 	{
 		try
@@ -257,7 +259,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				IDiscordEmoji? emoji = _discordMessageUtils!.GetDiscordEmoji(Emoj.GetName(i));
 				if (emoji != null)
 				{
-					IReadOnlyList<IDiscordUser> users = discMessage.GetReactionsAsync(emoji).Result;
+					IReadOnlyList<IDiscordUser> users = await discMessage.GetReactionsAsync(emoji);
 					foreach (IDiscordUser tempUser in users)
 					{
 						if (tempUser.Id.Equals(user.Id))
@@ -268,9 +270,14 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 				}
 			}
 
+			_logger.LogDebug("Reacted count: {Count}", reacted.Count);
+
 			if (reacted.Count == 1)
 			{
 				int index = Emoj.GetIndex(_discordMessageUtils.GetEmojiAsString(reacted[0].Name));
+
+				_logger.LogDebug("Index: {Index}", index);
+
 				if (index > 0 && index <= count)
 				{
 					return index - 1;
