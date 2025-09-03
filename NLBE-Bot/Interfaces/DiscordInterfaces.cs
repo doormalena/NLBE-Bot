@@ -63,7 +63,7 @@ internal interface ICommandsNextExtension
 {
 	public void RegisterCommands<T>() where T : BaseCommandModule;
 
-	public Command FindCommand(string commandName, out string rawArguments);
+	public Command? FindCommand(string commandName, out string? rawArguments);
 
 	public CommandContext CreateContext(IDiscordMessage message, string prefix, Command command, string args);
 
@@ -316,8 +316,8 @@ internal interface IDiscordGuild
 	public Task<IReadOnlyCollection<IDiscordMember>> GetAllMembersAsync();
 	public Task<IDiscordMember> GetMemberAsync(ulong userId);
 	public Task LeaveAsync();
-	public IDiscordRole GetRole(ulong roleId);
-	public IDiscordChannel GetChannel(ulong id);
+	public IDiscordRole? GetRole(ulong roleId);
+	public IDiscordChannel? GetChannel(ulong id);
 	public Task UnbanMemberAsync(IDiscordUser user);
 	public Task BanMemberAsync(IDiscordMember member);
 }

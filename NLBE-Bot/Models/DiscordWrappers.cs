@@ -15,100 +15,101 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 
-internal class DiscordClientWrapper(DiscordClient client) : IDiscordClient
+internal class DiscordClientWrapper(DiscordClient discordClient) : IDiscordClient
 {
-	private readonly DiscordClient _inner = client;
+	private readonly DiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 
-	public DiscordClient Inner => _inner;
-	public IReadOnlyDictionary<ulong, IDiscordGuild> Guilds => _inner.Guilds.ToDictionary(
+	public DiscordClient Inner => _discordClient;
+	public IReadOnlyDictionary<ulong, IDiscordGuild> Guilds => _discordClient.Guilds.ToDictionary(
 		kvp => kvp.Key,
 		kvp => (IDiscordGuild) new DiscordGuildWrapper(kvp.Value)
 	);
 
 	public Task ConnectAsync(DiscordActivity activity, UserStatus status)
 	{
-		return _inner.ConnectAsync(activity, status);
+		return _discordClient.ConnectAsync(activity, status);
 	}
 
 	public Task DisconnectAsync()
 	{
-		return _inner.DisconnectAsync();
+		return _discordClient.DisconnectAsync();
 	}
 
 	public ICommandsNextExtension UseCommandsNext(CommandsNextConfiguration config)
 	{
-		return new CommandsNextExtensionWrapper(_inner.UseCommandsNext(config));
+		return new CommandsNextExtensionWrapper(_discordClient.UseCommandsNext(config));
 	}
 	public ICommandsNextExtension GetCommandsNext()
 	{
-		return new CommandsNextExtensionWrapper(_inner.GetCommandsNext());
+		return new CommandsNextExtensionWrapper(_discordClient.GetCommandsNext());
 	}
 	public async Task<IDiscordUser> GetUserAsync(ulong userId)
 	{
-		return new DiscordUserWrapper(await _inner.GetUserAsync(userId));
+		return new DiscordUserWrapper(await _discordClient.GetUserAsync(userId));
 	}
 	public async Task<IDiscordGuild> GetGuildAsync(ulong guildId)
 	{
-		return new DiscordGuildWrapper(await _inner.GetGuildAsync(guildId));
+		return new DiscordGuildWrapper(await _discordClient.GetGuildAsync(guildId));
 	}
 	public IDiscordInteractivityExtension GetInteractivity()
 	{
-		return new DiscordInteractivityExtensionWrapper(_inner.GetInteractivity());
+		return new DiscordInteractivityExtensionWrapper(_discordClient.GetInteractivity());
 	}
 	public async Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed? embed = null)
 	{
-		return new DiscordMessageWrapper(await _inner.SendMessageAsync(channel.Inner, content, embed?.Inner));
+		return new DiscordMessageWrapper(await _discordClient.SendMessageAsync(channel.Inner, content, embed?.Inner));
 	}
 
 	public event AsyncEventHandler<DiscordClient, ReadyEventArgs> Ready
 	{
-		add => _inner.Ready += value; remove => _inner.Ready -= value;
+		add => _discordClient.Ready += value; remove => _discordClient.Ready -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, HeartbeatEventArgs> Heartbeated
 	{
-		add => _inner.Heartbeated += value; remove => _inner.Heartbeated -= value;
+		add => _discordClient.Heartbeated += value; remove => _discordClient.Heartbeated -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, MessageCreateEventArgs> MessageCreated
 	{
-		add => _inner.MessageCreated += value; remove => _inner.MessageCreated -= value;
+		add => _discordClient.MessageCreated += value; remove => _discordClient.MessageCreated -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, MessageDeleteEventArgs> MessageDeleted
 	{
-		add => _inner.MessageDeleted += value; remove => _inner.MessageDeleted -= value;
+		add => _discordClient.MessageDeleted += value; remove => _discordClient.MessageDeleted -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, MessageReactionAddEventArgs> MessageReactionAdded
 	{
-		add => _inner.MessageReactionAdded += value; remove => _inner.MessageReactionAdded -= value;
+		add => _discordClient.MessageReactionAdded += value; remove => _discordClient.MessageReactionAdded -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, MessageReactionRemoveEventArgs> MessageReactionRemoved
 	{
-		add => _inner.MessageReactionRemoved += value; remove => _inner.MessageReactionRemoved -= value;
+		add => _discordClient.MessageReactionRemoved += value; remove => _discordClient.MessageReactionRemoved -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, GuildMemberAddEventArgs> GuildMemberAdded
 	{
-		add => _inner.GuildMemberAdded += value; remove => _inner.GuildMemberAdded -= value;
+		add => _discordClient.GuildMemberAdded += value; remove => _discordClient.GuildMemberAdded -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, GuildMemberUpdateEventArgs> GuildMemberUpdated
 	{
-		add => _inner.GuildMemberUpdated += value; remove => _inner.GuildMemberUpdated -= value;
+		add => _discordClient.GuildMemberUpdated += value; remove => _discordClient.GuildMemberUpdated -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, GuildMemberRemoveEventArgs> GuildMemberRemoved
 	{
-		add => _inner.GuildMemberRemoved += value; remove => _inner.GuildMemberRemoved -= value;
+		add => _discordClient.GuildMemberRemoved += value; remove => _discordClient.GuildMemberRemoved -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, ClientErrorEventArgs> ClientErrored
 	{
-		add => _inner.ClientErrored += value; remove => _inner.ClientErrored -= value;
+		add => _discordClient.ClientErrored += value; remove => _discordClient.ClientErrored -= value;
 	}
 	public event AsyncEventHandler<DiscordClient, SocketCloseEventArgs> SocketClosed
 	{
-		add => _inner.SocketClosed += value; remove => _inner.SocketClosed -= value;
+		add => _discordClient.SocketClosed += value; remove => _discordClient.SocketClosed -= value;
 	}
 }
 
 internal class DiscordInteractivityExtensionWrapper(InteractivityExtension interactivity) : IDiscordInteractivityExtension
 {
-	private readonly InteractivityExtension _interactivity = interactivity;
+	private readonly InteractivityExtension _interactivity = interactivity ?? throw new ArgumentNullException(nameof(interactivity));
+
 	public InteractivityExtension Inner => _interactivity;
 
 	public Task<IDiscordInteractivityResult<IDiscordMessage>> WaitForMessageAsync(Func<IDiscordMessage, bool> value)
@@ -121,7 +122,9 @@ internal class DiscordInteractivityExtensionWrapper(InteractivityExtension inter
 
 internal class DiscordInteractivityResultWrapper<T>(InteractivityResult<DiscordMessage> result) : IDiscordInteractivityResult<T>
 {
-	private readonly InteractivityResult<DiscordMessage> _result = result;
+	private readonly InteractivityResult<DiscordMessage> _result = result.Equals(default)
+																	? throw new ArgumentException("Result is default", nameof(result))
+																	: result;
 
 	public bool TimedOut => _result.TimedOut;
 
@@ -130,7 +133,7 @@ internal class DiscordInteractivityResultWrapper<T>(InteractivityResult<DiscordM
 
 internal class CommandsNextExtensionWrapper(CommandsNextExtension command) : ICommandsNextExtension
 {
-	private readonly CommandsNextExtension _command = command;
+	private readonly CommandsNextExtension _command = command ?? throw new ArgumentNullException(nameof(command));
 
 	public void RegisterCommands<T>() where T : BaseCommandModule
 	{
@@ -143,7 +146,7 @@ internal class CommandsNextExtensionWrapper(CommandsNextExtension command) : ICo
 			kvp => (IDiscordCommand) new DiscordCommandWrapper(kvp.Value)
 		);
 
-	public Command FindCommand(string commandName, out string rawArguments)
+	public Command? FindCommand(string commandName, out string? rawArguments)
 	{
 		return _command.FindCommand(commandName, out rawArguments);
 	}
@@ -167,9 +170,11 @@ internal class CommandsNextExtensionWrapper(CommandsNextExtension command) : ICo
 		add => _command.CommandErrored += value; remove => _command.CommandErrored -= value;
 	}
 }
+
 internal class DiscordMessageWrapper(DiscordMessage message) : IDiscordMessage
 {
-	private readonly DiscordMessage _message = message;
+	private readonly DiscordMessage _message = message ?? throw new ArgumentNullException(nameof(message));
+
 	public DiscordMessage Inner => _message;
 
 	public string Content => _message.Content;
@@ -244,7 +249,7 @@ internal class DiscordMessageWrapper(DiscordMessage message) : IDiscordMessage
 
 internal class DiscordReactionWrapper(DiscordReaction reaction) : IDiscordReaction
 {
-	private readonly DiscordReaction _reaction = reaction;
+	private readonly DiscordReaction _reaction = reaction ?? throw new ArgumentNullException(nameof(reaction));
 
 	public IDiscordEmoji Emoji => new DiscordEmojiWrapper(_reaction.Emoji);
 
@@ -256,7 +261,7 @@ internal class DiscordReactionWrapper(DiscordReaction reaction) : IDiscordReacti
 
 internal class DiscordEmojiWrapper(DiscordEmoji emoji) : IDiscordEmoji
 {
-	private readonly DiscordEmoji _emoji = emoji;
+	private readonly DiscordEmoji _emoji = emoji ?? throw new ArgumentNullException(nameof(emoji));
 
 	public DiscordEmoji Inner => _emoji;
 
@@ -275,7 +280,7 @@ internal class DiscordEmojiWrapper(DiscordEmoji emoji) : IDiscordEmoji
 
 internal class DiscordUserWrapper(DiscordUser user) : IDiscordUser
 {
-	private readonly DiscordUser _user = user;
+	private readonly DiscordUser _user = user ?? throw new ArgumentNullException(nameof(user));
 
 	public DiscordUser Inner => _user;
 	public ulong Id => _user.Id;
@@ -289,6 +294,7 @@ internal class DiscordUserWrapper(DiscordUser user) : IDiscordUser
 		return _user.UnbanAsync(guild.Inner);
 	}
 }
+
 internal class DiscordChannelWrapper(DiscordChannel channel) : IDiscordChannel
 {
 	private readonly DiscordChannel _channel = channel ?? throw new ArgumentNullException(nameof(channel));
@@ -342,7 +348,7 @@ internal class DiscordChannelWrapper(DiscordChannel channel) : IDiscordChannel
 
 internal class DiscordCommandWrapper(Command command) : IDiscordCommand
 {
-	private readonly Command _command = command;
+	private readonly Command _command = command ?? throw new ArgumentNullException(nameof(command));
 
 	public string Name => _command.Name;
 
@@ -355,7 +361,7 @@ internal class DiscordCommandWrapper(Command command) : IDiscordCommand
 
 internal class CommandContextWrapper(CommandContext context) : IDiscordCommandContext
 {
-	private readonly CommandContext _context = context;
+	private readonly CommandContext _context = context ?? throw new ArgumentNullException(nameof(context));
 
 	public ulong GuildId => _context.Guild.Id;
 
@@ -393,7 +399,7 @@ internal class CommandContextWrapper(CommandContext context) : IDiscordCommandCo
 
 internal class DiscordGuildWrapper(DiscordGuild guild) : IDiscordGuild
 {
-	private readonly DiscordGuild _guild = guild;
+	private readonly DiscordGuild _guild = guild ?? throw new ArgumentNullException(nameof(guild));
 
 	public ulong Id => _guild.Id;
 	public string Name => _guild.Name;
@@ -428,11 +434,12 @@ internal class DiscordGuildWrapper(DiscordGuild guild) : IDiscordGuild
 		return _guild.LeaveAsync();
 	}
 
-	public IDiscordRole GetRole(ulong roleId)
+	public IDiscordRole? GetRole(ulong roleId)
 	{
-		return _guild.Roles.TryGetValue(roleId, out DiscordRole role) ? new DiscordRoleWrapper(role) : null;
+		return _guild.Roles.TryGetValue(roleId, out DiscordRole? role) ? new DiscordRoleWrapper(role) : null;
 	}
-	public IDiscordChannel GetChannel(ulong id)
+
+	public IDiscordChannel? GetChannel(ulong id)
 	{
 		DiscordChannel channel = _guild.GetChannel(id);
 		return channel != null ? new DiscordChannelWrapper(channel) : null;
@@ -448,18 +455,20 @@ internal class DiscordGuildWrapper(DiscordGuild guild) : IDiscordGuild
 		return _guild.BanMemberAsync(member.Inner);
 	}
 }
+
 internal class DiscordRoleWrapper(DiscordRole role) : IDiscordRole
 {
-	private readonly DiscordRole _role = role;
+	private readonly DiscordRole _role = role ?? throw new ArgumentNullException(nameof(role));
 
 	public ulong Id => _role.Id;
 	public string Name => _role.Name;
 	public string Mention => _role.Mention;
 	public DiscordRole Inner => _role;
 }
+
 internal class DiscordMemberWrapper(DiscordMember member) : IDiscordMember
 {
-	private readonly DiscordMember _member = member;
+	private readonly DiscordMember _member = member ?? throw new ArgumentNullException(nameof(member));
 
 	public ulong Id => _member.Id;
 	public string DisplayName => _member.DisplayName;
@@ -504,9 +513,10 @@ internal class DiscordMemberWrapper(DiscordMember member) : IDiscordMember
 		return _member.RemoveAsync(reason);
 	}
 }
+
 internal class DiscordEmbedWrapper(DiscordEmbed embed) : IDiscordEmbed
 {
-	private readonly DiscordEmbed _embed = embed;
+	private readonly DiscordEmbed _embed = embed ?? throw new ArgumentNullException(nameof(embed));
 
 	public DiscordEmbed Inner => _embed;
 
