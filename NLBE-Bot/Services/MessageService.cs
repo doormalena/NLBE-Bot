@@ -380,67 +380,60 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 	{
 		channel = channel ?? throw new ArgumentNullException(nameof(channel));
 
-		try
+		await channel.SendMessageAsync(question);
+		TimeSpan newPlayerWaitTime = TimeSpan.FromDays(_options.NewPlayerWaitTimeInDays); // TODO: The NewPlayerWaitTimeInDays and Ban mechanics should be located elsewhere isolated for handling new members.
+		IDiscordInteractivityResult<IDiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
+
+		if (!message.TimedOut)
 		{
-			await channel.SendMessageAsync(question);
-			TimeSpan newPlayerWaitTime = TimeSpan.FromDays(_options.NewPlayerWaitTimeInDays);
-			IDiscordInteractivityResult<IDiscordMessage> message = await channel.GetNextMessageAsync(user, newPlayerWaitTime);
+			return message.Result.Content;
+		}
+		else
+		{
+			await SayNoResponse(channel);
+			IDiscordMember? member = await guild.GetMemberAsync(user.Id);
 
-			if (!message.TimedOut)
+			if (member != null)
 			{
-				return message.Result.Content;
-			}
-			else
-			{
-				await SayNoResponse(channel);
-				IDiscordMember? member = await guild.GetMemberAsync(user.Id);
-
-				if (member != null)
+				try
 				{
+					await member.RemoveAsync("[New member] No answer");
+				}
+				catch
+				{
+					bool isBanned = false;
 					try
 					{
-						await member.RemoveAsync("[New member] No answer");
+						await guild.BanMemberAsync(member);
+						isBanned = true;
 					}
-					catch
+					catch (Exception ex)
 					{
-						bool isBanned = false;
+						_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
+					}
+
+					if (isBanned)
+					{
 						try
 						{
-							await guild.BanMemberAsync(member);
-							isBanned = true;
+							await guild.UnbanMemberAsync(user);
 						}
-						catch (Exception ex)
-						{
-							_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be kicked from the server!", member.DisplayName, member.Username, member.Discriminator);
-						}
-
-						if (isBanned)
+						catch
 						{
 							try
 							{
-								await guild.UnbanMemberAsync(user);
+								await user.UnbanAsync(guild);
 							}
-							catch
+							catch (Exception ex)
 							{
-								try
-								{
-									await user.UnbanAsync(guild);
-								}
-								catch (Exception ex)
-								{
-									_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
-								}
+								_logger.LogWarning(ex, "{DisplayName}({Username}#{Discriminator}) could not be unbanned from the server!", member.DisplayName, member.Username, member.Discriminator);
 							}
 						}
 					}
 				}
-
-				await _channelService.CleanChannelAsync(channel);
 			}
-		}
-		catch (Exception e)
-		{
-			Console.WriteLine("goOverAllQuestions:\n" + e.StackTrace);
+
+			await _channelService.CleanChannelAsync(channel);
 		}
 
 		return string.Empty;
