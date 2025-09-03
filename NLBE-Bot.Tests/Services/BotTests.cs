@@ -53,7 +53,7 @@ public class BotTests
 
 		// Act.
 		await _bot!.StartAsync(cts.Token);
-		await Task.Delay(250); // Workaround to give the logger time to flush, otherwise causing the test to fail.
+		await Task.Delay(500); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
 		_loggerMock!.Received().Log(
