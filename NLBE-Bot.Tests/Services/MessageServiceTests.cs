@@ -351,7 +351,7 @@ public class MessageServiceTests
 	public async Task SayTooManyCharacters_ShouldSendEmbed_WhenNoException()
 	{
 		// Arrange.
-		_channelMock!.SendMessageAsync(null, Arg.Any<IDiscordEmbed>())
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
 			   .Returns(Task.FromResult<IDiscordMessage>(null!));
 
 		// Act.
@@ -477,15 +477,15 @@ public class MessageServiceTests
 	public async Task SayTheUserIsNotAllowed_ShouldSendEmbed_WhenNoException()
 	{
 		// Arrange.
-		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
-		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
-			   .Returns(Task.FromResult<IDiscordMessage>(null));
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult(message));
 
 		// Act.
-		await _service!.SayTheUserIsNotAllowed(channel);
+		await _service!.SayTheUserIsNotAllowed(_channelMock!);
 
 		// Assert.
-		await channel.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
 		_loggerMock!.Received(0).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
@@ -499,12 +499,11 @@ public class MessageServiceTests
 	public async Task SayTheUserIsNotAllowed_ShouldLogError_WhenExceptionThrown()
 	{
 		// Arrange.
-		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
-		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
 			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
 
 		// Act.
-		await _service!.SayTheUserIsNotAllowed(channel);
+		await _service!.SayTheUserIsNotAllowed(_channelMock!);
 
 		// Assert.
 		_loggerMock!.Received(1).Log(
@@ -520,15 +519,15 @@ public class MessageServiceTests
 	public async Task SayNoResults_ShouldSendEmbed_WhenNoException()
 	{
 		// Arrange.
-		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
-		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
-			   .Returns(Task.FromResult<IDiscordMessage>(null));
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult(message));
 
 		// Act.
-		await _service!.SayNoResults(channel, "Test_description");
+		await _service!.SayNoResults(_channelMock!, "Test_description");
 
 		// Assert.
-		await channel.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
 		_loggerMock!.Received(0).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
@@ -542,14 +541,57 @@ public class MessageServiceTests
 	public async Task SayNoResults_ShouldLogError_WhenExceptionThrown()
 	{
 		// Arrange.
-		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
-		channel.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
 			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
 
 		// Act.
-		await _service!.SayNoResults(channel, "Test_description");
+		await _service!.SayNoResults(_channelMock!, "Test_description");
 
 		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayMultipleResults_ShouldReturnMessage_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult(message));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SayMultipleResults(_channelMock!, "Test description");
+
+		// Assert.
+		Assert.AreSame(message, result);
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayMultipleResults_ShouldLogErrorAndReturnNull_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SayMultipleResults(_channelMock!, "Test description");
+
+		// Assert.
+		Assert.IsNull(result);
 		_loggerMock!.Received(1).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),

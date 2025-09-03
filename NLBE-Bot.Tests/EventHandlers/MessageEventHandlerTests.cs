@@ -134,7 +134,7 @@ public class MessageEventHandlerTests
 		IDiscordRole mustReadRulesRole = Substitute.For<IDiscordRole>();
 		mustReadRulesRole.Id.Returns(_options!.Value.RoleIds.MustReadRules);
 		member.Roles.Returns([mustReadRulesRole]);
-		_guildMock.GetMemberAsync(reactingUserId).Returns(Task.FromResult(member));
+		_guildMock!.GetMemberAsync(reactingUserId).Returns(Task.FromResult<IDiscordMember?>(member));
 
 		// User who added the reaction (not a bot)
 		IDiscordUser addingUser = Substitute.For<IDiscordUser>();
