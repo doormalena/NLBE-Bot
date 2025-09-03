@@ -16,19 +16,27 @@ using System.Text;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Tournament;
 
-internal class TournamentService(ILogger<TournamentService> logger, IOptions<BotOptions> options, IUserService userService, IChannelService channelService, IMessageService messageService,
-		IDiscordMessageUtils discordMessageUtils, IDiscordClient discordClient) : ITournamentService
+internal class TournamentService(ILogger<TournamentService> logger,
+								 IOptions<BotOptions> options,
+								 IUserService userService,
+								 IMessageService messageService,
+								 IDiscordMessageUtils discordMessageUtils,
+								 IDiscordClient discordClient) : ITournamentService
 {
 	private readonly ILogger<TournamentService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 
 	public async Task GenerateLogMessage(IDiscordMessage message, IDiscordChannel toernooiAanmeldenChannel, ulong userID, string emojiAsEmoji)
 	{
+		if (Guard.ReturnIfNull(toernooiAanmeldenChannel.Guild.GetChannel(_options.ChannelIds.Log), _logger, "Log channel", out IDiscordChannel logChannel))
+		{
+			return;
+		}
+
 		bool addInLog = true;
 		if (message.Author != null)
 		{
@@ -59,7 +67,7 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							string organisator = await GetOrganisator(await toernooiAanmeldenChannel.GetMessageAsync(message.Id));
 							string logMessage = "Teams|" + member.DisplayName.AdaptToChat() + "|" + emojiAsEmoji + "|" + organisator + "|" + userID;
-							await WriteInLog(message.Timestamp.LocalDateTime.ConvertToDate(), logMessage);
+							await logChannel.SendMessageAsync(message.Timestamp.LocalDateTime.ConvertToDate() + "|" + logMessage);
 						}
 					}
 					else
@@ -503,19 +511,6 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 		await _messageService.CreateEmbed(channel, options);
 	}
 
-	private async Task WriteInLog(string date, string message)
-	{
-		IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
-		if (logChannel != null)
-		{
-			await logChannel.SendMessageAsync(date + "|" + message);
-		}
-		else
-		{
-			_logger.LogError("Could not find log channel, message: {Date}|{Message}", date, message);
-		}
-	}
-
 	private async Task<string> GetOrganisator(IDiscordMessage message)
 	{
 		IReadOnlyList<IDiscordEmbed> embeds = message.Embeds;
@@ -547,7 +542,8 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 	}
 	public async Task<List<Tier>> ReadTeams(IDiscordChannel channel, IDiscordMember member, string guildName, string[] parameters_as_in_hoeveelste_team)
 	{
-		if (Guard.ReturnIfNull(channel.Guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel))
+		if (Guard.ReturnIfNull(channel.Guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel) ||
+			Guard.ReturnIfNull(channel.Guild.GetChannel(_options.ChannelIds.Log), _logger, "Log channel", out IDiscordChannel logChannel))
 		{
 			return [];
 		}
@@ -610,75 +606,65 @@ internal class TournamentService(ILogger<TournamentService> logger, IOptions<Bot
 						{
 							if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 							{
-								IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
+								IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+								Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
+								List<Tier> tiers = [];
 
-								if (logChannel.Inner != null)
+								foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
 								{
-									IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-									Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
-									List<Tier> tiers = [];
+									string xdate = theMessage.Timestamp.ConvertToDate();
+									string ydate = sMessage.Key.ConvertToDate();
 
-									foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
+									if (xdate.Equals(ydate))
 									{
-										string xdate = theMessage.Timestamp.ConvertToDate();
-										string ydate = sMessage.Key.ConvertToDate();
-
-										if (xdate.Equals(ydate))
+										sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
+										foreach (IDiscordMessage discMessage in sMessage.Value)
 										{
-											sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
-											foreach (IDiscordMessage discMessage in sMessage.Value)
+											string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
+											if (splitted[1].ToLower().Equals("teams"))
 											{
-												string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
-												if (splitted[1].ToLower().Equals("teams"))
+												Tier newTeam = new();
+												bool found = false;
+												foreach (Tier aTeam in tiers)
 												{
-													Tier newTeam = new();
-													bool found = false;
-													foreach (Tier aTeam in tiers)
+													if (aTeam.TierNummer.Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
 													{
-														if (aTeam.TierNummer.Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
-														{
-															found = true;
-															newTeam = aTeam;
-															break;
-														}
-													}
-													ulong id = 0;
-													if (splitted.Length > 4)
-													{
-														_ = ulong.TryParse(splitted[4], out id);
-													}
-													newTeam.AddDeelnemer(splitted[2], id);
-													if (!found)
-													{
-														if (newTeam.TierNummer.Equals(string.Empty))
-														{
-															newTeam.TierNummer = _discordMessageUtils.GetEmojiAsString(splitted[3]);
-															string emojiAsString = _discordMessageUtils.GetEmojiAsString(splitted[3]);
-															int index = Emoj.GetIndex(emojiAsString);
-															newTeam.Index = index;
-														}
-														if (newTeam.Organisator.Equals(string.Empty))
-														{
-															newTeam.Organisator = splitted[4].Replace("\\", string.Empty);
-														}
-														tiers.Add(newTeam);
+														found = true;
+														newTeam = aTeam;
+														break;
 													}
 												}
+												ulong id = 0;
+												if (splitted.Length > 4)
+												{
+													_ = ulong.TryParse(splitted[4], out id);
+												}
+												newTeam.AddDeelnemer(splitted[2], id);
+												if (!found)
+												{
+													if (newTeam.TierNummer.Equals(string.Empty))
+													{
+														newTeam.TierNummer = _discordMessageUtils.GetEmojiAsString(splitted[3]);
+														string emojiAsString = _discordMessageUtils.GetEmojiAsString(splitted[3]);
+														int index = Emoj.GetIndex(emojiAsString);
+														newTeam.Index = index;
+													}
+													if (newTeam.Organisator.Equals(string.Empty))
+													{
+														newTeam.Organisator = splitted[4].Replace("\\", string.Empty);
+													}
+													tiers.Add(newTeam);
+												}
 											}
-											break;
 										}
+										break;
 									}
-
-									tiers = EditWhenRedundance(tiers);
-									tiers.Sort((x, y) => x.Index.CompareTo(y.Index));
-
-									return tiers;
-
 								}
-								else
-								{
-									_logger.LogError("Could not find log channel for reading teams.");
-								}
+
+								tiers = EditWhenRedundance(tiers);
+								tiers.Sort((x, y) => x.Index.CompareTo(y.Index));
+
+								return tiers;
 							}
 							else
 							{

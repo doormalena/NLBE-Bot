@@ -222,7 +222,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
 			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel) ||
-				Guard.ReturnIfNull(await _channelService.GetLogChannelAsync(), _logger, "Log channel", out IDiscordChannel logChannel))
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Log), _logger, "Log channel", out IDiscordChannel logChannel))
 			{
 				return;
 			}
@@ -352,7 +352,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
 			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel) ||
-				Guard.ReturnIfNull(await _channelService.GetLogChannelAsync(), _logger, "Log channel", out IDiscordChannel logChannel))
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Log), _logger, "Log channel", out IDiscordChannel logChannel))
 			{
 				return;
 			}

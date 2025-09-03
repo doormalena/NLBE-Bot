@@ -941,6 +941,11 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.Log), _logger, "Log channel", out IDiscordChannel logChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			int hoeveelste = -1;
 			bool goodNumber = true;
@@ -1013,51 +1018,42 @@ internal class BotCommands(IDiscordClient discordClient,
 								{
 									if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 									{
-										IDiscordChannel logChannel = await _channelService.GetLogChannelAsync();
-
-										if (logChannel.Inner != null)
+										IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+										Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
+										foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
 										{
-											IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-											Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
-											foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
+											string xdate = theMessage.Timestamp.ConvertToDate();
+											string ydate = sMessage.Key.ConvertToDate();
+											if (xdate.Equals(ydate))
 											{
-												string xdate = theMessage.Timestamp.ConvertToDate();
-												string ydate = sMessage.Key.ConvertToDate();
-												if (xdate.Equals(ydate))
+												List<IDiscordMessage> messagesToDelete = [];
+												sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
+												foreach (IDiscordMessage discMessage in sMessage.Value)
 												{
-													List<IDiscordMessage> messagesToDelete = [];
-													sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
-													foreach (IDiscordMessage discMessage in sMessage.Value)
+													string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
+													if (splitted[1].ToLower().Equals("teams"))
 													{
-														string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
-														if (splitted[1].ToLower().Equals("teams"))
+														//splitted[2] = naam speler
+														foreach (IDiscordUser user in userReactionsFromTheEmoji)
 														{
-															//splitted[2] = naam speler
-															foreach (IDiscordUser user in userReactionsFromTheEmoji)
+															IDiscordMember tempMemberByUser = await ctx.Guild.GetMemberAsync(user.Id);
+															if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && _discordMessageUtils.GetEmojiAsString(theEmoji.ToString()).Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
 															{
-																IDiscordMember tempMemberByUser = await ctx.Guild.GetMemberAsync(user.Id);
-																if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && _discordMessageUtils.GetEmojiAsString(theEmoji.ToString()).Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
-																{
-																	messagesToDelete.Add(discMessage);
-																}
+																messagesToDelete.Add(discMessage);
 															}
 														}
 													}
-													foreach (IDiscordMessage toDeleteMessage in messagesToDelete)
-													{
-														await toDeleteMessage.DeleteAsync();
-													}
-													if (messagesToDelete.Count > 0)
-													{
-														await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**In de log werden er ook aanpassingen gedaan om het teams commando up-to-date te houden.**");
-													}
-													break;
 												}
+												foreach (IDiscordMessage toDeleteMessage in messagesToDelete)
+												{
+													await toDeleteMessage.DeleteAsync();
+												}
+												if (messagesToDelete.Count > 0)
+												{
+													await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**In de log werden er ook aanpassingen gedaan om het teams commando up-to-date te houden.**");
+												}
+												break;
 											}
-										}
-										else
-										{
-											_logger.LogError("Could not find log channel `{ChannelName}`.", channel.Name);
 										}
 									}
 								}

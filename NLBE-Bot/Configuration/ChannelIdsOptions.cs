@@ -23,6 +23,12 @@ public class ChannelIdsOptions
 	}
 
 	[Required]
+	public ulong Log
+	{
+		get; set;
+	}
+
+	[Required]
 	public ulong OldMembers
 	{
 		get; set;

@@ -39,12 +39,6 @@ internal class ChannelService(IOptions<BotOptions> options,
 		return await GetChannelAsync(ChatID);
 	}
 
-	public async Task<IDiscordChannel?> GetLogChannelAsync()
-	{
-		ulong ChatID = 782308602882031660;
-		return await GetChannelAsync(ChatID);
-	}
-
 	public async Task<IDiscordChannel?> GetMappenChannelAsync()
 	{
 		ulong ChatID = 782240999190953984;

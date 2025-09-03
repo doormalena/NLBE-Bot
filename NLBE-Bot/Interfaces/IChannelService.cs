@@ -4,8 +4,6 @@ using System.Threading.Tasks;
 
 internal interface IChannelService
 {
-	public Task<IDiscordChannel?> GetLogChannelAsync();
-
 	public Task<IDiscordChannel?> GetDeputiesChannelAsync();
 
 	public Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll);
