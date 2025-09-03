@@ -35,7 +35,7 @@ public class ChannelServiceTests
 		_discordClientMock = Substitute.For<IDiscordClient>();
 		_discordClientMock!.GetGuildAsync(_options!.Value.ServerId).Returns(Task.FromResult(_guildMock));
 		_loggerMock = Substitute.For<ILogger<ChannelService>>();
-		_channelService = new ChannelService(_options, _discordClientMock, _loggerMock);
+		_channelService = new ChannelService(_loggerMock);
 	}
 
 	[TestMethod]
@@ -111,8 +111,6 @@ public class ChannelServiceTests
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
 	{
 		// Act & Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => new ChannelService(null!, _discordClientMock!, _loggerMock!));
-		Assert.ThrowsException<ArgumentNullException>(() => new ChannelService(_options!, null!, _loggerMock!));
-		Assert.ThrowsException<ArgumentNullException>(() => new ChannelService(_options!, _discordClientMock!, null!));
+		Assert.ThrowsException<ArgumentNullException>(() => new ChannelService(null!));
 	}
 }

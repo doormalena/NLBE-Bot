@@ -53,6 +53,19 @@ public class ChannelIdsOptions
 	}
 
 	[Required]
+	public ulong Polls
+	{
+		get; set;
+	}
+
+	[Required]
+	public ulong DeputiesPolls
+	{
+		get; set;
+	}
+
+
+	[Required]
 	public ulong ReplayResults
 	{
 		get; set;

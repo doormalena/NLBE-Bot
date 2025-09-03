@@ -1,31 +1,14 @@
 namespace NLBE_Bot.Services;
 
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-internal class ChannelService(IOptions<BotOptions> options,
-							  IDiscordClient discordClient,
-							  ILogger<ChannelService> logger) : IChannelService
+internal class ChannelService(ILogger<ChannelService> logger) : IChannelService
 {
-	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 	private readonly ILogger<ChannelService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-
-	public async Task<IDiscordChannel?> GetPollsChannelAsync(bool isDeputyPoll)
-	{
-		long ChatID = isDeputyPoll ? 805800443178909756 : 781522161159897119;
-		return await GetChannelAsync((ulong) ChatID);
-	}
-	private async Task<IDiscordChannel?> GetChannelAsync(ulong channelId)
-	{
-		IDiscordGuild guild = await _discordClient.GetGuildAsync(_options.ServerId);
-		return guild?.GetChannel(channelId);
-	}
 
 	public Task CleanChannelAsync(IDiscordChannel channel)
 	{

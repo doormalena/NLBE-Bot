@@ -30,7 +30,6 @@ internal class BotCommands(IDiscordClient discordClient,
 						   IBotState botState,
 						   IAccountsRepository accountRepository,
 						   IClansRepository clanRepository,
-						   IChannelService channelService,
 						   IUserService userService,
 						   IMessageService messageService,
 						   IMapService mapService,
@@ -49,7 +48,6 @@ internal class BotCommands(IDiscordClient discordClient,
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 	private readonly IHallOfFameService _hallOfFameService = hallOfFameService ?? throw new ArgumentNullException(nameof(hallOfFameService));
@@ -459,69 +457,68 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.Polls), _logger, "Polls channel", out IDiscordChannel pollChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			IDiscordChannel pollChannel = await _channelService.GetPollsChannelAsync(false);
-			if (pollChannel != null)
+
+			List<DEF> deflist = [];
+			Dictionary<string, DiscordEmoji> theList = [];
+			List<IDiscordEmoji> emojiList = [];
+			StringBuilder sb = new();
+			for (int i = 0; i < opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties.Length; i++)
 			{
-				List<DEF> deflist = [];
-				Dictionary<string, DiscordEmoji> theList = [];
-				List<IDiscordEmoji> emojiList = [];
-				StringBuilder sb = new();
-				for (int i = 0; i < opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties.Length; i++)
+				bool isEmoji = false;
+				IDiscordEmoji emoji = null;
+				try
 				{
-					bool isEmoji = false;
-					IDiscordEmoji emoji = null;
-					try
-					{
-						emoji = _discordMessageUtils.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
-						string temp = emoji.GetDiscordName();
-						_ = _discordMessageUtils.GetDiscordEmoji(temp);
-						isEmoji = true;
-					}
-					catch (Exception ex)
-					{
-						_logger.LogDebug(ex, "Error while trying to get emoji from string: {EmojiString}", opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
-					}
-
-					if (isEmoji)
-					{
-						theList.Add(sb.ToString(), emoji.Inner);
-						emojiList.Add(emoji);
-						sb.Clear();
-					}
-					else
-					{
-						if (sb.Length > 0)
-						{
-							sb.Append(' ');
-						}
-						sb.Append(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
-					}
+					emoji = _discordMessageUtils.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
+					string temp = emoji.GetDiscordName();
+					_ = _discordMessageUtils.GetDiscordEmoji(temp);
+					isEmoji = true;
 				}
-				foreach (KeyValuePair<string, DiscordEmoji> item in theList)
+				catch (Exception ex)
 				{
-					DEF def = new()
-					{
-						Inline = true,
-						Name = item.Key.AdaptToChat(),
-						Value = item.Value
-					};
-					deflist.Add(def);
+					_logger.LogDebug(ex, "Error while trying to get emoji from string: {EmojiString}", opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
 				}
 
-				EmbedOptions embedOptions = new()
+				if (isEmoji)
 				{
-					Title = "Poll",
-					Description = uitleg.AdaptToChat(),
-					Fields = deflist,
-					Emojis = emojiList,
+					theList.Add(sb.ToString(), emoji.Inner);
+					emojiList.Add(emoji);
+					sb.Clear();
+				}
+				else
+				{
+					if (sb.Length > 0)
+					{
+						sb.Append(' ');
+					}
+					sb.Append(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
+				}
+			}
+			foreach (KeyValuePair<string, DiscordEmoji> item in theList)
+			{
+				DEF def = new()
+				{
+					Inline = true,
+					Name = item.Key.AdaptToChat(),
+					Value = item.Value
 				};
-				await _messageService.CreateEmbed(pollChannel, embedOptions);
+				deflist.Add(def);
 			}
-			else
+
+			EmbedOptions embedOptions = new()
 			{
-				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #polls kon niet gevonden worden!**");
-			}
+				Title = "Poll",
+				Description = uitleg.AdaptToChat(),
+				Fields = deflist,
+				Emojis = emojiList,
+			};
+			await _messageService.CreateEmbed(pollChannel, embedOptions);
+
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		});
 	}
@@ -544,7 +541,8 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.Deputies), _logger, "Deputies channel", out IDiscordChannel deputiesChannel) ||
-				Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel))
+				Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel) ||
+				Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.DeputiesPolls), _logger, "Deputies Polls channel", out IDiscordChannel deputiesPollsChannel))
 			{
 				return;
 			}
@@ -563,7 +561,6 @@ internal class BotCommands(IDiscordClient discordClient,
 					}
 					sb.Append(optioneel_clan_naam_indien_nieuwe_kandidaat[i]);
 				}
-				IDiscordChannel deputiesPollsChannel = await _channelService.GetPollsChannelAsync(true);
 
 				bool goodOption = true;
 				IDiscordRole deputiesNLBERole = ctx.Guild.GetRole(Constants.DEPUTY_NLBE_ROLE);

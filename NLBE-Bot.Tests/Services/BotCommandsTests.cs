@@ -20,7 +20,6 @@ public class BotCommandsTests
 	private IBotState? _botStateMock;
 	private IAccountsRepository? _accountsRepositoryMock;
 	private IClansRepository? _clansRepositoryMock;
-	private IChannelService? _channelServiceMock;
 	private IUserService? _userServiceMock;
 	private IMessageService? _messageServiceMock;
 	private IMapService? _mapServiceMock;
@@ -46,7 +45,6 @@ public class BotCommandsTests
 		_botStateMock = Substitute.For<IBotState>();
 		_accountsRepositoryMock = Substitute.For<IAccountsRepository>();
 		_clansRepositoryMock = Substitute.For<IClansRepository>();
-		_channelServiceMock = Substitute.For<IChannelService>();
 		_userServiceMock = Substitute.For<IUserService>();
 		_messageServiceMock = Substitute.For<IMessageService>();
 		_mapServiceMock = Substitute.For<IMapService>();
@@ -64,7 +62,6 @@ public class BotCommandsTests
 			_botStateMock,
 			_accountsRepositoryMock,
 			_clansRepositoryMock,
-			_channelServiceMock,
 			_userServiceMock,
 			_messageServiceMock,
 			_mapServiceMock,
