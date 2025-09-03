@@ -8,6 +8,7 @@ using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 internal class MapService(IOptions<BotOptions> options, ILogger<MapService> logger) : IMapService
@@ -24,32 +25,25 @@ internal class MapService(IOptions<BotOptions> options, ILogger<MapService> logg
 			return images;
 		}
 
-		try
-		{
-			IReadOnlyList<IDiscordMessage> xMessages = await mapChannel.GetMessagesAsync(100);
-			foreach (IDiscordMessage message in xMessages)
-			{
-				IReadOnlyList<IDiscordAttachment> attachments = message.Attachments;
-				foreach (IDiscordAttachment item in attachments)
-				{
-					images.Add(new Tuple<string, string>(GetProperFileName(item.Url), item.Url));
-				}
-			}
+		IReadOnlyList<IDiscordMessage> messages = await mapChannel.GetMessagesAsync(100);
 
-			images.Sort((x, y) => y.Item1.CompareTo(x.Item1));
-			images.Reverse();
-		}
-		catch (Exception ex)
+		foreach (IReadOnlyList<IDiscordAttachment>? attachments in from IDiscordMessage message in messages
+																   let attachments = message.Attachments
+																   select attachments)
 		{
-			_logger.LogError(ex, "Error while getting map images from channel {ChannelName}.", mapChannel.Name);
+			images.AddRange(from IDiscordAttachment item in attachments
+							select new Tuple<string, string>(GetProperFileName(item.Url), item.Url));
 		}
+
+		images.Sort((x, y) => y.Item1.CompareTo(x.Item1));
+		images.Reverse();
 
 		return images;
 	}
-	public static string GetProperFileName(string file)
+	private static string GetProperFileName(string file)
 	{
 		string[] splitted = file.Split('\\');
-		string name = splitted[splitted.Length - 1];
+		string name = splitted[^1];
 		return Path.GetFileNameWithoutExtension(name).Replace('_', ' ');
 	}
 }

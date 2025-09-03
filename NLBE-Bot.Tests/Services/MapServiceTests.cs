@@ -74,41 +74,4 @@ public class MapServiceTests
 		// Assert.
 		Assert.AreEqual(0, result.Count);
 	}
-
-	[TestMethod]
-	public async Task GetAllMaps_ShouldLogError_WhenMessageFetchFails()
-	{
-		// Arrange.
-		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
-		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
-		channelMock.Name.Returns("maps-channel");
-		Exception exception = new("Fetch failed");
-		channelMock.GetMessagesAsync(100)
-				.Returns(Task.FromException<IReadOnlyList<IDiscordMessage>>(exception));
-		guildMock.GetChannel(_optionsMock!.Value.ChannelIds.Maps).Returns(channelMock);
-
-		// Act.
-		List<Tuple<string, string>> result = await _mapService!.GetAllMaps(guildMock);
-
-		// Assert.
-		_loggerMock!.Received().Log(
-							LogLevel.Error,
-							Arg.Any<EventId>(),
-							Arg.Is<object>(v => v.ToString()!.Contains("Error while getting map images from channel maps-channel.")),
-							exception,
-							Arg.Any<Func<object, Exception?, string>>());
-	}
-
-	[TestMethod]
-	public void GetProperFileName_ShouldReturnCleanName()
-	{
-		// Arrange.
-		string input = "https://cdn.discordapp.com/maps/map_alpha_test.jpg";
-
-		// Act.
-		string result = MapService.GetProperFileName(input);
-
-		// Assert.
-		Assert.AreEqual("map alpha test", result);
-	}
 }
