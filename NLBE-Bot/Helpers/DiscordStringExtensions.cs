@@ -7,6 +7,11 @@ public static class DiscordStringExtensions
 {
 	public static string AdaptToChat(this string text)
 	{
+		if (string.IsNullOrEmpty(text))
+		{
+			return string.Empty;
+		}
+
 		while (text.Contains("\\_"))
 		{
 			text = text.Replace("\\_", "_");
@@ -17,6 +22,11 @@ public static class DiscordStringExtensions
 
 	public static string AdaptLink(this string text)
 	{
+		if (string.IsNullOrEmpty(text))
+		{
+			return string.Empty;
+		}
+
 		StringBuilder sb = new();
 		string[] splitted = text.Split('\n');
 		Regex regex = new(@"https?:\/\/[a-zA-Z0-9]*.[a-z\.]*\/?[a-zA-Z0-9\/\.?=&\-#]*", RegexOptions.NonBacktracking);

@@ -29,12 +29,12 @@ internal class ReplayService(ILogger<ReplayService> logger,
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 
-	public async Task<string> GetDescriptionForReplay(WGBattle battle, int position, string preDescription = "")
+	public async Task<string> GetDescriptionForReplay(IDiscordGuild guild, WGBattle battle, int position, string preDescription = "")
 	{
 		StringBuilder sb = new(preDescription);
 		try
 		{
-			string weeklyEventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(battle);
+			string weeklyEventDescription = await _weeklyEventHandler.GetStringForWeeklyEvent(guild, battle);
 			if (weeklyEventDescription.Length > 0)
 			{
 				sb.Append(Environment.NewLine + weeklyEventDescription);
@@ -44,7 +44,8 @@ internal class ReplayService(ILogger<ReplayService> logger,
 		{
 			_logger.LogError(ex, "Error while getting weekly event description for replay.");
 		}
-		sb.Append(GetSomeReplayInfoAsText(battle, position).Replace(Constants.REPLACEABLE_UNDERSCORE_CHAR, '_'));
+		string replayInfo = await GetSomeReplayInfoAsText(battle, position);
+		sb.Append(replayInfo.Replace(Constants.REPLACEABLE_UNDERSCORE_CHAR, '_'));
 		return sb.ToString();
 	}
 
@@ -133,7 +134,7 @@ internal class ReplayService(ILogger<ReplayService> logger,
 		HttpResponseMessage response = await httpClient.PostAsync(url, form1);
 		return await response.Content.ReadAsStringAsync();
 	}
-	private string GetSomeReplayInfoAsText(WGBattle battle, int position)
+	private async Task<string> GetSomeReplayInfoAsText(WGBattle battle, int position)
 	{
 		StringBuilder sb = new();
 		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.title.AdaptToChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.view_url.AdaptToChat() + ")", false));
@@ -169,7 +170,7 @@ internal class ReplayService(ILogger<ReplayService> logger,
 			List<WorldOfTanksBlitzApi.Achievement> achievementList = [];
 			for (int i = 0; i < battle.details.achievements.Count; i++)
 			{
-				WorldOfTanksBlitzApi.Achievement tempAchievement = WorldOfTanksBlitzApi.Achievement.getAchievement(_options.WotbApi.ApplicationId, battle.details.achievements.ElementAt(i).t).Result;
+				WorldOfTanksBlitzApi.Achievement tempAchievement = await WorldOfTanksBlitzApi.Achievement.getAchievement(_options.WotbApi.ApplicationId, battle.details.achievements.ElementAt(i).t);
 				if (tempAchievement != null)
 				{
 					achievementList.Add(tempAchievement);

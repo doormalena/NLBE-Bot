@@ -11,7 +11,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>Logo_NLBE.jpg</PackageIcon>
     <Description>Discord bot specifically made for the NLBE discord server.</Description>
-    <UserSecretsId>a2a1dbc7-2786-42fe-9349-55d40d0b3123</UserSecretsId>  
+    <UserSecretsId>a2a1dbc7-2786-42fe-9349-55d40d0b3123</UserSecretsId>
+	<Nullable>enable</Nullable>
 </PropertyGroup>
 
   <ItemGroup>

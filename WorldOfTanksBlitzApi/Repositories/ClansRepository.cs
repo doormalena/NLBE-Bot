@@ -17,12 +17,12 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 	public async Task<IReadOnlyList<WotbClanListItem>> SearchByNameAsync(SearchType searchType, string term, bool loadMembers = false, int maxResults = 20)
 	{
 		string jsonText = await SearchByName(term, searchType, maxResults);
-		WotbClanList response = JsonSerializer.Deserialize<WotbClanList>(jsonText);
+		WotbClanList? response = JsonSerializer.Deserialize<WotbClanList>(jsonText);
 
 		return response == null || response.Data == null ? [] : (IReadOnlyList<WotbClanListItem>) response.Data;
 	}
 
-	public async Task<WotbClanInfo> GetByIdAsync(long clanId, bool loadMembers = false)
+	public async Task<WotbClanInfo?> GetByIdAsync(long clanId, bool loadMembers = false)
 	{
 		string clanJson = await GetById(clanId, loadMembers);
 
@@ -43,7 +43,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 		return null;
 	}
 
-	public async Task<WotbAccountClanInfo> GetAccountClanInfoAsync(long accountId)
+	public async Task<WotbAccountClanInfo?> GetAccountClanInfoAsync(long accountId)
 	{
 		string accountClanJson = await GetAccountClanInfo(accountId);
 

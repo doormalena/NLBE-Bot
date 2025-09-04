@@ -53,7 +53,7 @@ public class BotTests
 
 		// Act.
 		await _bot!.StartAsync(cts.Token);
-		await Task.Delay(200); // Workaround to give the logger time to flush, otherwise causing the test to fail.
+		await Task.Delay(500); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
 		_loggerMock!.Received().Log(
@@ -125,11 +125,11 @@ public class BotTests
 	public void Constructor_ThrowsArgumentNullException_WhenAnyDependencyIsNull()
 	{
 		// Act & Assert.
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(null, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, null, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, null, _publicIpMock, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, null, _serviceProviderMock, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, null, _botStateMock));
-		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, null));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(null!, _eventHandlersMock!, _loggerMock!, _publicIpMock!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, null!, _loggerMock!, _publicIpMock!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, null!, _publicIpMock!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, _loggerMock!, null!, _serviceProviderMock!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, _loggerMock!, _publicIpMock!, null!, _botStateMock!));
+		Assert.ThrowsException<ArgumentNullException>(() => new Bot(_discordClientMock!, _eventHandlersMock!, _loggerMock!, _publicIpMock!, _serviceProviderMock!, null!));
 	}
 }

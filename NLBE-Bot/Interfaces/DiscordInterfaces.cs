@@ -26,7 +26,7 @@ internal interface IDiscordClient
 	public Task<IDiscordUser> GetUserAsync(ulong userId);
 	public Task<IDiscordGuild> GetGuildAsync(ulong guildId);
 	public IDiscordInteractivityExtension GetInteractivity();
-	public Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed embed = null);
+	public Task<IDiscordMessage> SendMessageAsync(IDiscordChannel channel, string content, IDiscordEmbed? embed = null);
 	public Task DisconnectAsync();
 
 	public event AsyncEventHandler<DiscordClient, ReadyEventArgs> Ready;
@@ -63,7 +63,7 @@ internal interface ICommandsNextExtension
 {
 	public void RegisterCommands<T>() where T : BaseCommandModule;
 
-	public Command FindCommand(string commandName, out string rawArguments);
+	public Command? FindCommand(string commandName, out string? rawArguments);
 
 	public CommandContext CreateContext(IDiscordMessage message, string prefix, Command command, string args);
 
@@ -131,7 +131,7 @@ internal interface IDiscordMessage
 	{
 		get;
 	}
-	public IReadOnlyList<DiscordAttachment> Attachments
+	public IReadOnlyList<IDiscordAttachment> Attachments
 	{
 		get;
 	}
@@ -314,10 +314,10 @@ internal interface IDiscordGuild
 		get;
 	}
 	public Task<IReadOnlyCollection<IDiscordMember>> GetAllMembersAsync();
-	public Task<IDiscordMember> GetMemberAsync(ulong userId);
+	public Task<IDiscordMember?> GetMemberAsync(ulong userId);
 	public Task LeaveAsync();
-	public IDiscordRole GetRole(ulong roleId);
-	public IDiscordChannel GetChannel(ulong id);
+	public IDiscordRole? GetRole(ulong roleId);
+	public IDiscordChannel? GetChannel(ulong id);
 	public Task UnbanMemberAsync(IDiscordUser user);
 	public Task BanMemberAsync(IDiscordMember member);
 }
@@ -412,7 +412,7 @@ internal interface IDiscordEmbed
 	{
 		get;
 	}
-	public IEnumerable<DiscordEmbedField> Fields
+	public IReadOnlyList<DiscordEmbedField> Fields
 	{
 		get;
 	}
@@ -421,6 +421,30 @@ internal interface IDiscordEmbed
 		get;
 	}
 	public string Description
+	{
+		get;
+	}
+}
+
+public interface IDiscordAttachment
+{
+	public ulong Id
+	{
+		get;
+	}
+	public string Url
+	{
+		get;
+	}
+	public string FileName
+	{
+		get;
+	}
+	public DiscordAttachment Inner
+	{
+		get;
+	}
+	public int FileSize
 	{
 		get;
 	}

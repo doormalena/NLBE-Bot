@@ -7,6 +7,7 @@ using RichardSzalay.MockHttp;
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Exceptions;
@@ -75,28 +76,16 @@ public class WotbConnectionTests
 		string? foundAppId = null;
 
 		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
-
+		HttpRequestMessage capturedRequest = null;
 		_mockHttp!.When(HttpMethod.Post, expectedUrl)
-			.With(message =>
-			{
-				if (message.Content is MultipartFormDataContent formData)
+				.Respond(req =>
 				{
-					foreach (HttpContent content in formData)
+					capturedRequest = req;
+					return new HttpResponseMessage
 					{
-						if (content is StringContent stringContent)
-						{
-							string value = stringContent.ReadAsStringAsync().Result;
-							if (value == ApplicationId)
-							{
-								foundAppId = value;
-								return true;
-							}
-						}
-					}
-				}
-				return false;
-			})
-			.Respond("application/json", ExpectedContent);
+						Content = new StringContent(ExpectedContent, Encoding.UTF8, "application/json")
+					};
+				});
 
 		MultipartFormDataContent form = [];
 		form.Add(new StringContent("value"), "key");
@@ -104,7 +93,22 @@ public class WotbConnectionTests
 		// Act.
 		_ = await _connection!.PostAsync(RelativeUrl, form);
 
-		// Assert.
+		Assert.IsNotNull(capturedRequest);
+		MultipartFormDataContent formData = capturedRequest.Content as MultipartFormDataContent;
+		Assert.IsNotNull(formData);
+
+		foreach (HttpContent part in formData)
+		{
+			if (part is StringContent stringContent)
+			{
+				string value = await stringContent.ReadAsStringAsync();
+				if (value == ApplicationId)
+				{
+					foundAppId = value;
+					break;
+				}
+			}
+		}
 		Assert.AreEqual(ApplicationId, foundAppId, "application_id was not found in the form data.");
 	}
 
@@ -420,12 +424,12 @@ public class WotbConnectionTests
 	{
 		// Act & Assert.
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new WotbConnection(null, _loggerMock, BaseUri, ApplicationId));
+			  new WotbConnection(null!, _loggerMock!, BaseUri!, ApplicationId!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new WotbConnection(_httpClient, null, BaseUri, ApplicationId));
+			  new WotbConnection(_httpClient!, null!, BaseUri!, ApplicationId!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new WotbConnection(_httpClient, _loggerMock, null, ApplicationId));
+			  new WotbConnection(_httpClient!, _loggerMock!, null!, ApplicationId!));
 		Assert.ThrowsException<ArgumentNullException>(() =>
-			  new WotbConnection(_httpClient, _loggerMock, BaseUri, null));
+			  new WotbConnection(_httpClient!, _loggerMock!, BaseUri!, null!));
 	}
 }

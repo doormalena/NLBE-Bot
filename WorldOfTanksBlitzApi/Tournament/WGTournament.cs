@@ -103,7 +103,7 @@ namespace WorldOfTanksBlitzApi.Tournament
 			setValues(json);
 			if (wg_application_id.Length > 0)
 			{
-				string stageJsonString = Stage.stageToString(wg_application_id, this.tournament_id).Result;
+				string stageJsonString = Stage.stageToString(wg_application_id, this.tournament_id).Result; // TODO: resolve potential deadlock issue with .Result().
 				Json stagesjson = new Json(stageJsonString, "Stage");
 				if (stagesjson != null)
 				{

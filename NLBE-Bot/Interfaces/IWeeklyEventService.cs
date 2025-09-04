@@ -13,9 +13,9 @@ internal interface IWeeklyEventService
 
 	public Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank);
 
-	public Task ReadWeeklyEvent();
+	public Task ReadWeeklyEvent(IDiscordGuild guild);
 
-	public Task<string> GetStringForWeeklyEvent(WGBattle battle);
+	public Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WGBattle battle);
 
 	public Task CreateNewWeeklyEvent(string tank, IDiscordChannel weeklyEventChannel);
 }

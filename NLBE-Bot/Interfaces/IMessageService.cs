@@ -7,9 +7,9 @@ using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal interface IMessageService
 {
-	public Task<IDiscordMessage> SendMessage(IDiscordChannel channel, IDiscordMember member, string guildName, string message);
+	public Task<IDiscordMessage?> SendMessage(IDiscordChannel channel, IDiscordMember? member, string guildName, string message);
 
-	public Task<bool> SendPrivateMessage(IDiscordMember member, string guildName, string Message);
+	public Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string message);
 
 	public Task SayTheUserIsNotAllowed(IDiscordChannel channel);
 
@@ -25,13 +25,13 @@ internal interface IMessageService
 
 	public Task SayNoResponse(IDiscordChannel channel);
 
-	public IDiscordMessage SayMultipleResults(IDiscordChannel channel, string description);
+	public Task<IDiscordMessage?> SayMultipleResults(IDiscordChannel channel, string description);
 
 	public Task SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName);
 
-	public Task<IDiscordMessage> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text);
+	public Task<IDiscordMessage?> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text);
 
-	public Task<IDiscordMessage> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType);
+	public Task<IDiscordMessage?> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType);
 
 	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription);
 

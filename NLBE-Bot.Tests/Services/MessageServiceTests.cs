@@ -1,0 +1,1222 @@
+namespace NLBE_Bot.Tests.Services;
+
+using DSharpPlus.Entities;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NLBE_Bot.Configuration;
+using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
+using NLBE_Bot.Services;
+using NSubstitute;
+using System;
+using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Tools.Replays;
+
+[TestClass]
+public class MessageServiceTests
+{
+	private IDiscordClient? _discordClientMock;
+	private ILogger<MessageService>? _loggerMock;
+	private IOptions<BotOptions>? _optionsMock;
+	private IBotState? _botStateMock;
+	private IChannelService? _channelServiceMock;
+	private IDiscordMessageUtils? _discordMessageUtilsMock;
+	private IMapService? _mapServiceMock;
+	private MessageService? _service;
+	private IDiscordChannel? _channelMock;
+	private IDiscordMember? _memberMock;
+	private IDiscordGuild? _guildMock;
+	private IDiscordUser? _userMock;
+
+	[TestInitialize]
+	public void Setup()
+	{
+		_discordClientMock = Substitute.For<IDiscordClient>();
+		_loggerMock = Substitute.For<ILogger<MessageService>>();
+		_optionsMock = Options.Create(new BotOptions());
+		_botStateMock = Substitute.For<IBotState>();
+		_channelServiceMock = Substitute.For<IChannelService>();
+		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
+		_mapServiceMock = Substitute.For<IMapService>();
+
+		_service = new MessageService(
+			_discordClientMock,
+			_loggerMock,
+			_optionsMock,
+			_botStateMock,
+			_channelServiceMock,
+			_discordMessageUtilsMock,
+			_mapServiceMock
+		);
+
+		_channelMock = Substitute.For<IDiscordChannel>();
+		_memberMock = Substitute.For<IDiscordMember>();
+		_guildMock = Substitute.For<IDiscordGuild>();
+		_userMock = Substitute.For<IDiscordUser>();
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldThrow_WhenChannelIsNull()
+	{
+		// Act & Assert.
+		await Assert.ThrowsExceptionAsync<ArgumentNullException>(() =>
+			_service!.AskQuestion(null!, _userMock!, _guildMock!, "Q"));
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldReturnContent_WhenNotTimedOut()
+	{
+		// Arrange.
+		IDiscordMessage discordMessage = Substitute.For<IDiscordMessage>();
+		discordMessage.Content.Returns("Answer");
+
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(false);
+		resultMock.Result.Returns(discordMessage);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual("Answer", answer);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldCleanChannel_WhenTimedOut_AndMemberIsNull()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns((IDiscordMember?) null);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldRemoveMember_WhenTimedOut_AndRemoveSucceeds()
+	{
+
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await member.Received(1).RemoveAsync("[New member] No answer");
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldBanAndUnban_WhenRemoveThrows()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		_guildMock.BanMemberAsync(member).Returns(Task.CompletedTask);
+		_guildMock.UnbanMemberAsync(_userMock!).Returns(Task.CompletedTask);
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		await _guildMock.Received(1).BanMemberAsync(member);
+		await _guildMock.Received(1).UnbanMemberAsync(_userMock!);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task AskQuestion_ShouldLogWarning_WhenBanFails()
+	{
+		// Arrange.
+		IDiscordInteractivityResult<IDiscordMessage> resultMock =
+			Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		resultMock.TimedOut.Returns(true);
+
+		_channelMock!.GetNextMessageAsync(_userMock!, Arg.Any<TimeSpan>())
+					 .Returns(Task.FromResult(resultMock));
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.DisplayName.Returns("Name");
+		member.Username.Returns("User");
+		member.Discriminator.Returns("1234");
+		member.RemoveAsync(Arg.Any<string>()).Returns(_ => throw new Exception("remove fail"));
+		_guildMock!.GetMemberAsync(_userMock!.Id).Returns(member);
+
+		_guildMock.BanMemberAsync(member).Returns(_ => throw new Exception("ban fail"));
+
+		// Act.
+		string answer = await _service!.AskQuestion(_channelMock!, _userMock!, _guildMock!, "Q");
+
+		// Assert.
+		Assert.AreEqual(string.Empty, answer);
+		_loggerMock!.Received(1).Log(
+			LogLevel.Warning,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+		await _channelServiceMock!.Received(1).CleanChannelAsync(_channelMock!);
+	}
+
+	[TestMethod]
+	public async Task SendMessage_ShouldReturnMessage_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync("hello").Returns(Task.FromResult(messageMock));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SendMessage(_channelMock!, _memberMock!, "GuildName", "hello");
+
+		// Assert.
+		Assert.AreSame(messageMock, result);
+	}
+
+	[TestMethod]
+	public async Task SendMessage_ShouldCallSayBotNotAuthorized_AndSendPrivateMessage_WhenUnauthorized()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync("msg")
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("unauthorized"));
+
+		// Create partial substitute so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Act.
+		IDiscordMessage? result = await serviceSub.SendMessage(_channelMock!, _memberMock!, "GuildName", "msg");
+
+		// Assert.
+		Assert.IsNull(result);
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Could not send message to channel")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>());
+		await serviceSub.Received(1).SayBotNotAuthorized(_channelMock!);
+		await serviceSub.Received(1).SendPrivateMessage(_memberMock!, "GuildName", "msg");
+		await serviceSub.DidNotReceiveWithAnyArgs().SayTooManyCharacters(default!);
+	}
+
+	[TestMethod]
+	public async Task SendMessage_ShouldCallSayTooManyCharacters_AndSendPrivateMessage_WhenOtherException()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync("msg")
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("Some other error"));
+
+		// Create partial mock of MessageService so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Act.
+		IDiscordMessage? result = await serviceSub.SendMessage(_channelMock!, _memberMock!, "GuildName", "msg");
+
+		// Assert.
+		Assert.IsNull(result);
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Could not send message to channel")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>());
+		await serviceSub.Received(1).SayTooManyCharacters(_channelMock!);
+		await serviceSub.Received(1).SendPrivateMessage(_memberMock!, "GuildName", "msg");
+		await serviceSub.DidNotReceiveWithAnyArgs().SayBotNotAuthorized(default!);
+	}
+
+	[TestMethod]
+	public async Task SendPrivateMessage_ShouldReturnTrue_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_memberMock!.SendMessageAsync("Test message").Returns(Task.FromResult(messageMock));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SendPrivateMessage(_memberMock!, "TestGuild", "Test message");
+
+		// Assert.
+		Assert.IsNotNull(result);
+		_loggerMock!.Received(0).Log(
+			   LogLevel.Error,
+			   Arg.Any<EventId>(),
+			   Arg.Any<object>(),
+			   Arg.Any<Exception>(),
+			   Arg.Any<Func<object, Exception?, string>>()
+		   );
+	}
+
+	[TestMethod]
+	public async Task SendPrivateMessage_ShouldReturnFalse_AndLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_memberMock!.DisplayName.Returns("TestUser");
+		_memberMock.SendMessageAsync("Test message")
+				   .Returns<Task>(_ => throw new Exception("fail"));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SendPrivateMessage(_memberMock!, "TestGuild", "Test message");
+
+		// Assert.
+		Assert.IsNull(result);
+		_loggerMock!.Received().Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Could not send private message to member")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>());
+	}
+
+	[TestMethod]
+	public async Task SaySomethingWentWrong_ShouldCallSendMessage_WithExpectedParameters()
+	{
+		// Arrange.
+		string guildName = "TestGuild";
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage so it doesn't run the real implementation
+		serviceSub.SendMessage(_channelMock!, _memberMock!, guildName, "**Er ging iets mis, probeer het opnieuw!**")
+				  .Returns(Task.FromResult<IDiscordMessage?>(null));
+
+		// Act.
+		await serviceSub.SaySomethingWentWrong(_channelMock!, _memberMock!, guildName);
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			guildName,
+			"**Er ging iets mis, probeer het opnieuw!**"
+		);
+	}
+
+	[TestMethod]
+	public async Task SayTooManyCharacters_ShouldSendEmbed_WhenNoException()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult<IDiscordMessage>(null!));
+
+		// Act.
+		await _service!.SayTooManyCharacters(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayTooManyCharacters_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayTooManyCharacters(_channelMock!);
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayBotNotAuthorized_ShouldSendEmbed_WhenNoException()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(null!, Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult<IDiscordMessage>(null!));
+
+		// Act.
+		await _service!.SayBotNotAuthorized(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayBotNotAuthorized_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayBotNotAuthorized(_channelMock!);
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task ConfirmCommandExecuting_ShouldAddInProgressReaction()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		IDiscordEmoji inProgressEmoji = Substitute.For<IDiscordEmoji>();
+
+		_discordMessageUtilsMock!
+			.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)
+			.Returns(inProgressEmoji);
+
+		// Act.
+		await _service!.ConfirmCommandExecuting(messageMock);
+
+		// Assert.
+		_discordMessageUtilsMock.Received(1).GetDiscordEmoji(Constants.IN_PROGRESS_REACTION);
+		await messageMock.Received(1).CreateReactionAsync(inProgressEmoji);
+	}
+
+	[TestMethod]
+	public async Task ConfirmCommandExecuted_ShouldRemoveInProgressAndAddCompletedReaction()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		IDiscordEmoji inProgressEmoji = Substitute.For<IDiscordEmoji>();
+		IDiscordEmoji completedEmoji = Substitute.For<IDiscordEmoji>();
+
+		_discordMessageUtilsMock!
+			.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)
+			.Returns(inProgressEmoji);
+		_discordMessageUtilsMock!
+			.GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION)
+			.Returns(completedEmoji);
+
+		// Act.
+		await _service!.ConfirmCommandExecuted(messageMock);
+
+		// Assert.
+		_discordMessageUtilsMock.Received(1).GetDiscordEmoji(Constants.IN_PROGRESS_REACTION);
+		_discordMessageUtilsMock.Received(1).GetDiscordEmoji(Constants.ACTION_COMPLETED_REACTION);
+		await messageMock.Received(1).DeleteReactionsEmojiAsync(inProgressEmoji);
+		await messageMock.Received(1).CreateReactionAsync(completedEmoji);
+	}
+
+	[TestMethod]
+	public async Task SayTheUserIsNotAllowed_ShouldSendEmbed_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult(messageMock));
+
+		// Act.
+		await _service!.SayTheUserIsNotAllowed(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayTheUserIsNotAllowed_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayTheUserIsNotAllowed(_channelMock!);
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayNoResults_ShouldSendEmbed_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult(messageMock));
+
+		// Act.
+		await _service!.SayNoResults(_channelMock!, "Test_description");
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayNoResults_ShouldLogError_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		await _service!.SayNoResults(_channelMock!, "Test_description");
+
+		// Assert.
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayMultipleResults_ShouldReturnMessage_WhenNoException()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns(Task.FromResult(messageMock));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SayMultipleResults(_channelMock!, "Test description");
+
+		// Assert.
+		Assert.AreSame(messageMock, result);
+		await _channelMock!.Received(1).SendMessageAsync(Arg.Any<IDiscordEmbed>());
+		_loggerMock!.Received(0).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Any<object>(),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayMultipleResults_ShouldLogErrorAndReturnNull_WhenExceptionThrown()
+	{
+		// Arrange.
+		_channelMock!.SendMessageAsync(Arg.Any<IDiscordEmbed>())
+			   .Returns<Task<IDiscordMessage>>(_ => throw new Exception("fail"));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SayMultipleResults(_channelMock!, "Test description");
+
+		// Assert.
+		Assert.IsNull(result);
+		_loggerMock!.Received(1).Log(
+			LogLevel.Error,
+			Arg.Any<EventId>(),
+			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Any<Exception>(),
+			Arg.Any<Func<object, Exception?, string>>()
+		);
+	}
+
+	[TestMethod]
+	public async Task SayCannotBePlayedAt_ShouldSendPrivateMessage_WhenRoomTypeIsEmpty()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_memberMock!.SendMessageAsync(Arg.Any<string>())
+					.Returns(Task.FromResult(messageMock));
+
+		// Act.
+		IDiscordMessage? result = await _service!.SayCannotBePlayedAt(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			string.Empty // triggers branch
+		);
+
+		// Assert.
+		Assert.AreSame(messageMock, result);
+		await _memberMock!.Received(1).SendMessageAsync(
+			"Geef aub even door welk type room dit is want het werd niet herkent door de bot. Tag gebruiker thibeastmo#9998"
+		);
+	}
+
+	[TestMethod]
+	public async Task SayCannotBePlayedAt_ShouldNotSendPrivateMessage_WhenRoomTypeIsNotEmpty()
+	{
+		// Act.
+		IDiscordMessage? result = await _service!.SayCannotBePlayedAt(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"someRoomType" // does not trigger branch
+		);
+
+		// Assert.
+		Assert.IsNotNull(result);
+		await _memberMock!.DidNotReceiveWithAnyArgs().SendMessageAsync(default!);
+	}
+
+	[TestMethod]
+	public async Task SaySomethingWentWrong_WithText_ShouldCallSendMessage_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage to return our expected message
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "Test text")
+				  .Returns(Task.FromResult<IDiscordMessage?>(messageMock));
+
+		// Act.
+		IDiscordMessage? result = await serviceSub.SaySomethingWentWrong(_channelMock!, _memberMock!, "TestGuild", "Test text");
+
+		// Assert.
+		Assert.AreSame(messageMock, result);
+		await serviceSub.Received(1).SendMessage(_channelMock!, _memberMock!, "TestGuild", "Test text");
+	}
+
+	[TestMethod]
+	public async Task SayWrongAttachments_ShouldCallSendMessage_WithExpectedParameters_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage to return our expected message
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "**Geen bruikbare documenten in de bijlage gevonden!**")
+				  .Returns(Task.FromResult<IDiscordMessage?>(messageMock));
+
+		// Act.
+		await serviceSub.SayWrongAttachments(_channelMock!, _memberMock!, "TestGuild");
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"**Geen bruikbare documenten in de bijlage gevonden!**"
+		);
+	}
+
+	[TestMethod]
+	public async Task SayNoAttachments_ShouldCallSendMessage_WithExpectedParameters_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+
+		// Create partial substitute so we can verify SendMessage was called
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub SendMessage to return our expected message
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "**Geen documenten in de bijlage gevonden!**")
+				  .Returns(Task.FromResult<IDiscordMessage?>(messageMock));
+
+		// Act.
+		await serviceSub.SayNoAttachments(_channelMock!, _memberMock!, "TestGuild");
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"**Geen documenten in de bijlage gevonden!**"
+		);
+	}
+
+	[TestMethod]
+	public async Task SayNoResponse_ShouldCallSendMessage_WithExpectedParameters_AndReturnResult()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		serviceSub.SendMessage(_channelMock!, _memberMock!, "TestGuild", "`Time-out: Geen antwoord.`")
+				  .Returns(Task.FromResult<IDiscordMessage?>(messageMock));
+
+		// Act.
+		await serviceSub.SayNoResponse(_channelMock!, _memberMock!, "TestGuild");
+
+		// Assert.
+		await serviceSub.Received(1).SendMessage(
+			_channelMock!,
+			_memberMock!,
+			"TestGuild",
+			"`Time-out: Geen antwoord.`"
+		);
+	}
+
+	[TestMethod]
+	public async Task SayMustBeNumber_ShouldSendMessage_WithExpectedParameters()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync("**Je moest een cijfer geven!**")
+					 .Returns(Task.FromResult(messageMock));
+
+		// Act.
+		await _service!.SayMustBeNumber(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync("**Je moest een cijfer geven!**");
+	}
+
+	[TestMethod]
+	public async Task SayNumberTooSmall_ShouldSendMessage_WithExpectedParameters()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync("**Dat cijfer was te klein!**")
+					 .Returns(Task.FromResult(messageMock));
+
+		// Act.
+		await _service!.SayNumberTooSmall(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync("**Dat cijfer was te klein!**");
+	}
+
+	[TestMethod]
+	public async Task SayNumberTooBig_ShouldSendMessage_WithExpectedParameters()
+	{
+		// Arrange.
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		_channelMock!.SendMessageAsync("**Dat cijfer was te groot!**")
+					 .Returns(Task.FromResult(messageMock));
+
+		// Act.
+		await _service!.SayNumberTooBig(_channelMock!);
+
+		// Assert.
+		await _channelMock!.Received(1).SendMessageAsync("**Dat cijfer was te groot!**");
+	}
+
+	[TestMethod]
+	public async Task SayBeMoreSpecific_ShouldCallCreateEmbed_WithExpectedParameters()
+	{
+		// Arrange.
+		EmbedOptions options = new()
+		{
+			Title = "Wees specifieker",
+			Description = "Er waren te veel resultaten, probeer iets specifieker te zijn!"
+		};
+
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		// Stub CreateEmbed so it doesn't run the real implementation
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+		serviceSub.CreateEmbed(_channelMock!, Arg.Any<EmbedOptions>())
+				  .Returns(Task.FromResult(messageMock));
+
+		// Act.
+		await serviceSub.SayBeMoreSpecific(_channelMock!);
+
+		// Assert.
+		await serviceSub.Received(1).CreateEmbed(
+			_channelMock!,
+			Arg.Is<EmbedOptions>(opts =>
+				opts.Title == options.Title &&
+				opts.Description == options.Description
+			)
+		);
+	}
+
+	[DataTestMethod]
+	[DataRow("SayReplayNotWorthy", "TestMap", "http://image.url/", true, true, DisplayName = "NotWorthy - RespondAsync with thumbnail")]
+	[DataRow("SayReplayIsWorthy", "OtherMap", null, false, false, DisplayName = "IsWorthy - SendMessageAsync no map match")]
+	[DataRow("SayReplayNotWorthy", "TestMap", "http://image.url/", false, true, DisplayName = "NotWorthy - SendMessageAsync with thumbnail")]
+	[DataRow("SayReplayIsWorthy", "TestMap", null, true, false, DisplayName = "IsWorthy - RespondAsync no thumbnail (empty name)")]
+	public async Task SayReplay_Wrappers_ShouldBehaveAsExpected(string methodName, string battleMapName, string? mapUrl, bool lastCreatedExists, bool expectThumbnail)
+	{
+		// Arrange.
+		WGBattle battle = new()
+		{
+			map_name = battleMapName
+		};
+
+		List<Tuple<string, string>> maps = [];
+		if (mapUrl != null)
+		{
+			// If we don't expect a thumbnail, simulate empty name in map list
+			string mapNameForList = expectThumbnail ? battleMapName : string.Empty;
+			maps.Add(Tuple.Create(mapNameForList, mapUrl));
+		}
+		_mapServiceMock!.GetAllMaps(_channelMock!.Guild)
+			.Returns(Task.FromResult(maps));
+
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+		static void AssertThumbnail(object embedObj, bool shouldHaveThumbnail, string? expectedUrl)
+		{
+			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embedObj;
+			if (shouldHaveThumbnail)
+			{
+				Assert.AreEqual(expectedUrl, wrapper.Thumbnail.Url.ToString());
+			}
+			else
+			{
+				Assert.IsNull(wrapper.Thumbnail);
+			}
+		}
+
+		if (lastCreatedExists)
+		{
+			IDiscordMessage lastCreated = Substitute.For<IDiscordMessage>();
+			_botStateMock!.LastCreatedDiscordMessage.Returns(lastCreated);
+
+			lastCreated.RespondAsync(Arg.Do<IDiscordEmbed>(embed => AssertThumbnail(embed, expectThumbnail, mapUrl)))
+									.Returns(Task.FromResult(expectedMessage));
+		}
+		else
+		{
+			_botStateMock!.LastCreatedDiscordMessage.Returns((IDiscordMessage?) null);
+			_channelMock!.SendMessageAsync(Arg.Do<IDiscordEmbed>(embed => AssertThumbnail(embed, expectThumbnail, mapUrl)))
+										   .Returns(Task.FromResult(expectedMessage));
+		}
+
+		// Act.
+		IDiscordMessage result = methodName switch
+		{
+			"SayReplayNotWorthy" => await _service!.SayReplayNotWorthy(_channelMock!, battle, "Extra"),
+			"SayReplayIsWorthy" => await _service!.SayReplayIsWorthy(_channelMock!, battle, "Extra", 1),
+			_ => throw new ArgumentException("Unknown method name")
+		};
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldBuildEmbedAndSendViaRespondAsync_WhenIsForReplay()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+		IDiscordMessage lastCreated = Substitute.For<IDiscordMessage>();
+		_botStateMock!.LastCreatedDiscordMessage.Returns(lastCreated);
+
+		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
+
+		EmbedOptions options = new()
+		{
+			Color = DiscordColor.Red,
+			Title = "MyTitle",
+			Description = "MyDescription",
+			Thumbnail = "http://thumb.url/",
+			Author = new DiscordEmbedBuilder.EmbedAuthor { Name = "AuthorName" },
+			ImageUrl = "http://image.url/",
+			Fields = [new DEF { Name = "Field1", Value = "Value1", Inline = false }],
+			Footer = "Footer text",
+			IsForReplay = true,
+			Content = "Some content",
+			Emojis = [emoji],
+			NextMessage = "Follow-up"
+		};
+
+		lastCreated.RespondAsync(options.Content, Arg.Do<IDiscordEmbed>(embed =>
+		{
+			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embed;
+			Assert.AreEqual("MyTitle", wrapper.Title);
+			Assert.AreEqual("MyDescription", wrapper.Description);
+			Assert.AreEqual("http://thumb.url/", wrapper.Thumbnail.Url.ToString());
+			Assert.AreEqual("http://image.url/", wrapper.Image.Url.ToString());
+			Assert.AreEqual("Footer text", wrapper.Footer.Text);
+		}))
+		.Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+		await lastCreated.Received(1).RespondAsync(options.Content, Arg.Any<IDiscordEmbed>());
+		await expectedMessage.Received(1).CreateReactionAsync(emoji);
+		await _channelMock!.Received(1).SendMessageAsync("Follow-up");
+	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldSendViaDiscordClient_WhenNotForReplay()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+
+		EmbedOptions options = new()
+		{
+			Title = "Title",
+			Description = "Description",
+			IsForReplay = false,
+			Content = "Content"
+		};
+
+		_discordClientMock!.SendMessageAsync(_channelMock!, options.Content, Arg.Any<IDiscordEmbed>())
+						   .Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+		await _discordClientMock!.Received(1).SendMessageAsync(_channelMock!, options.Content, Arg.Any<IDiscordEmbed>());
+	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldNotAddThumbnailOrFooter_WhenEmpty()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+
+		EmbedOptions options = new()
+		{
+			Title = "Title",
+			Description = "Description",
+			Thumbnail = "",
+			Footer = "",
+			IsForReplay = false,
+			Content = "Content"
+		};
+
+		_discordClientMock!.SendMessageAsync(_channelMock!, options.Content, Arg.Do<IDiscordEmbed>(embed =>
+		{
+			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embed;
+			Assert.IsNull(wrapper.Thumbnail);
+			Assert.IsNull(wrapper.Footer);
+		}))
+		.Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+	}
+
+	[TestMethod]
+	public async Task CreateEmbed_ShouldOnlyAddFieldsWithNonEmptyValue()
+	{
+		// Arrange.
+		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+
+		EmbedOptions options = new()
+		{
+			Title = "Title",
+			Description = "Description",
+			Fields =
+			[
+				new() { Name = "Field1", Value = "Value1", Inline = false },
+				new() { Name = "Field2", Value = "", Inline = true }
+			],
+			IsForReplay = false,
+			Content = "Content"
+		};
+
+		_discordClientMock!.SendMessageAsync(_channelMock!, options.Content, Arg.Do<IDiscordEmbed>(embed =>
+		{
+			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embed;
+			Assert.AreEqual(1, wrapper.Fields.Count); // Only one field added
+			Assert.AreEqual("Field1", wrapper.Fields[0].Name);
+		}))
+		.Returns(Task.FromResult(expectedMessage));
+
+		// Act.
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+
+		// Assert.
+		Assert.AreSame(expectedMessage, result);
+	}
+
+	[DataTestMethod]
+	[DataRow("2", 5, 1, false, false, false, DisplayName = "Valid number in range")]
+	[DataRow("99", 5, -1, true, false, false, DisplayName = "Number too big")]
+	[DataRow("0", 5, -1, false, true, false, DisplayName = "Number too small")]
+	[DataRow("abc", 5, -1, false, false, true, DisplayName = "Not a number")]
+	public async Task WaitForReply_ShouldHandleMessageInputScenarios(
+		string input,
+		int count,
+		int expectedResult,
+		bool expectTooBig,
+		bool expectTooSmall,
+		bool expectMustBeNumber)
+	{
+		// Arrange.
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		message.Content.Returns(input);
+
+		// Create partial substitute so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		IDiscordInteractivityResult<IDiscordMessage> result = Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		result.TimedOut.Returns(false);
+		result.Result.Returns(message);
+
+		IDiscordInteractivityExtension interactivity = Substitute.For<IDiscordInteractivityExtension>();
+		interactivity.WaitForMessageAsync(Arg.Any<Func<IDiscordMessage, bool>>())
+					 .Returns(Task.FromResult(result));
+
+		_discordClientMock!.GetInteractivity().Returns(interactivity);
+
+		serviceSub.WhenForAnyArgs(s => s.SayMultipleResults(default!, default!))
+				 .DoNotCallBase();
+		serviceSub.SayMultipleResults(_channelMock!, "desc").Returns(Task.FromResult<IDiscordMessage?>(null));
+
+		serviceSub.WhenForAnyArgs(s => s.SayNumberTooBig(default!)).DoNotCallBase();
+		serviceSub.WhenForAnyArgs(s => s.SayNumberTooSmall(default!)).DoNotCallBase();
+		serviceSub.WhenForAnyArgs(s => s.SayMustBeNumber(default!)).DoNotCallBase();
+
+		// Act.
+		int resultIndex = await serviceSub.WaitForReply(_channelMock!, _userMock!, "desc", count);
+
+		// Assert.
+		Assert.AreEqual(expectedResult, resultIndex);
+
+		if (expectTooBig)
+		{
+			await serviceSub.Received(1).SayNumberTooBig(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayNumberTooBig(_channelMock!);
+		}
+
+		if (expectTooSmall)
+		{
+			await serviceSub.Received(1).SayNumberTooSmall(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayNumberTooSmall(_channelMock!);
+		}
+
+		if (expectMustBeNumber)
+		{
+			await serviceSub.Received(1).SayMustBeNumber(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayMustBeNumber(_channelMock!);
+		}
+	}
+
+	[DataTestMethod]
+	[DataRow(true, new[] { 1 }, 5, 0, null, false, DisplayName = "Valid emoji reaction")]
+	[DataRow(true, new[] { 10 }, 5, -1, "**Dat was geen van de optionele emoji's!**", false, DisplayName = "Invalid emoji index")]
+	[DataRow(true, new[] { 1, 2 }, 5, -1, "**Je mocht maar 1 reactie geven!**", false, DisplayName = "Multiple emoji reactions")]
+	[DataRow(true, new int[0], 5, -1, null, true, DisplayName = "No emoji reactions")]
+	[DataRow(false, null, 5, -1, null, true, DisplayName = "No original message")]
+	public async Task WaitForReply_ShouldHandleEmojiTimeoutScenarios(
+		bool hasMessage,
+		int[]? emojiIndices,
+		int count,
+		int expectedResult,
+		string? expectedText,
+		bool expectSayNoResponse)
+	{
+		// Arrange.
+		IDiscordMessage? discMessage = hasMessage ? Substitute.For<IDiscordMessage>() : null;
+
+		IDiscordInteractivityResult<IDiscordMessage> result = Substitute.For<IDiscordInteractivityResult<IDiscordMessage>>();
+		result.TimedOut.Returns(true);
+
+		IDiscordInteractivityExtension interactivity = Substitute.For<IDiscordInteractivityExtension>();
+		interactivity.WaitForMessageAsync(Arg.Any<Func<IDiscordMessage, bool>>())
+					 .Returns(Task.FromResult(result));
+
+		_discordClientMock!.GetInteractivity().Returns(interactivity);
+
+		// Create partial substitute so we can verify calls to public methods
+		MessageService serviceSub = Substitute.ForPartsOf<MessageService>(
+			_discordClientMock!,
+			_loggerMock!,
+			_optionsMock!,
+			_botStateMock!,
+			_channelServiceMock!,
+			_discordMessageUtilsMock!,
+			_mapServiceMock!
+		);
+
+		if (discMessage != null && emojiIndices != null)
+		{
+			List<IDiscordEmoji> emojis = [];
+			foreach (int i in emojiIndices)
+			{
+				string emojiName = Emoj.GetName(i);
+				IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
+				emoji.Name.Returns(emojiName);
+
+				_discordMessageUtilsMock!.GetDiscordEmoji(emojiName).Returns(emoji);
+				_discordMessageUtilsMock.GetEmojiAsString(emojiName).Returns(emojiName);
+
+				discMessage.GetReactionsAsync(emoji)
+						   .Returns(Task.FromResult<IReadOnlyList<IDiscordUser>>([_userMock!]));
+
+				emojis.Add(emoji);
+			}
+		}
+
+		if (expectedText != null)
+		{
+			IDiscordMessage message = Substitute.For<IDiscordMessage>();
+			_channelMock!.SendMessageAsync(expectedText).Returns(Task.FromResult(message));
+		}
+
+		serviceSub.SayMultipleResults(_channelMock!, "desc").ReturnsForAnyArgs(Task.FromResult(discMessage));
+		serviceSub.WhenForAnyArgs(s => s.SayNoResponse(default!)).DoNotCallBase();
+
+		// Act.
+		int resultIndex = await serviceSub.WaitForReply(_channelMock!, _userMock!, "desc", count);
+
+		// Assert.
+		Assert.AreEqual(expectedResult, resultIndex);
+
+		if (expectedText != null)
+		{
+			await _channelMock!.Received(1).SendMessageAsync(expectedText);
+		}
+
+		if (expectSayNoResponse)
+		{
+			await serviceSub.Received(1).SayNoResponse(_channelMock!);
+		}
+		else
+		{
+			await serviceSub.Received(0).SayNoResponse(_channelMock!);
+		}
+	}
+
+}

@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-public interface IMapService
+internal interface IMapService
 {
-	public Task<List<Tuple<string, string>>> GetAllMaps(ulong guildId);
+	public Task<List<Tuple<string, string>>> GetAllMaps(IDiscordGuild guild);
 }

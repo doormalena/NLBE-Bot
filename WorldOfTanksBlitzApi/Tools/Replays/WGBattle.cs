@@ -117,7 +117,7 @@ namespace WorldOfTanksBlitzApi.Tools.Replays
 		}
 		public string map_name
 		{
-			get; private set;
+			get; internal set;
 		}
 		public int room_type
 		{
@@ -150,6 +150,9 @@ namespace WorldOfTanksBlitzApi.Tools.Replays
 			}
 		}
 		public static StringBuilder log;
+		public WGBattle()
+		{
+		}
 
 		/// <summary>
 		/// Instantiate this object with the the replay url. This url is from a downloadable place such as discord or wotinspector.com
@@ -161,11 +164,11 @@ namespace WorldOfTanksBlitzApi.Tools.Replays
 			{
 				if (replayUrlOrJson.StartsWith("http"))
 				{
-					getBattle(replayUrlOrJson, true).Wait();
+					getBattle(replayUrlOrJson, true).Wait(); // TODO: remove potential deadlock issue with .Wait().
 				}
 				else
 				{
-					getBattle(replayUrlOrJson, false).Wait();
+					getBattle(replayUrlOrJson, false).Wait(); // TODO: remove potential deadlock issue with .Wait().
 					//jsonToBattle(replayUrlOrJson);
 				}
 				if (this.details == null)

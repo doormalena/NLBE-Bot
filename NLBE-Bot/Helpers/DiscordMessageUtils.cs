@@ -1,24 +1,27 @@
 namespace NLBE_Bot.Helpers;
 
 using DSharpPlus.Entities;
-using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
 
-internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<DiscordMessageUtils> logger) : IDiscordMessageUtils
+internal class DiscordMessageUtils(IDiscordClient discordClient) : IDiscordMessageUtils
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
-	private readonly ILogger<DiscordMessageUtils> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-	public Dictionary<IDiscordEmoji, List<IDiscordUser>> SortReactions(IDiscordMessage message)
+	public async Task<Dictionary<IDiscordEmoji, List<IDiscordUser>>> SortReactions(IDiscordMessage message)
 	{
-		return message.Reactions.ToDictionary(
-			reaction => reaction.Emoji,
-			reaction => message.GetReactionsAsync(reaction.Emoji).Result.ToList()
-		);
+		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = [];
+
+		foreach (IDiscordReaction reaction in message.Reactions)
+		{
+			IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(reaction.Emoji);
+			result[reaction.Emoji] = [.. users];
+		}
+
+		return result;
 	}
 
 	public Dictionary<DateTime, List<IDiscordMessage>> SortMessages(IReadOnlyList<IDiscordMessage> messages)
@@ -55,55 +58,35 @@ internal class DiscordMessageUtils(IDiscordClient discordClient, ILogger<Discord
 		return sortedMessages;
 	}
 
-	public IDiscordEmoji GetDiscordEmoji(string name)
+	public IDiscordEmoji? GetDiscordEmoji(string name)
 	{
-		DiscordEmoji theEmoji;
-
-		try
-		{
-			theEmoji = DiscordEmoji.FromName(_discordClient.Inner, name);
-			return new DiscordEmojiWrapper(theEmoji);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogDebug(ex, ex.Message);
-		}
-
-		theEmoji = DiscordEmoji.FromUnicode(name);
-
-		if (theEmoji != null)
+		if (_discordClient.Inner != null && DiscordEmoji.TryFromName(_discordClient.Inner, name, out DiscordEmoji theEmoji))
 		{
 			return new DiscordEmojiWrapper(theEmoji);
 		}
 
-		try
+		if (!string.IsNullOrEmpty(name) && DiscordEmoji.TryFromUnicode(name, out theEmoji))
 		{
-			theEmoji = DiscordEmoji.FromName(_discordClient.Inner, name);
-		}
-		catch (Exception ex)
-		{
-			_logger.LogWarning(ex, "Could not load emoji: {EmojiName}", name);
+			return new DiscordEmojiWrapper(theEmoji);
 		}
 
-		return new DiscordEmojiWrapper(theEmoji);
+		return null;
 	}
 
 	public string GetEmojiAsString(string emoji)
 	{
-		IDiscordEmoji theEmoji = GetDiscordEmoji(emoji);
+		if (string.IsNullOrEmpty(emoji))
+		{
+			return string.Empty;
+		}
 
-		if (!theEmoji.GetDiscordName().Equals(emoji))
+		IDiscordEmoji? theEmoji = GetDiscordEmoji(emoji);
+
+		if (theEmoji != null && !theEmoji.GetDiscordName().Equals(emoji))
 		{
 			return theEmoji.GetDiscordName();
 		}
 
-		try
-		{
-			return DiscordEmoji.FromUnicode(_discordClient.Inner, emoji).Name;
-		}
-		catch
-		{
-			return emoji;
-		}
+		return emoji;
 	}
 }

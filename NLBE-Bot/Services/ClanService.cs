@@ -1,6 +1,5 @@
 namespace NLBE_Bot.Services;
 
-using Microsoft.Extensions.Logging;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -84,7 +83,7 @@ internal class ClanService(IMessageService messageService,
 		await _messageService.CreateEmbed(channel, embedOptions);
 	}
 
-	public async Task<WotbClanListItem> SearchForClan(IDiscordChannel channel, IDiscordMember member, string guildName, string name, bool loadMembers, IDiscordUser user, IDiscordCommand command)
+	public async Task<WotbClanListItem?> SearchForClan(IDiscordChannel channel, IDiscordMember member, string guildName, string name, bool loadMembers, IDiscordUser user, IDiscordCommand command)
 	{
 		IReadOnlyList<WotbClanListItem> clans = await _clanRepository.SearchByNameAsync(SearchType.StartsWith, name, loadMembers);
 		int aantalClans = clans.Count;

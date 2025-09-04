@@ -30,7 +30,6 @@ internal class BotCommands(IDiscordClient discordClient,
 						   IBotState botState,
 						   IAccountsRepository accountRepository,
 						   IClansRepository clanRepository,
-						   IChannelService channelService,
 						   IUserService userService,
 						   IMessageService messageService,
 						   IMapService mapService,
@@ -49,7 +48,6 @@ internal class BotCommands(IDiscordClient discordClient,
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IMapService _mapService = mapService ?? throw new ArgumentNullException(nameof(mapService));
 	private readonly IHallOfFameService _hallOfFameService = hallOfFameService ?? throw new ArgumentNullException(nameof(hallOfFameService));
@@ -73,6 +71,11 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.TournamentSignUp), _logger, "Tournament Sign Up channel", out IDiscordChannel tournamentSignUpChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			if (tiers_gesplitst_met_spatie.Length > 0)
 			{
@@ -93,51 +96,43 @@ internal class BotCommands(IDiscordClient discordClient,
 				{
 					if (_tournamentService.CheckIfAllWithinRange(tiers_gesplitst_met_spatie, 1, 10))
 					{
-						IDiscordChannel toernooiAanmeldenChannel = await _channelService.GetToernooiAanmeldenChannel();
-						if (toernooiAanmeldenChannel != null)
+						List<DEF> deflist = [];
+						DEF newDef1 = new()
 						{
-							List<DEF> deflist = [];
-							DEF newDef1 = new()
-							{
-								Name = "Type",
-								Value = (string.IsNullOrEmpty(type) ? "Quick Tournament" : type).AdaptToChat(),
-								Inline = true
-							};
-							deflist.Add(newDef1);
-							DEF newDef2 = new()
-							{
-								Name = "Wanneer?",
-								Value = wanneer.AdaptToChat(),
-								Inline = true
-							};
-							deflist.Add(newDef2);
-							DEF newDef3 = new()
-							{
-								Name = "Organisator",
-								Value = ctx.Member.DisplayName.AdaptToChat(),
-								Inline = true
-							};
-							deflist.Add(newDef3);
-
-							List<IDiscordEmoji> emojiList = [];
-							for (int i = 0; i < tiers_gesplitst_met_spatie.Length; i++)
-							{
-								emojiList.Add(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
-							}
-
-							EmbedOptions embedOptions = new()
-							{
-								Content = "@everyone",
-								Title = "Toernooi",
-								Fields = deflist,
-								Emojis = emojiList
-							};
-							await _messageService.CreateEmbed(toernooiAanmeldenChannel, embedOptions);
-						}
-						else
+							Name = "Type",
+							Value = (string.IsNullOrEmpty(type) ? "Quick Tournament" : type).AdaptToChat(),
+							Inline = true
+						};
+						deflist.Add(newDef1);
+						DEF newDef2 = new()
 						{
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #Toernooi-aanmelden kon niet gevonden worden!**");
+							Name = "Wanneer?",
+							Value = wanneer.AdaptToChat(),
+							Inline = true
+						};
+						deflist.Add(newDef2);
+						DEF newDef3 = new()
+						{
+							Name = "Organisator",
+							Value = ctx.Member.DisplayName.AdaptToChat(),
+							Inline = true
+						};
+						deflist.Add(newDef3);
+
+						List<IDiscordEmoji> emojiList = [];
+						for (int i = 0; i < tiers_gesplitst_met_spatie.Length; i++)
+						{
+							emojiList.Add(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(Convert.ToInt32(tiers_gesplitst_met_spatie[i]))));
 						}
+
+						EmbedOptions embedOptions = new()
+						{
+							Content = "@everyone",
+							Title = "Toernooi",
+							Fields = deflist,
+							Emojis = emojiList
+						};
+						await _messageService.CreateEmbed(tournamentSignUpChannel, embedOptions);
 					}
 					else
 					{
@@ -462,69 +457,68 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.Polls), _logger, "Polls channel", out IDiscordChannel pollChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			IDiscordChannel pollChannel = await _channelService.GetPollsChannel(false);
-			if (pollChannel != null)
+
+			List<DEF> deflist = [];
+			Dictionary<string, DiscordEmoji> theList = [];
+			List<IDiscordEmoji> emojiList = [];
+			StringBuilder sb = new();
+			for (int i = 0; i < opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties.Length; i++)
 			{
-				List<DEF> deflist = [];
-				Dictionary<string, DiscordEmoji> theList = [];
-				List<IDiscordEmoji> emojiList = [];
-				StringBuilder sb = new();
-				for (int i = 0; i < opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties.Length; i++)
+				bool isEmoji = false;
+				IDiscordEmoji emoji = null;
+				try
 				{
-					bool isEmoji = false;
-					IDiscordEmoji emoji = null;
-					try
-					{
-						emoji = _discordMessageUtils.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
-						string temp = emoji.GetDiscordName();
-						_ = _discordMessageUtils.GetDiscordEmoji(temp);
-						isEmoji = true;
-					}
-					catch (Exception ex)
-					{
-						_logger.LogDebug(ex, "Error while trying to get emoji from string: {EmojiString}", opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
-					}
-
-					if (isEmoji)
-					{
-						theList.Add(sb.ToString(), emoji.Inner);
-						emojiList.Add(emoji);
-						sb.Clear();
-					}
-					else
-					{
-						if (sb.Length > 0)
-						{
-							sb.Append(' ');
-						}
-						sb.Append(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
-					}
+					emoji = _discordMessageUtils.GetDiscordEmoji(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
+					string temp = emoji.GetDiscordName();
+					_ = _discordMessageUtils.GetDiscordEmoji(temp);
+					isEmoji = true;
 				}
-				foreach (KeyValuePair<string, DiscordEmoji> item in theList)
+				catch (Exception ex)
 				{
-					DEF def = new()
-					{
-						Inline = true,
-						Name = item.Key.AdaptToChat(),
-						Value = item.Value
-					};
-					deflist.Add(def);
+					_logger.LogDebug(ex, "Error while trying to get emoji from string: {EmojiString}", opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
 				}
 
-				EmbedOptions embedOptions = new()
+				if (isEmoji)
 				{
-					Title = "Poll",
-					Description = uitleg.AdaptToChat(),
-					Fields = deflist,
-					Emojis = emojiList,
+					theList.Add(sb.ToString(), emoji.Inner);
+					emojiList.Add(emoji);
+					sb.Clear();
+				}
+				else
+				{
+					if (sb.Length > 0)
+					{
+						sb.Append(' ');
+					}
+					sb.Append(opties_gesplitst_met_emoji_als_laatste_en_mag_met_spaties[i]);
+				}
+			}
+			foreach (KeyValuePair<string, DiscordEmoji> item in theList)
+			{
+				DEF def = new()
+				{
+					Inline = true,
+					Name = item.Key.AdaptToChat(),
+					Value = item.Value
 				};
-				await _messageService.CreateEmbed(pollChannel, embedOptions);
+				deflist.Add(def);
 			}
-			else
+
+			EmbedOptions embedOptions = new()
 			{
-				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Het kanaal #polls kon niet gevonden worden!**");
-			}
+				Title = "Poll",
+				Description = uitleg.AdaptToChat(),
+				Fields = deflist,
+				Emojis = emojiList,
+			};
+			await _messageService.CreateEmbed(pollChannel, embedOptions);
+
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		});
 	}
@@ -546,31 +540,17 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.Deputies), _logger, "Deputies channel", out IDiscordChannel deputiesChannel) ||
+				Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel) ||
+				Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.DeputiesPolls), _logger, "Deputies Polls channel", out IDiscordChannel deputiesPollsChannel))
+			{
+				return;
+			}
+
 			// 3 reacties voorzien, :thumbsup: :thinking: :thumbsdown:
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			bool validChannel = false;
-			IDiscordChannel deputiesChannel = await _channelService.GetDeputiesChannel();
-			if (deputiesChannel != null && ctx.Channel.Id.Equals(deputiesChannel.Id))
-			{
-				validChannel = true;
-			}
-			if (!validChannel)
-			{
-				IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
-				if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
-				{
-					validChannel = true;
-				}
-			}
-			if (!validChannel)
-			{
-				IDiscordChannel bottestChannel = await _channelService.GetTestChannel();
-				if (bottestChannel != null && ctx.Channel.Id.Equals(bottestChannel.Id))
-				{
-					validChannel = true;
-				}
-			}
-			if (validChannel)
+
+			if (ctx.Channel.Id.Equals(deputiesChannel.Id) || ctx.Channel.Id.Equals(botTestChannel.Id))
 			{
 				StringBuilder sb = new();
 				for (int i = 0; i < optioneel_clan_naam_indien_nieuwe_kandidaat.Length; i++)
@@ -581,7 +561,6 @@ internal class BotCommands(IDiscordClient discordClient,
 					}
 					sb.Append(optioneel_clan_naam_indien_nieuwe_kandidaat[i]);
 				}
-				IDiscordChannel deputiesPollsChannel = await _channelService.GetPollsChannel(true);
 
 				bool goodOption = true;
 				IDiscordRole deputiesNLBERole = ctx.Guild.GetRole(Constants.DEPUTY_NLBE_ROLE);
@@ -720,7 +699,7 @@ internal class BotCommands(IDiscordClient discordClient,
 										{
 											subject = subject.Replace("<dd-mm-yyyy>", accountClanInfo.JoinedAt.Value.Day + "-" + accountClanInfo.JoinedAt.Value.Month + "-" + accountClanInfo.JoinedAt.Value.Year);
 										}
-										int amountOfBattles90 = _handler.Get90DayBattles(account.AccountId);
+										int amountOfBattles90 = await _handler.Get90DayBattles(account.AccountId);
 										subject = subject.Replace("<90>", amountOfBattles90.ToString());
 										if (originalWat.ToLower().Equals("nieuw"))
 										{
@@ -814,63 +793,58 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			List<Tuple<string, string>> images = await _mapService.GetAllMaps(ctx.Guild.Id);
-			if (images != null)
-			{
-				StringBuilder sbMap = new();
-				for (int i = 0; i < map.Length; i++)
-				{
-					if (i > 0)
-					{
-						sbMap.Append(' ');
-					}
-					sbMap.Append(map[i]);
-				}
-				if (sbMap.ToString().ToLower().Equals("list") || sbMap.Length == 0)
-				{
-					StringBuilder sb = new();
-					foreach (Tuple<string, string> item in images)
-					{
-						sb.AppendLine(item.Item1);
-					}
-					EmbedOptions embedOptions = new()
-					{
-						Title = "Mappen",
-						Description = sb.ToString(),
-					};
-					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-				}
-				else
-				{
-					bool mapFound = false;
-					foreach (Tuple<string, string> item in from Tuple<string, string> item in images
-														   where item.Item1.Contains(sbMap.ToString(), StringComparison.OrdinalIgnoreCase)
-														   select item)
-					{
-						mapFound = true;
-						EmbedOptions embedOptions = new()
-						{
-							Title = item.Item1,
-							ImageUrl = item.Item2
-						};
-						await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-						break;
-					}
+			List<Tuple<string, string>> images = await _mapService.GetAllMaps(ctx.Guild);
 
-					if (!mapFound)
-					{
-						EmbedOptions embedOptions = new()
-						{
-							Title = "De map `" + sbMap.ToString() + "` kon niet gevonden worden."
-						};
-						await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-					}
+			StringBuilder sbMap = new();
+			for (int i = 0; i < map.Length; i++)
+			{
+				if (i > 0)
+				{
+					sbMap.Append(' ');
 				}
+				sbMap.Append(map[i]);
+			}
+			if (sbMap.ToString().ToLower().Equals("list") || sbMap.Length == 0)
+			{
+				StringBuilder sb = new();
+				foreach (Tuple<string, string> item in images)
+				{
+					sb.AppendLine(item.Item1);
+				}
+				EmbedOptions embedOptions = new()
+				{
+					Title = "Mappen",
+					Description = sb.ToString(),
+				};
+				await _messageService.CreateEmbed(ctx.Channel, embedOptions);
 			}
 			else
 			{
-				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon de mappen niet uit een kanaal halen.**");
+				bool mapFound = false;
+				foreach (Tuple<string, string> item in from Tuple<string, string> item in images
+													   where item.Item1.Contains(sbMap.ToString(), StringComparison.OrdinalIgnoreCase)
+													   select item)
+				{
+					mapFound = true;
+					EmbedOptions embedOptions = new()
+					{
+						Title = item.Item1,
+						ImageUrl = item.Item2
+					};
+					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
+					break;
+				}
+
+				if (!mapFound)
+				{
+					EmbedOptions embedOptions = new()
+					{
+						Title = "De map `" + sbMap.ToString() + "` kon niet gevonden worden."
+					};
+					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
+				}
 			}
+
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		});
 	}
@@ -889,47 +863,62 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			// Confirm command start
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
+
 			IEnumerable<IDiscordChannel> channels = ctx.Guild.Channels.Values;
-			foreach (IReadOnlyList<IDiscordMessage> xMessages in from IDiscordChannel channel in channels
-																 where channel.Name.Equals(naam_van_kanaal)
-																 let xMessages = channel.GetMessagesAsync(hoeveelste_bericht).Result
-																 select xMessages)
+
+			foreach (IDiscordChannel channel in channels)
 			{
+				if (!channel.Name.Equals(naam_van_kanaal))
+				{
+					continue;
+				}
+
+				IReadOnlyList<IDiscordMessage> xMessages = await channel.GetMessagesAsync(hoeveelste_bericht);
+
 				for (int i = 0; i < xMessages.Count; i++)
 				{
-					if (i == hoeveelste_bericht - 1)
+					if (i != hoeveelste_bericht - 1)
 					{
-						IDiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
-						string temp = theEmoji.Inner.GetDiscordName();
-						bool isEmoji = false;
+						continue;
+					}
+
+					IDiscordEmoji? theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
+					string temp = theEmoji != null ? theEmoji.GetDiscordName() : string.Empty;
+					bool isEmoji = false;
+
+					try
+					{
+						_ = _discordMessageUtils.GetDiscordEmoji(temp);
+						isEmoji = true;
+					}
+					catch (Exception ex)
+					{
+						_logger.LogDebug(ex, "Emoji {Emoji} could not be parsed.", temp);
+					}
+
+					if (isEmoji)
+					{
 						try
 						{
-							_ = DiscordEmoji.FromName(_discordClient.Inner, temp);
-							isEmoji = true;
+							await xMessages[i].CreateReactionAsync(theEmoji);
+							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name,
+								$"**Reactie({emoji}) van bericht({hoeveelste_bericht}) in kanaal({naam_van_kanaal}) is toegevoegd!**");
 						}
 						catch (Exception ex)
 						{
-							_logger.LogDebug(ex, "Emoji {Emoji} could not be parsed.", temp);
+							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name,
+								$"**Kon geen reactie({emoji}) toevoegen bij bericht({hoeveelste_bericht}) in kanaal({naam_van_kanaal})!**");
+							_logger.LogWarning(ex,
+								"Could not add reaction ({Emoji}) for message ({MessageNumber}) in channel ({ChannelName}): {Message}",
+								emoji, hoeveelste_bericht, naam_van_kanaal, ex.Message);
 						}
-
-						if (isEmoji)
-						{
-							try
-							{
-								await xMessages[i].CreateReactionAsync(theEmoji);
-								await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ") is toegevoegd!**");
-							}
-							catch (Exception ex)
-							{
-								await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon geen reactie(" + emoji + ") toevoegen bij bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ")!**");
-								_logger.LogWarning(ex, "Could not add reaction ({Emoji}) for message ({MessageNumber}) in channel ({ChannelName}): {Message}", emoji, hoeveelste_bericht, naam_van_kanaal, ex.Message);
-							}
-						}
-						else
-						{
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De emoji(" + emoji + ") geen bestaande emoji!**");
-						}
+					}
+					else
+					{
+						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name,
+							$"**De emoji({emoji}) geen bestaande emoji!**");
 					}
 				}
 			}
@@ -952,6 +941,11 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.Log), _logger, "Log channel", out IDiscordChannel logChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			int hoeveelste = -1;
 			bool goodNumber = true;
@@ -973,10 +967,10 @@ internal class BotCommands(IDiscordClient discordClient,
 													select channel)
 				{
 					channelFound = true;
-					IReadOnlyList<IDiscordMessage> zMessages = channel.GetMessagesAsync(hoeveelste + 1).Result;
+					IReadOnlyList<IDiscordMessage> zMessages = await channel.GetMessagesAsync(hoeveelste + 1);
 					IReadOnlyList<IDiscordUser> userReactionsFromTheEmoji = [];
-					IDiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
-					string temp = theEmoji.GetDiscordName();
+					IDiscordEmoji? theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
+					string temp = theEmoji != null ? theEmoji.GetDiscordName() : string.Empty;
 					bool isEmoji = false;
 					try
 					{
@@ -1001,12 +995,12 @@ internal class BotCommands(IDiscordClient discordClient,
 							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon reactie(" + emoji + ") van bericht(" + (hoeveelste + 1) + ") in kanaal(" + naam_van_kanaal + ") niet verwijderen!**");
 							_logger.LogWarning(ex, "Could not remove reaction ({Emoji}) from message ({MessageNumber}) in channel ({ChannelName}): {Message}", emoji, hoeveelste + 1, naam_van_kanaal, ex.Message);
 						}
-						if (channel.Id.Equals(Constants.NLBE_TOERNOOI_AANMELDEN_KANAAL_ID))
+						if (channel.Id == options.Value.ChannelIds.TournamentSignUp)
 						{
 							List<IDiscordMessage> messages = [];
 							try
 							{
-								IReadOnlyList<IDiscordMessage> xMessages = channel.GetMessagesAsync(hoeveelste + 1).Result;
+								IReadOnlyList<IDiscordMessage> xMessages = await channel.GetMessagesAsync(hoeveelste + 1);
 								foreach (IDiscordMessage message in xMessages)
 								{
 									messages.Add(message);
@@ -1024,51 +1018,42 @@ internal class BotCommands(IDiscordClient discordClient,
 								{
 									if (theMessage.Author.Id.Equals(Constants.NLBE_BOT))
 									{
-										IDiscordChannel logChannel = await _channelService.GetLogChannel();
-
-										if (logChannel.Inner != null)
+										IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
+										Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
+										foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
 										{
-											IReadOnlyList<IDiscordMessage> logMessages = await logChannel.GetMessagesAsync(100);
-											Dictionary<DateTime, List<IDiscordMessage>> sortedMessages = _discordMessageUtils.SortMessages(logMessages);
-											foreach (KeyValuePair<DateTime, List<IDiscordMessage>> sMessage in sortedMessages)
+											string xdate = theMessage.Timestamp.ConvertToDate();
+											string ydate = sMessage.Key.ConvertToDate();
+											if (xdate.Equals(ydate))
 											{
-												string xdate = theMessage.Timestamp.ConvertToDate();
-												string ydate = sMessage.Key.ConvertToDate();
-												if (xdate.Equals(ydate))
+												List<IDiscordMessage> messagesToDelete = [];
+												sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
+												foreach (IDiscordMessage discMessage in sMessage.Value)
 												{
-													List<IDiscordMessage> messagesToDelete = [];
-													sMessage.Value.Sort((x, y) => x.Inner.Timestamp.CompareTo(y.Inner.Timestamp));
-													foreach (IDiscordMessage discMessage in sMessage.Value)
+													string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
+													if (splitted[1].ToLower().Equals("teams"))
 													{
-														string[] splitted = discMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
-														if (splitted[1].ToLower().Equals("teams"))
+														//splitted[2] = naam speler
+														foreach (IDiscordUser user in userReactionsFromTheEmoji)
 														{
-															//splitted[2] = naam speler
-															foreach (IDiscordUser user in userReactionsFromTheEmoji)
+															IDiscordMember tempMemberByUser = await ctx.Guild.GetMemberAsync(user.Id);
+															if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && _discordMessageUtils.GetEmojiAsString(theEmoji.ToString()).Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
 															{
-																IDiscordMember tempMemberByUser = await ctx.Guild.GetMemberAsync(user.Id);
-																if (tempMemberByUser != null && tempMemberByUser.DisplayName.Equals(splitted[2]) && _discordMessageUtils.GetEmojiAsString(theEmoji.ToString()).Equals(_discordMessageUtils.GetEmojiAsString(splitted[3])))
-																{
-																	messagesToDelete.Add(discMessage);
-																}
+																messagesToDelete.Add(discMessage);
 															}
 														}
 													}
-													foreach (IDiscordMessage toDeleteMessage in messagesToDelete)
-													{
-														await toDeleteMessage.DeleteAsync();
-													}
-													if (messagesToDelete.Count > 0)
-													{
-														await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**In de log werden er ook aanpassingen gedaan om het teams commando up-to-date te houden.**");
-													}
-													break;
 												}
+												foreach (IDiscordMessage toDeleteMessage in messagesToDelete)
+												{
+													await toDeleteMessage.DeleteAsync();
+												}
+												if (messagesToDelete.Count > 0)
+												{
+													await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**In de log werden er ook aanpassingen gedaan om het teams commando up-to-date te houden.**");
+												}
+												break;
 											}
-										}
-										else
-										{
-											_logger.LogError("Could not find log channel `{ChannelName}`.", channel.Name);
 										}
 									}
 								}
@@ -1396,7 +1381,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			}
 			else
 			{
-				IReadOnlyCollection<IDiscordMember> members = ctx.Guild.GetAllMembersAsync().Result;
+				IReadOnlyCollection<IDiscordMember> members = await ctx.Guild.GetAllMembersAsync();
 				aantalGebruikers = members.Count;
 				List<IDiscordMember> foundMemberList = [];
 				foundMemberList.AddRange(from IDiscordMember member in members
@@ -1411,7 +1396,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					}
 					if (sbFound.Length < 1024)
 					{
-						IDiscordMessage discMessage = _messageService.SayMultipleResults(ctx.Channel, sbFound.ToString());
+						IDiscordMessage? discMessage = await _messageService.SayMultipleResults(ctx.Channel, sbFound.ToString());
 						IDiscordInteractivityExtension interactivity = ctx.Client.GetInteractivity();
 						IDiscordInteractivityResult<IDiscordMessage> message = await interactivity.WaitForMessageAsync(x => x.Channel.Id == ctx.Channel.Id && x.Author.Id == ctx.User.Id);
 						if (!message.TimedOut)
@@ -1537,7 +1522,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				searchTerm = temp[0];
 			}
 			conditie = temp[1];
-			IReadOnlyCollection<IDiscordMember> members = ctx.Guild.GetAllMembersAsync().Result;
+			IReadOnlyCollection<IDiscordMember> members = await ctx.Guild.GetAllMembersAsync();
 			List<Tuple<StringBuilder, StringBuilder>> sbs = [];
 			for (int i = 0; i < COLUMNS; i++)
 			{
@@ -1868,67 +1853,67 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
-			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
-			if (channel != null)
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
 			{
-				bool noErrors = true;
-				List<Tuple<int, IDiscordMessage>> tiersFound = [];
-				try
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gevonden worden!**");
+				return;
+			}
+
+			await _messageService.ConfirmCommandExecuting(ctx.Message);
+
+			bool noErrors = true;
+			List<Tuple<int, IDiscordMessage>> tiersFound = [];
+			try
+			{
+				IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+
+				foreach (IDiscordMessage message in messages)
 				{
-					IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-
-					foreach (IDiscordMessage message in messages)
+					if (!message.Pinned && message.Embeds != null && message.Embeds.Count > 0)
 					{
-						if (!message.Pinned && message.Embeds != null && message.Embeds.Count > 0)
+						for (int i = 1; i <= 10; i++)
 						{
-							for (int i = 1; i <= 10; i++)
+							bool containsItem = false;
+							foreach (var _ in from IDiscordEmbed embed in message.Embeds
+											  where embed.Title != null && embed.Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)).ToString())
+											  select new
+											  {
+											  })
 							{
-								bool containsItem = false;
-								foreach (var _ in from IDiscordEmbed embed in message.Embeds
-												  where embed.Title != null && embed.Title.Contains(_discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)).ToString())
-												  select new
-												  {
-												  })
-								{
-									tiersFound.Add(new Tuple<int, IDiscordMessage>(i, message));
-									containsItem = true;
-									break;
-								}
+								tiersFound.Add(new Tuple<int, IDiscordMessage>(i, message));
+								containsItem = true;
+								break;
+							}
 
-								if (containsItem)
-								{
-									break;
-								}
+							if (containsItem)
+							{
+								break;
 							}
 						}
 					}
 				}
-				catch (Exception ex)
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error while getting the Hall Of Fame messages.");
+				noErrors = false;
+			}
+			if (noErrors)
+			{
+				if (await _hallOfFameService.CreateOrCleanHOFMessages(hallOfFameChannel, tiersFound))
 				{
-					_logger.LogError(ex, "Error while getting the Hall Of Fame messages.");
-					noErrors = false;
-				}
-				if (noErrors)
-				{
-					if (await _hallOfFameService.CreateOrCleanHOFMessages(channel, tiersFound))
-					{
-						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame is gereset!**");
-					}
-					else
-					{
-						await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon de berichten niet resetten!**");
-					}
+					await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame is gereset!**");
 				}
 				else
 				{
-					await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon niet gereset worden door een interne reden!**");
+					await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon de berichten niet resetten!**");
 				}
 			}
 			else
 			{
-				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gereset worden!**");
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De Hall Of Fame kon niet gereset worden door een interne reden!**");
 			}
+
 			await _messageService.ConfirmCommandExecuted(ctx.Message);
 		});
 	}
@@ -1945,60 +1930,64 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
+			{
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gevonden worden!**");
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			bool foundAtLeastOnce = false;
 			naam = naam.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			naam = naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
-			if (channel != null)
+
+			IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+			for (int i = 1; i <= 10; i++)
 			{
-				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-				for (int i = 1; i <= 10; i++)
+				List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
+				foreach (IDiscordMessage message in tempTierMessages)
 				{
-					List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
-					foreach (IDiscordMessage message in tempTierMessages)
+					bool playerRemoved = false;
+					List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
+					if (tupleList != null)
 					{
-						bool playerRemoved = false;
-						List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
-						if (tupleList != null)
+						List<Tuple<string, List<TankHof>>> tempTupleList = [];
+						for (int j = 0; j < tupleList.Count; j++)
 						{
-							List<Tuple<string, List<TankHof>>> tempTupleList = [];
-							for (int j = 0; j < tupleList.Count; j++)
+							if (tupleList[j].Item2 != null)
 							{
-								if (tupleList[j].Item2 != null)
+								List<TankHof> tempTupleListItem2 = [];
+								for (int k = 0; k < tupleList[j].Item2.Count; k++)
 								{
-									List<TankHof> tempTupleListItem2 = [];
-									for (int k = 0; k < tupleList[j].Item2.Count; k++)
+									if (!tupleList[j].Item2[k].Speler.Equals(naam))
 									{
-										if (!tupleList[j].Item2[k].Speler.Equals(naam))
-										{
-											tempTupleListItem2.Add(tupleList[j].Item2[k]);
-										}
-										else
-										{
-											playerRemoved = true;
-										}
+										tempTupleListItem2.Add(tupleList[j].Item2[k]);
 									}
-									if (tempTupleListItem2.Count > 0)
+									else
 									{
-										tempTupleList.Add(new Tuple<string, List<TankHof>>(tempTupleListItem2[0].Tank, tempTupleListItem2));
+										playerRemoved = true;
 									}
 								}
+								if (tempTupleListItem2.Count > 0)
+								{
+									tempTupleList.Add(new Tuple<string, List<TankHof>>(tempTupleListItem2[0].Tank, tempTupleListItem2));
+								}
 							}
-							tupleList = tempTupleList;
 						}
-						if (playerRemoved)
+						tupleList = tempTupleList;
+					}
+					if (playerRemoved)
+					{
+						if (!foundAtLeastOnce)
 						{
-							if (!foundAtLeastOnce)
-							{
-								foundAtLeastOnce = true;
-							}
-							await _hallOfFameService.EditHOFMessage(message, tupleList);
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
+							foundAtLeastOnce = true;
 						}
+						await _hallOfFameService.EditHOFMessage(message, tupleList);
+						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + naam + " werd verwijdert uit tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
 					}
 				}
 			}
+
 			if (!foundAtLeastOnce)
 			{
 				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + naam + "` als naam komt niet voor in de HOF.**");
@@ -2019,46 +2008,50 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.HallOfFame), _logger, "Hall Of Fame channel", out IDiscordChannel hallOfFameChannel))
+			{
+				await _messageService.SaySomethingWentWrong(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Hall Of Fame kanaal kon niet gevonden worden!**");
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 			bool foundAtLeastOnce = false;
 			oldName = oldName.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_');
 			oldName = oldName.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 			niewe_naam = niewe_naam.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
-			IDiscordChannel channel = await _channelService.GetHallOfFameChannel();
-			if (channel != null)
+
+			IReadOnlyList<IDiscordMessage> messages = await hallOfFameChannel.GetMessagesAsync(100);
+			for (int i = 1; i <= 10; i++)
 			{
-				IReadOnlyList<IDiscordMessage> messages = await channel.GetMessagesAsync(100);
-				for (int i = 1; i <= 10; i++)
+				List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
+				foreach (IDiscordMessage message in tempTierMessages)
 				{
-					List<IDiscordMessage> tempTierMessages = _hallOfFameService.GetTierMessages(i, messages);
-					foreach (IDiscordMessage message in tempTierMessages)
+					bool nameChanged = false;
+					List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
+					if (tupleList != null)
 					{
-						bool nameChanged = false;
-						List<Tuple<string, List<TankHof>>> tupleList = _hallOfFameService.ConvertHOFMessageToTupleListAsync(message, i);
-						if (tupleList != null)
+						foreach (TankHof tankHofItem in from Tuple<string, List<TankHof>> tupleItem in tupleList
+														where tupleItem.Item2 != null
+														from TankHof tankHofItem in tupleItem.Item2
+														where tankHofItem.Speler.Equals(oldName)
+														select tankHofItem)
 						{
-							foreach (TankHof tankHofItem in from Tuple<string, List<TankHof>> tupleItem in tupleList
-															where tupleItem.Item2 != null
-															from TankHof tankHofItem in tupleItem.Item2
-															where tankHofItem.Speler.Equals(oldName)
-															select tankHofItem)
-							{
-								nameChanged = true;
-								tankHofItem.Speler = niewe_naam;
-							}
+							nameChanged = true;
+							tankHofItem.Speler = niewe_naam;
 						}
-						if (nameChanged)
+					}
+					if (nameChanged)
+					{
+						if (!foundAtLeastOnce)
 						{
-							if (!foundAtLeastOnce)
-							{
-								foundAtLeastOnce = true;
-							}
-							await _hallOfFameService.EditHOFMessage(message, tupleList);
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
+							foundAtLeastOnce = true;
 						}
+						await _hallOfFameService.EditHOFMessage(message, tupleList);
+						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**" + oldName + " werd verandert naar " + niewe_naam + " in tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(i)) + "**");
 					}
 				}
 			}
+
 			if (!foundAtLeastOnce)
 			{
 				await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Persoon met `" + oldName + "` als naam komt niet voor in de HOF.**");
@@ -2081,7 +2074,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild.Id);
+			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild);
 			playerList = [.. playerList.OrderBy(x => x.Item2.Count)];
 			playerList.Reverse();
 			StringBuilder sb = new("```");
@@ -2129,7 +2122,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		{
 			name = name.Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR);
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild.Id);
+			List<Tuple<string, List<TankHof>>> playerList = await _hallOfFameService.GetTankHofsPerPlayer(ctx.Guild);
 			List<DEF> defList = [];
 			playerList.Reverse();
 			bool found = false;
@@ -2233,6 +2226,11 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			if (Guard.ReturnIfNull(ctx.Guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel))
+			{
+				return;
+			}
+
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
 
 			if (options.Length > 0)
@@ -2249,7 +2247,7 @@ internal class BotCommands(IDiscordClient discordClient,
 					sb.Append(options[i]);
 				}
 
-				await _weeklyEventHandler.CreateNewWeeklyEvent(sb.ToString(), await _channelService.GetWeeklyEventChannel());
+				await _weeklyEventHandler.CreateNewWeeklyEvent(sb.ToString(), weeklyEventChannel);
 			}
 			else
 			{
@@ -2323,7 +2321,7 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		return command.Name.ToLower() switch
 		{
-			"help" or "map" or "gebruiker" or "gebruikerslijst" or "clan" or "clanmembers" or "spelerinfo" => true, // These commands are allowed for everyone.
+			"help" or "map" or "gebruiker" or "gebruikerslijst" or "clan" or "clanmembers" or "spelerinfo" or "bonuscode" => true, // These commands are allowed for everyone.
 			"toernooi" or "toernooien" => HasAnyRole(member, Constants.TOERNOOI_DIRECTIE),
 			"teams" => HasAnyRole(member, Constants.NLBE_ROLE, Constants.NLBE2_ROLE, Constants.DISCORD_ADMIN_ROLE, Constants.DEPUTY_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
 			"tagteams" => HasAnyRole(member, Constants.DISCORD_ADMIN_ROLE, Constants.BEHEERDER_ROLE, Constants.TOERNOOI_DIRECTIE),
