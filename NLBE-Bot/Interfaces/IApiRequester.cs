@@ -5,5 +5,5 @@ using System.Threading.Tasks;
 
 internal interface IApiRequester
 {
-	public Task<string> GetRequest(string url, Dictionary<string, string> parameters = null);
+	public Task<string> GetRequest(string url, Dictionary<string, string>? parameters = null);
 }

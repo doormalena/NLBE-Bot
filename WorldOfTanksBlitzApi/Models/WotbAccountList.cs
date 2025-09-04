@@ -9,5 +9,5 @@ public class WotbAccountList
 	public List<WotbAccountListItem> Data
 	{
 		get; internal set;
-	}
+	} = [];
 }

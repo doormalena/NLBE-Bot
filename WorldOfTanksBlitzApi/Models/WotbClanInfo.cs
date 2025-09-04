@@ -9,23 +9,23 @@ public class WotbClanInfo : WotbClanListItem
 	public List<int> MemberIds
 	{
 		get; internal set;
-	}
+	} = [];
 
 	[JsonInclude, JsonPropertyName("motto")]
 	public string Motto
 	{
 		get; internal set;
-	}
+	} = string.Empty;
 
 	[JsonInclude, JsonPropertyName("description")]
 	public string Description
 	{
 		get; internal set;
-	}
+	} = string.Empty;
 
 	[JsonInclude, JsonPropertyName("members")]
 	public List<WotbClanMember> Members
 	{
 		get; internal set;
-	}
+	} = [];
 }

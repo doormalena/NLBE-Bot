@@ -118,7 +118,7 @@ public class WotbConnectionTests
 		// Act & Assert.
 		await Assert.ThrowsExceptionAsync<ArgumentNullException>(async () =>
 		{
-			await _connection!.PostAsync(RelativeUrl, null);
+			await _connection!.PostAsync(RelativeUrl, null!);
 		});
 	}
 

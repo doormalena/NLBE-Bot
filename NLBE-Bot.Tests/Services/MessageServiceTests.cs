@@ -883,9 +883,9 @@ public class MessageServiceTests
 			{
 				Assert.AreEqual(expectedUrl, wrapper.Thumbnail.Url.ToString());
 			}
-			else
+			else if (wrapper.Thumbnail != null)
 			{
-				Assert.IsNull(wrapper.Thumbnail);
+				Assert.Fail("Expected no thumbnail to be set.");
 			}
 		}
 
@@ -991,8 +991,9 @@ public class MessageServiceTests
 	[TestMethod]
 	public async Task CreateEmbed_ShouldNotAddThumbnailOrFooter_WhenEmpty()
 	{
-		// Arrange.
+		// Arrange
 		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
+		IDiscordEmbed? capturedEmbed = null;
 
 		EmbedOptions options = new()
 		{
@@ -1004,19 +1005,33 @@ public class MessageServiceTests
 			Content = "Content"
 		};
 
-		_discordClientMock!.SendMessageAsync(_channelMock!, options.Content, Arg.Do<IDiscordEmbed>(embed =>
-		{
-			DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) embed;
-			Assert.IsNull(wrapper.Thumbnail);
-			Assert.IsNull(wrapper.Footer);
-		}))
-		.Returns(Task.FromResult(expectedMessage));
+		_discordClientMock!
+			.SendMessageAsync(
+				_channelMock!,
+				options.Content,
+				Arg.Do<IDiscordEmbed>(embed => capturedEmbed = embed)
+			)
+			.Returns(Task.FromResult(expectedMessage));
 
-		// Act.
+		// Act
 		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
 
-		// Assert.
+		// Assert
 		Assert.AreSame(expectedMessage, result);
+
+		// Now inspect the captured embed
+		Assert.IsNotNull(capturedEmbed, "Embed should have been passed to SendMessageAsync.");
+		DiscordEmbedWrapper wrapper = (DiscordEmbedWrapper) capturedEmbed!;
+
+		if (wrapper.Thumbnail != null)
+		{
+			Assert.Fail("Expected no thumbnail to be set.");
+		}
+
+		if (wrapper.Footer != null)
+		{
+			Assert.Fail("Expected no footer to be set.");
+		}
 	}
 
 	[TestMethod]

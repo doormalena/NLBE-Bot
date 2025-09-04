@@ -239,7 +239,7 @@ internal interface IDiscordCommand
 	{
 		get;
 	}
-	public string Description
+	public string? Description
 	{
 		get;
 	}
@@ -251,11 +251,11 @@ internal interface IDiscordCommandContext
 	{
 		get;
 	}
-	public IDiscordMember Member
+	public IDiscordMember? Member
 	{
 		get;
 	}
-	public IDiscordCommand Command
+	public IDiscordCommand? Command
 	{
 		get;
 	}

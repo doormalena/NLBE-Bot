@@ -396,7 +396,7 @@ internal class UserService(ILogger<UserService> logger,
 		}
 		else if (gebruiker is WotbAccountInfo account)
 		{
-			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
+			WotbAccountClanInfo? accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
 			List<DEF> deflist = [];
 			try
@@ -968,7 +968,7 @@ internal class UserService(ILogger<UserService> logger,
 
 			if (index >= 0 && searchResults.Count >= 1)
 			{
-				WotbAccountInfo account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId); // TODO: missing clan and statistics
+				WotbAccountInfo? account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId); // TODO: missing clan and statistics
 				await ShowMemberInfo(channel, account);
 				return account;
 			}

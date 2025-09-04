@@ -122,7 +122,7 @@ internal class WeeklyEventService(IChannelService channelService,
 	{
 		List<WeeklyEventType> weeklyEventTypes = [];
 
-		if (battle.vehicle == WeeklyEvent.Tank)
+		if (battle.vehicle == WeeklyEvent?.Tank)
 		{
 			//TODO: refactor into a switch statement
 
@@ -239,6 +239,12 @@ internal class WeeklyEventService(IChannelService channelService,
 
 	public async Task UpdateLastWeeklyEvent()
 	{
+		if (DiscordMessage == null || WeeklyEvent == null)
+		{
+			_logger.LogError("DiscordMessage or WeeklyEvent was null while executing UpdateLastWeeklyEvent method.");
+			return;
+		}
+
 		try
 		{
 			await DiscordMessage.ModifyAsync(WeeklyEvent.GenerateEmbed());

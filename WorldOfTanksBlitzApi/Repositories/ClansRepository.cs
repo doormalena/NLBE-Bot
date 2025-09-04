@@ -27,12 +27,12 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 		string clanJson = await GetById(clanId, loadMembers);
 
 		// The API returns: { "status": "...", "data": { "clan_id": { ...clan fields... } } }
-		JsonNode rootNode = JsonNode.Parse(clanJson);
-		JsonNode dataNode = rootNode?["data"];
+		JsonNode? rootNode = JsonNode.Parse(clanJson);
+		JsonNode? dataNode = rootNode?["data"];
 
 		if (dataNode != null)
 		{
-			JsonNode clanNode = dataNode[clanId.ToString()];
+			JsonNode? clanNode = dataNode[clanId.ToString()];
 
 			if (clanNode != null && clanNode.ToJsonString() != "null")
 			{
@@ -48,12 +48,12 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 		string accountClanJson = await GetAccountClanInfo(accountId);
 
 		// The API returns: { "status": "...", "data": { "account_id": { ...account-clan fields... } } }
-		JsonNode rootNode = JsonNode.Parse(accountClanJson);
-		JsonNode dataNode = rootNode?["data"];
+		JsonNode? rootNode = JsonNode.Parse(accountClanJson);
+		JsonNode? dataNode = rootNode?["data"];
 
 		if (dataNode != null)
 		{
-			JsonNode accountClanNode = dataNode[accountId.ToString()];
+			JsonNode? accountClanNode = dataNode[accountId.ToString()];
 
 			if (accountClanNode != null && accountClanNode.ToJsonString() != "null")
 			{

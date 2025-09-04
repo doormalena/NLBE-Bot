@@ -14,5 +14,5 @@ public class WotbAccountClanInfo : WotbClanMember
 	public WotbClanInfo Clan
 	{
 		get; internal set;
-	}
+	} = new();
 }

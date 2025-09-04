@@ -8,7 +8,7 @@ public class WotbAccountListItem
 	public string Nickname
 	{
 		get; internal set;
-	}
+	} = string.Empty;
 
 	[JsonInclude, JsonPropertyName("account_id")]
 	public long AccountId

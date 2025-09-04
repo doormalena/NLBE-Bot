@@ -375,7 +375,7 @@ internal class DiscordCommandWrapper(Command command) : IDiscordCommand
 
 	public IReadOnlyList<string> Aliases => _command.Aliases;
 
-	public string Description => _command.Description;
+	public string? Description => _command.Description;
 }
 
 internal class CommandContextWrapper(CommandContext context) : IDiscordCommandContext
@@ -384,9 +384,9 @@ internal class CommandContextWrapper(CommandContext context) : IDiscordCommandCo
 
 	public ulong GuildId => _context.Guild.Id;
 
-	public IDiscordMember Member => new DiscordMemberWrapper(_context.Member);
+	public IDiscordMember? Member => _context.Member != null ? new DiscordMemberWrapper(_context.Member) : null;
 
-	public IDiscordCommand Command => new DiscordCommandWrapper(_context.Command);
+	public IDiscordCommand? Command => _context.Command != null ? new DiscordCommandWrapper(_context.Command) : null;
 
 	public IDiscordChannel Channel => new DiscordChannelWrapper(_context.Channel);
 

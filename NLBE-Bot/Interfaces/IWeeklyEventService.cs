@@ -6,7 +6,7 @@ using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal interface IWeeklyEventService
 {
-	public WeeklyEvent WeeklyEvent
+	public WeeklyEvent? WeeklyEvent
 	{
 		get; set;
 	}

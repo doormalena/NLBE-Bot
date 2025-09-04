@@ -31,7 +31,7 @@ public class WotbAccountInfo : WotbAccountListItem
 	public WotbAccountStatistics Statistics
 	{
 		get; internal set;
-	}
+	} = new();
 
-	public string BlitzStars => AccountId > 0 ? "https://www.blitzstars.com/sigs/" + AccountId : null;
+	public string BlitzStars => AccountId > 0 ? $"https://www.blitzstars.com/sigs/{AccountId}" : string.Empty;
 }
