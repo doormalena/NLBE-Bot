@@ -589,7 +589,7 @@ internal class TournamentService(ILogger<TournamentService> logger,
 					List<IDiscordMessage> messages = [];
 					try
 					{
-						IReadOnlyList<IDiscordMessage> xMessages = tournamentSignUpChannel.GetMessagesAsync(hoeveelste + 1).Result;
+						IReadOnlyList<IDiscordMessage> xMessages = await tournamentSignUpChannel.GetMessagesAsync(hoeveelste + 1);
 						foreach (IDiscordMessage message in xMessages)
 						{
 							messages.Add(message);
@@ -668,7 +668,7 @@ internal class TournamentService(ILogger<TournamentService> logger,
 							}
 							else
 							{
-								Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = _discordMessageUtils.SortReactions(theMessage);
+								Dictionary<IDiscordEmoji, List<IDiscordUser>> reactions = await _discordMessageUtils.SortReactions(theMessage);
 
 								List<Tier> teams = [];
 								foreach (KeyValuePair<IDiscordEmoji, List<IDiscordUser>> reaction in reactions)
@@ -677,7 +677,7 @@ internal class TournamentService(ILogger<TournamentService> logger,
 									foreach (IDiscordUser user in reaction.Value)
 									{
 										string displayName = user.Inner.Username;
-										IDiscordMember memberx = await tournamentSignUpChannel.Guild.GetMemberAsync(user.Id);
+										IDiscordMember? memberx = await tournamentSignUpChannel.Guild.GetMemberAsync(user.Id);
 										if (memberx != null)
 										{
 											displayName = memberx.DisplayName;

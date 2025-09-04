@@ -4,7 +4,6 @@ using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
 
 internal interface IHallOfFameService
 {
@@ -20,6 +19,6 @@ internal interface IHallOfFameService
 
 	public List<IDiscordMessage> GetTierMessages(int tier, IReadOnlyList<IDiscordMessage> messages);
 
-	public Task HofAfterUpload(Tuple<string, IDiscordMessage> returnedTuple, IDiscordMessage uploadMessage);
+	public Task HofAfterUpload(Tuple<string, IDiscordMessage?> returnedTuple, IDiscordMessage uploadMessage);
 
 }

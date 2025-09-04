@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 internal class BlitzstarsService(IOptions<BotOptions> options,
 								 IApiRequester apiRequester) : IBlitzstarsService
@@ -226,11 +227,11 @@ internal class BlitzstarsService(IOptions<BotOptions> options,
 		}
 		return returnTankHistory;
 	}
-	public int Get90DayBattles(long accountId)
+	public async Task<int> Get90DayBattles(long accountId)
 	{
-		var response = _apiRequester.GetRequest("https://www.blitzstars.com/api/tankhistories/for/" + accountId);
+		var response = await _apiRequester.GetRequest("https://www.blitzstars.com/api/tankhistories/for/" + accountId);
 		var tankHistories = JsonConvert.DeserializeObject<List<TankHistory>>(response);
-		var responseVehicles = _apiRequester.GetRequest("https://api.wotblitz.eu/wotb/tanks/stats/?application_id=" + _options.WotbApi.ApplicationId + "&account_id=" + accountId);
+		var responseVehicles = await _apiRequester.GetRequest("https://api.wotblitz.eu/wotb/tanks/stats/?application_id=" + _options.WotbApi.ApplicationId + "&account_id=" + accountId);
 		responseVehicles = Regex.Replace(responseVehicles, "\"data\":{\"([0-9]*)\"", "\"data\":{\"Vehicles\"", RegexOptions.NonBacktracking);
 		var playerVehicleData = JsonConvert.DeserializeObject<PlayerVehicle>(responseVehicles);
 		var combined = Combine(playerVehicleData.data.Vehicles.ToList(), tankHistories);

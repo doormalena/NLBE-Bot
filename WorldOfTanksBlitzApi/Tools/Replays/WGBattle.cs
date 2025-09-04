@@ -164,11 +164,11 @@ namespace WorldOfTanksBlitzApi.Tools.Replays
 			{
 				if (replayUrlOrJson.StartsWith("http"))
 				{
-					getBattle(replayUrlOrJson, true).Wait();
+					getBattle(replayUrlOrJson, true).Wait(); // TODO: remove potential deadlock issue with .Wait().
 				}
 				else
 				{
-					getBattle(replayUrlOrJson, false).Wait();
+					getBattle(replayUrlOrJson, false).Wait(); // TODO: remove potential deadlock issue with .Wait().
 					//jsonToBattle(replayUrlOrJson);
 				}
 				if (this.details == null)

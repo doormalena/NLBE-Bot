@@ -699,7 +699,7 @@ internal class BotCommands(IDiscordClient discordClient,
 										{
 											subject = subject.Replace("<dd-mm-yyyy>", accountClanInfo.JoinedAt.Value.Day + "-" + accountClanInfo.JoinedAt.Value.Month + "-" + accountClanInfo.JoinedAt.Value.Year);
 										}
-										int amountOfBattles90 = _handler.Get90DayBattles(account.AccountId);
+										int amountOfBattles90 = await _handler.Get90DayBattles(account.AccountId);
 										subject = subject.Replace("<90>", amountOfBattles90.ToString());
 										if (originalWat.ToLower().Equals("nieuw"))
 										{
@@ -822,8 +822,8 @@ internal class BotCommands(IDiscordClient discordClient,
 			{
 				bool mapFound = false;
 				foreach (Tuple<string, string> item in from Tuple<string, string> item in images
-														where item.Item1.Contains(sbMap.ToString(), StringComparison.OrdinalIgnoreCase)
-														select item)
+													   where item.Item1.Contains(sbMap.ToString(), StringComparison.OrdinalIgnoreCase)
+													   select item)
 				{
 					mapFound = true;
 					EmbedOptions embedOptions = new()
@@ -863,47 +863,62 @@ internal class BotCommands(IDiscordClient discordClient,
 	{
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
+			// Confirm command start
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
+
 			IEnumerable<IDiscordChannel> channels = ctx.Guild.Channels.Values;
-			foreach (IReadOnlyList<IDiscordMessage> xMessages in from IDiscordChannel channel in channels
-																 where channel.Name.Equals(naam_van_kanaal)
-																 let xMessages = channel.GetMessagesAsync(hoeveelste_bericht).Result
-																 select xMessages)
+
+			foreach (IDiscordChannel channel in channels)
 			{
+				if (!channel.Name.Equals(naam_van_kanaal))
+				{
+					continue;
+				}
+
+				IReadOnlyList<IDiscordMessage> xMessages = await channel.GetMessagesAsync(hoeveelste_bericht);
+
 				for (int i = 0; i < xMessages.Count; i++)
 				{
-					if (i == hoeveelste_bericht - 1)
+					if (i != hoeveelste_bericht - 1)
 					{
-						IDiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
-						string temp = theEmoji.Inner.GetDiscordName();
-						bool isEmoji = false;
+						continue;
+					}
+
+					IDiscordEmoji? theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
+					string temp = theEmoji != null ? theEmoji.GetDiscordName() : string.Empty;
+					bool isEmoji = false;
+
+					try
+					{
+						_ = _discordMessageUtils.GetDiscordEmoji(temp);
+						isEmoji = true;
+					}
+					catch (Exception ex)
+					{
+						_logger.LogDebug(ex, "Emoji {Emoji} could not be parsed.", temp);
+					}
+
+					if (isEmoji)
+					{
 						try
 						{
-							_ = DiscordEmoji.FromName(_discordClient.Inner, temp);
-							isEmoji = true;
+							await xMessages[i].CreateReactionAsync(theEmoji);
+							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name,
+								$"**Reactie({emoji}) van bericht({hoeveelste_bericht}) in kanaal({naam_van_kanaal}) is toegevoegd!**");
 						}
 						catch (Exception ex)
 						{
-							_logger.LogDebug(ex, "Emoji {Emoji} could not be parsed.", temp);
+							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name,
+								$"**Kon geen reactie({emoji}) toevoegen bij bericht({hoeveelste_bericht}) in kanaal({naam_van_kanaal})!**");
+							_logger.LogWarning(ex,
+								"Could not add reaction ({Emoji}) for message ({MessageNumber}) in channel ({ChannelName}): {Message}",
+								emoji, hoeveelste_bericht, naam_van_kanaal, ex.Message);
 						}
-
-						if (isEmoji)
-						{
-							try
-							{
-								await xMessages[i].CreateReactionAsync(theEmoji);
-								await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Reactie(" + emoji + ") van bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ") is toegevoegd!**");
-							}
-							catch (Exception ex)
-							{
-								await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**Kon geen reactie(" + emoji + ") toevoegen bij bericht(" + hoeveelste_bericht + ") in kanaal(" + naam_van_kanaal + ")!**");
-								_logger.LogWarning(ex, "Could not add reaction ({Emoji}) for message ({MessageNumber}) in channel ({ChannelName}): {Message}", emoji, hoeveelste_bericht, naam_van_kanaal, ex.Message);
-							}
-						}
-						else
-						{
-							await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name, "**De emoji(" + emoji + ") geen bestaande emoji!**");
-						}
+					}
+					else
+					{
+						await _messageService.SendMessage(ctx.Channel, ctx.Member, ctx.Guild.Name,
+							$"**De emoji({emoji}) geen bestaande emoji!**");
 					}
 				}
 			}
@@ -952,10 +967,10 @@ internal class BotCommands(IDiscordClient discordClient,
 													select channel)
 				{
 					channelFound = true;
-					IReadOnlyList<IDiscordMessage> zMessages = channel.GetMessagesAsync(hoeveelste + 1).Result;
+					IReadOnlyList<IDiscordMessage> zMessages = await channel.GetMessagesAsync(hoeveelste + 1);
 					IReadOnlyList<IDiscordUser> userReactionsFromTheEmoji = [];
-					IDiscordEmoji theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
-					string temp = theEmoji.GetDiscordName();
+					IDiscordEmoji? theEmoji = _discordMessageUtils.GetDiscordEmoji(emoji);
+					string temp = theEmoji != null ? theEmoji.GetDiscordName() : string.Empty;
 					bool isEmoji = false;
 					try
 					{
@@ -985,7 +1000,7 @@ internal class BotCommands(IDiscordClient discordClient,
 							List<IDiscordMessage> messages = [];
 							try
 							{
-								IReadOnlyList<IDiscordMessage> xMessages = channel.GetMessagesAsync(hoeveelste + 1).Result;
+								IReadOnlyList<IDiscordMessage> xMessages = await channel.GetMessagesAsync(hoeveelste + 1);
 								foreach (IDiscordMessage message in xMessages)
 								{
 									messages.Add(message);
@@ -1366,7 +1381,7 @@ internal class BotCommands(IDiscordClient discordClient,
 			}
 			else
 			{
-				IReadOnlyCollection<IDiscordMember> members = ctx.Guild.GetAllMembersAsync().Result;
+				IReadOnlyCollection<IDiscordMember> members = await ctx.Guild.GetAllMembersAsync();
 				aantalGebruikers = members.Count;
 				List<IDiscordMember> foundMemberList = [];
 				foundMemberList.AddRange(from IDiscordMember member in members
@@ -1507,7 +1522,7 @@ internal class BotCommands(IDiscordClient discordClient,
 				searchTerm = temp[0];
 			}
 			conditie = temp[1];
-			IReadOnlyCollection<IDiscordMember> members = ctx.Guild.GetAllMembersAsync().Result;
+			IReadOnlyCollection<IDiscordMember> members = await ctx.Guild.GetAllMembersAsync();
 			List<Tuple<StringBuilder, StringBuilder>> sbs = [];
 			for (int i = 0; i < COLUMNS; i++)
 			{

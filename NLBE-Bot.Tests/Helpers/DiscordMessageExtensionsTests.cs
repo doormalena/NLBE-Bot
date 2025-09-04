@@ -22,7 +22,7 @@ public class DiscordMessageExtensionsTests
 	}
 
 	[TestMethod]
-	public void SortReactionsTest()
+	public async Task SortReactionsTest()
 	{
 		// Arrange.
 		IDiscordEmoji emoji1Mock = Substitute.For<IDiscordEmoji>();
@@ -46,7 +46,7 @@ public class DiscordMessageExtensionsTests
 		messageMock.GetReactionsAsync(emoji2Mock).Returns([user2Mock]);
 
 		// Act.
-		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = _utils!.SortReactions(messageMock);
+		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = await _utils!.SortReactions(messageMock);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);

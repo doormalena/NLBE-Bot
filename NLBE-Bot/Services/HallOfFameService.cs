@@ -41,7 +41,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 			return new Tuple<string, IDiscordMessage?>("Kanaal is niet geschikt voor HOF.", null);
 		}
 
-		if (discAttach is DiscordAttachment attachment)
+		if (discAttach is IDiscordAttachment attachment)
 		{
 			discAttach = attachment;
 		}
@@ -642,7 +642,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		return new TankHof(battle.view_url, battle.player_name, battle.vehicle, battle.details.damage_made, battle.vehicle_tier);
 	}
 
-	public async Task HofAfterUpload(Tuple<string, IDiscordMessage> returnedTuple, IDiscordMessage uploadMessage)
+	public async Task HofAfterUpload(Tuple<string, IDiscordMessage?> returnedTuple, IDiscordMessage uploadMessage)
 	{
 		bool good = false;
 		if (returnedTuple.Item1.Equals(string.Empty))

@@ -5,18 +5,23 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
 
 internal class DiscordMessageUtils(IDiscordClient discordClient) : IDiscordMessageUtils
 {
 	private readonly IDiscordClient _discordClient = discordClient ?? throw new ArgumentNullException(nameof(discordClient));
 
-	public Dictionary<IDiscordEmoji, List<IDiscordUser>> SortReactions(IDiscordMessage message)
+	public async Task<Dictionary<IDiscordEmoji, List<IDiscordUser>>> SortReactions(IDiscordMessage message)
 	{
-		return message.Reactions.ToDictionary(
-			reaction => reaction.Emoji,
-			reaction => message.GetReactionsAsync(reaction.Emoji).Result.ToList()
-		);
+		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = [];
+
+		foreach (IDiscordReaction reaction in message.Reactions)
+		{
+			IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(reaction.Emoji);
+			result[reaction.Emoji] = [.. users];
+		}
+
+		return result;
 	}
 
 	public Dictionary<DateTime, List<IDiscordMessage>> SortMessages(IReadOnlyList<IDiscordMessage> messages)

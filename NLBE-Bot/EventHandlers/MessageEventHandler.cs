@@ -102,19 +102,19 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 				if (allowedChannelIds.Contains(channel.Id))
 				{
 					_botState!.LastCreatedDiscordMessage = message;
-					IDiscordMember member = await guild.GetMemberAsync(author.Id);
+					IDiscordMember? member = await guild.GetMemberAsync(author.Id);
 
-					if (channel.Id == _options.ChannelIds.MasteryReplays &&
+					if (channel.Id == _options.ChannelIds.MasteryReplays && member != null &&
 						(member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) || member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE))))
 					{
 						//MasteryChannel (komt wel in HOF)
 						if (message.Attachments.Count > 0)
 						{
-							foreach (DiscordAttachment attachment in message.Attachments)
+							foreach (IDiscordAttachment attachment in message.Attachments)
 							{
 								if (attachment.FileName.EndsWith(".wotbreplay"))
 								{
-									Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, attachment, channel, guild, string.Empty, await guild.GetMemberAsync(author.Id));
+									Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, attachment, channel, guild, string.Empty, await guild.GetMemberAsync(author.Id));
 									await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 									break;
 								}
@@ -124,7 +124,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 						{
 							string[] splitted = message.Content.Split(' ');
 							string url = splitted[0];
-							Tuple<string, IDiscordMessage> returnedTuple = await _hallOfFameService.Handle(string.Empty, string.Empty, channel, guild, url, await guild.GetMemberAsync(author.Id));
+							Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, string.Empty, channel, guild, url, await guild.GetMemberAsync(author.Id));
 							await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 						}
 					}
@@ -136,9 +136,9 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 
 						if (message.Attachments.Count > 0)
 						{
-							foreach (DiscordAttachment attachment in from DiscordAttachment attachment in message.Attachments
-																	 where attachment.FileName.EndsWith(".wotbreplay")
-																	 select attachment)
+							foreach (IDiscordAttachment attachment in from IDiscordAttachment attachment in message.Attachments
+																	  where attachment.FileName.EndsWith(".wotbreplay")
+																	  select attachment)
 							{
 								await _messageService.ConfirmCommandExecuting(message);
 								wasReplay = true;
@@ -276,12 +276,12 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 				{
 					IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(emoji);
 
-					foreach (IDiscordUser aUser in users)
+					foreach (IDiscordUser userTmp in users)
 					{
-						if (!aUser.IsBot)
+						if (!userTmp.IsBot)
 						{
-							await message.DeleteReactionAsync(emoji, aUser);
-							IDiscordMember member = await guild.GetMemberAsync(aUser.Id);
+							await message.DeleteReactionAsync(emoji, userTmp);
+							IDiscordMember? member = await guild.GetMemberAsync(userTmp.Id);
 
 							if (member != null)
 							{

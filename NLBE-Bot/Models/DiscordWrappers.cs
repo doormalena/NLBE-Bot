@@ -112,23 +112,25 @@ internal class DiscordInteractivityExtensionWrapper(InteractivityExtension inter
 
 	public InteractivityExtension Inner => _interactivity;
 
-	public Task<IDiscordInteractivityResult<IDiscordMessage>> WaitForMessageAsync(Func<IDiscordMessage, bool> value)
+	public async Task<IDiscordInteractivityResult<IDiscordMessage>> WaitForMessageAsync(Func<IDiscordMessage, bool> value)
 	{
-		return _interactivity.WaitForMessageAsync(
+		InteractivityResult<DiscordMessage> result = await _interactivity.WaitForMessageAsync(
 			msg => value(new DiscordMessageWrapper(msg))
-		).ContinueWith(t => (IDiscordInteractivityResult<IDiscordMessage>) new DiscordInteractivityResultWrapper<IDiscordMessage>(t.Result));
+		);
+
+		return new DiscordInteractivityResultWrapper<IDiscordMessage>(result);
 	}
 }
 
 internal class DiscordInteractivityResultWrapper<T>(InteractivityResult<DiscordMessage> result) : IDiscordInteractivityResult<T>
 {
-	private readonly InteractivityResult<DiscordMessage> _result = result.Equals(default)
+	private readonly InteractivityResult<DiscordMessage> _interactivityResult = result.Equals(default)
 																	? throw new ArgumentException("Result is default", nameof(result))
 																	: result;
 
-	public bool TimedOut => _result.TimedOut;
+	public bool TimedOut => _interactivityResult.TimedOut;
 
-	public T Result => (T) (IDiscordMessage) new DiscordMessageWrapper(_result.Result);
+	public T Result => (T) (IDiscordMessage) new DiscordMessageWrapper(_interactivityResult.Result);
 }
 
 internal class CommandsNextExtensionWrapper(CommandsNextExtension command) : ICommandsNextExtension
@@ -200,10 +202,10 @@ internal class DiscordMessageWrapper(DiscordMessage message) : IDiscordMessage
 
 	public IDiscordChannel Channel => new DiscordChannelWrapper(_message.Channel);
 
-	public Task<IReadOnlyList<IDiscordUser>> GetReactionsAsync(IDiscordEmoji emoji)
+	public async Task<IReadOnlyList<IDiscordUser>> GetReactionsAsync(IDiscordEmoji emoji)
 	{
-		return _message.GetReactionsAsync(((DiscordEmojiWrapper) emoji).Inner)
-			.ContinueWith(t => (IReadOnlyList<IDiscordUser>) [.. t.Result.Select(u => new DiscordUserWrapper(u))]);
+		IReadOnlyList<DiscordUser> rawUsers = await _message.GetReactionsAsync(((DiscordEmojiWrapper) emoji).Inner);
+		return [.. rawUsers.Select(u => (IDiscordUser) new DiscordUserWrapper(u))];
 	}
 
 	public Task DeleteReactionAsync(IDiscordEmoji emoji, IDiscordUser user)
@@ -313,17 +315,19 @@ internal class DiscordUserWrapper(DiscordUser user) : IDiscordUser
 internal class DiscordChannelWrapper(DiscordChannel channel) : IDiscordChannel
 {
 	private readonly DiscordChannel _channel = channel ?? throw new ArgumentNullException(nameof(channel));
+
 	public string Mention => _channel.Mention;
 
-	public Task<IReadOnlyList<IDiscordMessage>> GetMessagesAsync(int limit = 100)
+	public async Task<IReadOnlyList<IDiscordMessage>> GetMessagesAsync(int limit = 100)
 	{
-		return _channel.GetMessagesAsync(limit)
-			.ContinueWith(t => (IReadOnlyList<IDiscordMessage>) [.. t.Result.Select(u => new DiscordMessageWrapper(u))]);
+		IReadOnlyList<DiscordMessage> rawMessages = await _channel.GetMessagesAsync(limit);
+		return [.. rawMessages.Select(m => (IDiscordMessage) new DiscordMessageWrapper(m))];
 	}
-	public Task<IDiscordInteractivityResult<IDiscordMessage>> GetNextMessageAsync(IDiscordUser user, TimeSpan timeoutOverride)
+
+	public async Task<IDiscordInteractivityResult<IDiscordMessage>> GetNextMessageAsync(IDiscordUser user, TimeSpan timeoutOverride)
 	{
-		return _channel.GetNextMessageAsync(user.Inner, timeoutOverride)
-			.ContinueWith(t => (IDiscordInteractivityResult<IDiscordMessage>) new DiscordInteractivityResultWrapper<IDiscordMessage>(t.Result));
+		InteractivityResult<DiscordMessage> result = await _channel.GetNextMessageAsync(user.Inner, timeoutOverride);
+		return new DiscordInteractivityResultWrapper<IDiscordMessage>(result);
 	}
 
 	public Task DeleteMessageAsync(IDiscordMessage message)
