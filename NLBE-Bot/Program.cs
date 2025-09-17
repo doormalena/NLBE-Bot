@@ -71,6 +71,10 @@ public static class Program
 				{
 					return CreateWotbConnection(provider, client);
 				});
+				services.AddHttpClient<IWotInspectorConnection, WotInspectorConnection>((client, provider) =>
+				{
+					return CreateWotInspectorConnection(provider, client);
+				});
 				services.AddSingleton<IBotState>(provider =>
 				{
 					BotState botState = new();
@@ -98,8 +102,10 @@ public static class Program
 				services.AddSingleton<IDiscordMessageUtils, DiscordMessageUtils>();
 				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
 				services.AddHttpClient<IApiRequester, ApiRequester>();
+				services.AddHttpClient<IAttachmentService, AttachmentService>();
 				services.AddSingleton<IAccountsRepository, AccountsRepository>();
 				services.AddSingleton<IClansRepository, ClansRepository>();
+				services.AddSingleton<IBattleRepository, BattleRepository>();
 			});
 	}
 
@@ -110,6 +116,14 @@ public static class Program
 		ILogger<WotbConnection> logger = provider.GetRequiredService<ILogger<WotbConnection>>();
 
 		return new WotbConnection(client, logger, options.WotbApi.BaseUri, options.WotbApi.ApplicationId);
+	}
+	private static WotInspectorConnection CreateWotInspectorConnection(IServiceProvider provider, HttpClient client)
+	{
+		IOptions<BotOptions>? optionsWrapper = provider.GetService<IOptions<BotOptions>>() ?? throw new InvalidOperationException("IOptions<BotOptions> is not registered in the service provider.");
+		BotOptions options = optionsWrapper.Value;
+		ILogger<WotInspectorConnection> logger = provider.GetRequiredService<ILogger<WotInspectorConnection>>();
+
+		return new WotInspectorConnection(client, logger, options.WotInspectorApi.BaseUri);
 	}
 
 	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider)

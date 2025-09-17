@@ -10,16 +10,14 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
-internal class WeeklyEventService(IChannelService channelService,
-								  IUserService userService,
+internal class WeeklyEventService(IUserService userService,
 								  IBotState botState,
 								  ILogger<WeeklyEventService> _logger,
 								  IOptions<BotOptions> options) : IWeeklyEventService
 {
 	private readonly ILogger<WeeklyEventService> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -118,48 +116,48 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 	}
 
-	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WGBattle battle)
+	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WotbBattle battle)
 	{
 		List<WeeklyEventType> weeklyEventTypes = [];
 
-		if (battle.vehicle == WeeklyEvent?.Tank)
+		if (battle.Summary.Vehicle == WeeklyEvent?.Tank)
 		{
 			//TODO: refactor into a switch statement
 
-			if (WeeklyEvent.WeeklyEventItems[0].Value < battle.details.damage_made)
+			if (WeeklyEvent.WeeklyEventItems[0].Value < battle.Summary.Details.damage_made)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_damage);
-				WeeklyEvent.WeeklyEventItems[0] = new WeeklyEventItem(battle.details.damage_made, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[0] = new WeeklyEventItem(battle.Summary.Details.damage_made, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[1].Value < battle.exp_base)
+			if (WeeklyEvent.WeeklyEventItems[1].Value < battle.Summary.ExpBase)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_exp);
-				WeeklyEvent.WeeklyEventItems[1] = new WeeklyEventItem(battle.exp_base, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[1] = new WeeklyEventItem(battle.Summary.ExpBase, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[2].Value < battle.credits_base)
+			if (WeeklyEvent.WeeklyEventItems[2].Value < battle.Summary.CreditsBase)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_credits);
-				WeeklyEvent.WeeklyEventItems[2] = new WeeklyEventItem(battle.credits_base, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[2] = new WeeklyEventItem(battle.Summary.CreditsBase, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[3].Value < battle.details.damage_blocked)
+			if (WeeklyEvent.WeeklyEventItems[3].Value < battle.Summary.Details.damage_blocked)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_damage_bounced);
-				WeeklyEvent.WeeklyEventItems[3] = new WeeklyEventItem(battle.details.damage_blocked, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[3] = new WeeklyEventItem(battle.Summary.Details.damage_blocked, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[4].Value < battle.details.damage_assisted + battle.details.damage_assisted_track)
+			if (WeeklyEvent.WeeklyEventItems[4].Value < battle.Summary.Details.damage_assisted + battle.Summary.Details.damage_assisted_track)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_assist_damage);
-				WeeklyEvent.WeeklyEventItems[4] = new WeeklyEventItem(battle.details.damage_assisted + battle.details.damage_assisted_track, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[4] = new WeeklyEventItem(battle.Summary.Details.damage_assisted + battle.Summary.Details.damage_assisted_track, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[5].Value < battle.details.enemies_destroyed)
+			if (WeeklyEvent.WeeklyEventItems[5].Value < battle.Summary.Details.enemies_destroyed)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_destroyed);
-				WeeklyEvent.WeeklyEventItems[5] = new WeeklyEventItem(battle.details.enemies_destroyed, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[5] = new WeeklyEventItem(battle.Summary.Details.enemies_destroyed, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[6].Value < battle.details.shots_pen)
+			if (WeeklyEvent.WeeklyEventItems[6].Value < battle.Summary.Details.shots_pen)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_hits);
-				WeeklyEvent.WeeklyEventItems[6] = new WeeklyEventItem(battle.details.shots_pen, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[6] = new WeeklyEventItem(battle.Summary.Details.shots_pen, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
 
 			await UpdateLastWeeklyEvent();
@@ -168,12 +166,12 @@ internal class WeeklyEventService(IChannelService channelService,
 		return weeklyEventTypes;
 	}
 
-	public async Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WGBattle battle)
+	public async Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WotbBattle battle)
 	{
 		string content = string.Empty;
 		await ReadWeeklyEvent(guild);
 
-		if (WeeklyEvent != null && WeeklyEvent.Tank == battle.vehicle && DiscordMessage != null && battle.room_type is 1 or 5 or 7 or 4 && battle.battle_start_time.HasValue && WeeklyEvent.StartDate < battle.battle_start_time.Value && WeeklyEvent.StartDate.AddDays(7) > battle.battle_start_time.Value)
+		if (WeeklyEvent != null && WeeklyEvent.Tank == battle.Summary.Vehicle && DiscordMessage != null && battle.Summary.RoomType is 1 or 5 or 7 or 4 && battle.Summary.BattleStartTime.HasValue && WeeklyEvent.StartDate < battle.Summary.BattleStartTime.Value && WeeklyEvent.StartDate.AddDays(7) > battle.Summary.BattleStartTime.Value)
 		{
 			List<WeeklyEventType> weeklyEventTypes = await CheckAndHandleWeeklyEvent(battle);
 

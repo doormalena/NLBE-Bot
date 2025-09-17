@@ -46,6 +46,15 @@ namespace WorldOfTanksBlitzApi
 		{
 			get; private set;
 		}
+		public int t
+		{
+			get; private set;
+		}
+		public int v
+		{
+			get; private set;
+		}
+
 		public static List<Achievement> achievements;
 		public static Dictionary<int, string> achievementsFromWotinspector = new Dictionary<int, string> { { 601, "titleSniper" }, { 602, "invincible" }, { 603, "diehard" }, { 604, "handOfDeath" }, { 605, "armorPiercer" }, { 606, "cadet" }, { 607, "firstBlood" }, { 608, "firstVictory" }, { 609, "androidTest" }, { 610, "mechanicEngineer" }, { 611, "tankExpert" }, { 612, "mechanicEngineer0" }, { 613, "tankExpert0" }, { 614, "mechanicEngineer1" }, { 615, "tankExpert1" }, { 616, "mechanicEngineer2" }, { 617, "tankExpert2" }, { 618, "mechanicEngineer3" }, { 619, "tankExpert3" }, { 620, "mechanicEngineer4" }, { 621, "tankExpert4" }, { 622, "mechanicEngineer5" }, { 623, "tankExpert5" }, { 624, "mechanicEngineer6" }, { 625, "tankExpert6" }, { 626, "mechanicEngineer7" }, { 627, "tankExpert7" }, { 401, "battleHeroes" }, { 402, "fragsBeast" }, { 403, "sniperSeries" }, { 404, "maxSniperSeries" }, { 405, "invincibleSeries" }, { 406, "maxInvincibleSeries" }, { 407, "diehardSeries" }, { 408, "maxDiehardSeries" }, { 409, "killingSeries" }, { 410, "maxKillingSeries" }, { 411, "piercingSeries" }, { 412, "maxPiercingSeries" }, { 413, "warrior" }, { 414, "invader" }, { 415, "sniper" }, { 416, "defender" }, { 417, "steelwall" }, { 418, "supporter" }, { 419, "scout" }, { 420, "medalKay" }, { 421, "medalCarius" }, { 422, "medalKnispel" }, { 423, "medalPoppel" }, { 424, "medalAbrams" }, { 425, "medalLeClerc" }, { 426, "medalLavrinenko" }, { 427, "medalEkins" }, { 428, "medalWittmann" }, { 429, "medalOrlik" }, { 430, "medalOskin" }, { 431, "medalHalonen" }, { 432, "medalBurda" }, { 433, "medalBillotte" }, { 434, "medalKolobanov" }, { 435, "medalFadin" }, { 436, "raider" }, { 437, "kamikaze" }, { 438, "lumberjack" }, { 439, "beasthunter" }, { 440, "mousebane" }, { 441, "evileye" }, { 442, "medalRadleyWalters" }, { 443, "medalLafayettePool" }, { 444, "medalBrunoPietro" }, { 445, "medalTarczay" }, { 446, "medalPascucci" }, { 447, "medalDumitr" }, { 448, "markOfMastery" }, { 449, "medalLehvaslaiho" }, { 450, "medalNikolas" }, { 451, "fragsSinai" }, { 452, "sinai" }, { 453, "heroesOfRassenay" }, { 454, "medalBrothersInArms" }, { 455, "medalCrucialContribution" }, { 456, "medalDeLanglade" }, { 457, "medalTamadaYoshio" }, { 458, "bombardier" }, { 459, "huntsman" }, { 460, "alaric" }, { 461, "sturdy" }, { 462, "ironMan" }, { 463, "luckyDevil" }, { 464, "fragsPatton" }, { 465, "pattonValley" }, { 466, "memberBetaTest" }, { 467, "jointVictoryCount" }, { 468, "jointVictory" }, { 469, "punisherCount" }, { 470, "punisher" }, { 471, "medalSupremacy" }, { 472, "camper" }, { 473, "mainGun" }, { 474, "markOfMasteryI" }, { 475, "markOfMasteryII" }, { 476, "markOfMasteryIII" } };
 

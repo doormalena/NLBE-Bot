@@ -15,7 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Exceptions;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
 internal class HallOfFameService(ILogger<HallOfFameService> logger,
 							 	 IOptions<BotOptions> options,
@@ -33,7 +33,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 	private readonly IReplayService _replayService = replayService ?? throw new ArgumentNullException(nameof(replayService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 
-	public async Task<Tuple<string, IDiscordMessage?>> Handle(string titel, object discAttach, IDiscordChannel channel, IDiscordGuild guild, string iets, IDiscordMember member)
+	public async Task<Tuple<string, IDiscordMessage?>> Handle(string titel, IDiscordAttachment attachment, IDiscordChannel channel, IDiscordGuild guild, string iets, IDiscordMember member)
 	{
 		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel) ||
 			Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.MasteryReplays), _logger, "Replay Results channel", out IDiscordChannel masteryReplaysChannel))
@@ -41,11 +41,8 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 			return new Tuple<string, IDiscordMessage?>("Kanaal is niet geschikt voor HOF.", null);
 		}
 
-		if (discAttach is IDiscordAttachment attachment)
-		{
-			discAttach = attachment;
-		}
-		WGBattle replayInfo = await _replayService.GetReplayInfo(titel, discAttach, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, iets);
+		WotbBattle replayInfo = await _replayService.GetReplayInfo(titel, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName);
+
 		try
 		{
 			if (replayInfo != null)
@@ -70,18 +67,18 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		}
 	}
 
-	private async Task<Tuple<string, IDiscordMessage?>> GoHOFDetails(WGBattle replayInfo, IDiscordChannel channel, IDiscordMember member, IDiscordGuild guild)
+	private async Task<Tuple<string, IDiscordMessage?>> GoHOFDetails(WotbBattle replayInfo, IDiscordChannel channel, IDiscordMember member, IDiscordGuild guild)
 	{
 		_ = (await channel.GetMessagesAsync(1))[0];
 		IDiscordMessage tempMessage;
 
-		if (replayInfo.battle_type is 0 or 1) // 0 = encounter, 1 = supremacy
+		if (replayInfo.Summary.BattleType is 0 or 1) // 0 = encounter, 1 = supremacy
 		{
-			if (replayInfo.room_type is 1 or 4 or 5 or 7) // 1 = normal, 4 = tournament, 5 = tournament, 7 = rating 
+			if (replayInfo.Summary.RoomType is 1 or 4 or 5 or 7) // 1 = normal, 4 = tournament, 5 = tournament, 7 = rating 
 			{
 				try
 				{
-					return replayInfo.details != null
+					return replayInfo.Summary.Details != null
 						? await ReplayHOF(guild, replayInfo, channel, member)
 						: new Tuple<string, IDiscordMessage?>("Replay bevatte geen details.", null);
 				}
@@ -100,18 +97,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 			}
 			else
 			{
-				string roomTypeName = replayInfo.room_type switch
-				{
-					2 => "training",
-					8 => "mad games",
-					22 => "realistic",
-					23 => "uprising",
-					24 => "gravity force",
-					25 => "skirmish",
-					26 => "burning",
-					_ => string.Empty
-				};
-
+				string roomTypeName = WotbBattleSummary.GetBattleRoom(replayInfo.Summary.RoomType);
 				tempMessage = await _messageService.SayCannotBePlayedAt(channel, member, guild.Name, roomTypeName);
 			}
 		}
@@ -123,7 +109,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
 		foreach (Tuple<string, string> map in images)
 		{
-			if (map.Item1.ToLower() == replayInfo.map_name.ToLower())
+			if (map.Item1.ToLower() == replayInfo.Summary.MapName.ToLower())
 			{
 				try
 				{
@@ -150,14 +136,14 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		return new Tuple<string, IDiscordMessage?>(tempMessage.Content, tempMessage);
 	}
 
-	private async Task<Tuple<string, IDiscordMessage?>> ReplayHOF(IDiscordGuild guild, WGBattle battle, IDiscordChannel channel, IDiscordMember member)
+	private async Task<Tuple<string, IDiscordMessage?>> ReplayHOF(IDiscordGuild guild, WotbBattle battle, IDiscordChannel channel, IDiscordMember member)
 	{
-		if (battle.details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.details.clanid.Equals(Constants.NLBE2_CLAN_ID))
+		if (battle.Summary.Details.clanid.Equals(Constants.NLBE_CLAN_ID) || battle.Summary.Details.clanid.Equals(Constants.NLBE2_CLAN_ID))
 		{
-			IDiscordMessage? message = await GetHOFMessage(guild, battle.vehicle_tier, battle.vehicle);
+			IDiscordMessage? message = await GetHOFMessage(guild, battle.Summary.VehicleTier, battle.Summary.Vehicle);
 			if (message != null)
 			{
-				List<Tuple<string, List<TankHof>>> tierHOF = ConvertHOFMessageToTupleListAsync(message, battle.vehicle_tier);
+				List<Tuple<string, List<TankHof>>> tierHOF = ConvertHOFMessageToTupleListAsync(message, battle.Summary.VehicleTier);
 				bool alreadyAdded = false;
 				if (tierHOF != null)
 				{
@@ -165,7 +151,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 					{
 						foreach (TankHof hof in tank.Item2)
 						{
-							if (Path.GetFileName(hof.Link).Equals(battle.hexKey))
+							if (Path.GetFileName(hof.Link).Equals(battle.Summary.HexKey))
 							{
 								alreadyAdded = true;
 								break;
@@ -176,11 +162,11 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 					{
 						foreach (Tuple<string, List<TankHof>> tank in tierHOF)
 						{
-							if (tank.Item1.ToLower().Equals(battle.vehicle.ToLower()))
+							if (tank.Item1.ToLower().Equals(battle.Summary.Vehicle.ToLower()))
 							{
 								if (tank.Item2.Count == Constants.HOF_AMOUNT_PER_TANK)
 								{
-									if (tank.Item2[Constants.HOF_AMOUNT_PER_TANK - 1].Damage < battle.details.damage_made)
+									if (tank.Item2[Constants.HOF_AMOUNT_PER_TANK - 1].Damage < battle.Summary.Details.damage_made)
 									{
 										tank.Item2.Add(InitializeTankHof(battle));
 										List<TankHof> sortedTankHofList = tank.Item2.OrderBy(x => x.Damage).Reverse().ToList();
@@ -191,7 +177,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 										foreach (TankHof item in sortedTankHofList)
 										{
 											tank.Item2.Add(item);
-											if (item.Link.Equals(battle.view_url))
+											if (item.Link.Equals(battle.ViewUrl))
 											{
 												position = counter;
 											}
@@ -227,7 +213,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 						List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
 						foreach (Tuple<string, string> map in images)
 						{
-							if (map.Item1.ToLower() == battle.map_name.ToLower())
+							if (map.Item1.ToLower() == battle.Summary.MapName.ToLower())
 							{
 								try
 								{
@@ -244,13 +230,13 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 							}
 						}
 
-						EmbedOptions options = new()
+						EmbedOptions embedOptions = new()
 						{
 							Thumbnail = thumbnail,
 							Title = "Helaas... Deze replay staat er al in.",
 							Description = await _replayService.GetDescriptionForReplay(guild, battle, 0),
 						};
-						IDiscordMessage tempMessage = await _messageService.CreateEmbed(channel, options);
+						IDiscordMessage tempMessage = await _messageService.CreateEmbed(channel, embedOptions);
 						return new Tuple<string, IDiscordMessage>(string.Empty, tempMessage);//string empty omdat dan hofafterupload het niet verkeerd opvat
 					}
 				}
@@ -500,13 +486,13 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 			await message.CreateReactionAsync(_discordMessageUtils.GetDiscordEmoji(Constants.MAINTENANCE_REACTION));
 		}
 	}
-	private async Task<IDiscordMessage> AddReplayToMessage(IDiscordGuild guild, WGBattle battle, IDiscordMessage message, IDiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
+	private async Task<IDiscordMessage> AddReplayToMessage(IDiscordGuild guild, WotbBattle battle, IDiscordMessage message, IDiscordChannel channel, List<Tuple<string, List<TankHof>>> tierHOF)
 	{
 		bool foundItem = false;
 		int position = 1;
 		foreach (Tuple<string, List<TankHof>> item in tierHOF)
 		{
-			if (item.Item1.Equals(battle.vehicle))
+			if (item.Item1.Equals(battle.Summary.Vehicle))
 			{
 				item.Item2.Add(InitializeTankHof(battle));
 				foundItem = true;
@@ -516,19 +502,19 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		if (!foundItem)
 		{
 			List<TankHof> list = [InitializeTankHof(battle)];
-			tierHOF.Add(new Tuple<string, List<TankHof>>(battle.vehicle, list));
+			tierHOF.Add(new Tuple<string, List<TankHof>>(battle.Summary.Vehicle, list));
 		}
 		else
 		{
 			foreach (Tuple<string, List<TankHof>> item in tierHOF)
 			{
-				if (item.Item1.Equals(battle.vehicle))
+				if (item.Item1.Equals(battle.Summary.Vehicle))
 				{
 					List<TankHof> sortedTankHofList = item.Item2.OrderBy(x => x.Damage).Reverse().ToList();
 					for (int i = 0; i < sortedTankHofList.Count; i++)
 					{
 						sortedTankHofList[i].Place = (short) (i + 1);
-						if (sortedTankHofList[i].Link.Equals(battle.view_url))
+						if (sortedTankHofList[i].Link.Equals(battle.ViewUrl))
 						{
 							position = i + 1;
 							break;
@@ -637,9 +623,9 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 	{
 		return _messageService.CreateStandardEmbed("Tier " + _discordMessageUtils.GetDiscordEmoji(Emoj.GetName(tier)), "Nog geen replays aan deze tier toegevoegd.", Constants.HOF_COLOR);
 	}
-	public static TankHof InitializeTankHof(WGBattle battle)
+	public static TankHof InitializeTankHof(WotbBattle battle)
 	{
-		return new TankHof(battle.view_url, battle.player_name, battle.vehicle, battle.details.damage_made, battle.vehicle_tier);
+		return new TankHof(battle.ViewUrl, battle.Summary.PlayerName, battle.Summary.Vehicle, battle.Summary.Details.damage_made, battle.Summary.VehicleTier);
 	}
 
 	public async Task HofAfterUpload(Tuple<string, IDiscordMessage?> returnedTuple, IDiscordMessage uploadMessage)

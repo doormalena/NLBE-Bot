@@ -76,7 +76,7 @@ public class WotbConnectionTests
 		string? foundAppId = null;
 
 		string expectedUrl = BaseUri.TrimEnd('/') + "/" + RelativeUrl.TrimStart('/');
-		HttpRequestMessage capturedRequest = null;
+		HttpRequestMessage? capturedRequest = null;
 		_mockHttp!.When(HttpMethod.Post, expectedUrl)
 				.Respond(req =>
 				{
@@ -94,7 +94,7 @@ public class WotbConnectionTests
 		_ = await _connection!.PostAsync(RelativeUrl, form);
 
 		Assert.IsNotNull(capturedRequest);
-		MultipartFormDataContent formData = capturedRequest.Content as MultipartFormDataContent;
+		MultipartFormDataContent? formData = capturedRequest.Content as MultipartFormDataContent;
 		Assert.IsNotNull(formData);
 
 		foreach (HttpContent part in formData)
@@ -224,7 +224,7 @@ public class WotbConnectionTests
 			return Task.CompletedTask;
 		}
 
-		_connection = new(_httpClient!, _loggerMock, BaseUri, ApplicationId, maxRetries: 1, delayFunc: fakeDelay);
+		_connection = new(_httpClient!, _loggerMock!, BaseUri, ApplicationId, maxRetries: 1, delayFunc: fakeDelay);
 
 		_mockHttp!.When(HttpMethod.Post, expectedUrl).Respond("application/json", errorJson);
 

@@ -2,15 +2,14 @@ namespace NLBE_Bot.Tests.Services;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using NSubstitute;
-using NSubstitute.ExceptionExtensions;
-using System.Threading.Tasks;
+using NSubstitute.ReceivedExtensions;
+using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Interfaces;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class ReplayServiceTests
@@ -19,7 +18,9 @@ public class ReplayServiceTests
 	private IOptions<BotOptions>? _optionsMock;
 	private IWeeklyEventService? _weeklyEventServiceMock;
 	private IAccountsRepository? _accountRepositoryMock;
-	private WGBattle? _battle;
+	private IBattleRepository? _battleRepositoryMock;
+	private IAttachmentService? _discordAttachmentServiceMock;
+	private WotbBattle? _battle;
 	private IDiscordGuild? _guildMock;
 
 	private ReplayService? _replayService;
@@ -31,58 +32,25 @@ public class ReplayServiceTests
 		_optionsMock = Options.Create(new BotOptions());
 		_weeklyEventServiceMock = Substitute.For<IWeeklyEventService>();
 		_accountRepositoryMock = Substitute.For<IAccountsRepository>();
+		_battleRepositoryMock = Substitute.For<IBattleRepository>();
+		_discordAttachmentServiceMock = Substitute.For<IAttachmentService>();
 		_guildMock = Substitute.For<IDiscordGuild>();
 
 		_replayService = new ReplayService(
 			_loggerMock,
 			_optionsMock,
 			_weeklyEventServiceMock,
-			_accountRepositoryMock
+			_accountRepositoryMock,
+			_battleRepositoryMock,
+			_discordAttachmentServiceMock
 		);
-
-		string battleJson = """
-		{
-		  "status": "ok",
-		  "data": {
-		    "view_url": "https://replays.wotinspector.com/en/view/1c21a9873cdab07aa24a1a9c4804dfcb",
-		    "summary": {
-		      "title": "VK 72.01 (K), train",
-		      "player_name": "Kqb658kbgy",
-		      "map_name": "train",
-		      "vehicle": "VK 72.01 (K)",
-		      "vehicle_tier": 10,
-		      "protagonist_team": 1,
-		      "winner_team": 1,
-		      "battle_type": 1,
-		      "room_type": 1,
-		      "battle_start_time": "2025-09-01 19:59:13",
-		      "details": {
-		        "clan_tag": "NLBE",
-		        "damage_made": 4548,
-		        "damage_blocked": 1440,
-		        "damage_assisted": 632,
-		        "damage_assisted_track": 0,
-		        "exp": 1496,
-		        "shots_pen": 9,
-		        "enemies_destroyed": 2,
-		        "achievements": [
-		          { "t": "411", "v": 1 },
-		          { "t": "407", "v": 2 },
-		          { "t": "403", "v": 1 },
-		          { "t": "448", "v": 2 },
-		          { "t": "409", "v": 1 }
-		        ]
-		      }
-		    }
-		  }
-		}
-		""";
-		_battle = new(battleJson);
+		_battle = new();
 	}
 
 	[TestMethod]
 	public async Task GetDescriptionForReplay_ShouldIncludeWeeklyEventAndReplayInfo()
 	{
+
 		// Arrange.
 		_weeklyEventServiceMock!.GetStringForWeeklyEvent(_guildMock!, _battle!).Returns("Weekly Event Info");
 
@@ -99,7 +67,8 @@ public class ReplayServiceTests
 	public async Task GetDescriptionForReplay_ShouldLogError_WhenWeeklyEventFails()
 	{
 		// Arrange.
-		_weeklyEventServiceMock!.GetStringForWeeklyEvent(_guildMock!, _battle!).Throws(new Exception("Boom"));
+		_weeklyEventServiceMock!.GetStringForWeeklyEvent(_guildMock!, _battle!)
+			.Returns<Task<string>>(x => throw new Exception("Failed to get weekly event string"));
 
 		// Act.
 		string result = await _replayService!.GetDescriptionForReplay(_guildMock!, _battle!, 0);
@@ -107,5 +76,91 @@ public class ReplayServiceTests
 		// Assert.
 		Assert.IsTrue(result.Contains("Link:"));
 		_loggerMock!.Received().LogError(Arg.Any<Exception>(), "Error while getting weekly event description for replay.");
+	}
+
+	[TestMethod]
+	public async Task GetReplayInfo_PlayerIdFound_WithAttachment_ReturnsBattle()
+	{
+		// Arrange.
+		_accountRepositoryMock!.SearchByNameAsync(SearchType.Exact, "player name")
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([new() { AccountId = 123 }]));
+
+		IDiscordAttachment attachment = Substitute.For<IDiscordAttachment>();
+		attachment.Url.Returns("http://attachment.url");
+
+		_discordAttachmentServiceMock!.DownloadAttachmentAsync(attachment)
+			.Returns(Task.FromResult(("test.wotbreplay", new byte[] { 1, 2, 3 })));
+
+		_battleRepositoryMock!.GetBattle("test.wotbreplay", Arg.Any<byte[]>(), "title", 123)
+			.Returns(Task.FromResult<WotbBattle?>(new WotbBattle { Summary = new WotbBattleSummary { Title = "title" } }));
+
+		// Act.
+		WotbBattle? result = await _replayService!.GetReplayInfo("title", attachment, "player name");
+
+		// Assert.
+		Assert.IsNotNull(result);
+		Assert.AreEqual("title", result.Summary.Title);
+	}
+
+	[TestMethod]
+	public async Task GetReplayInfo_PlayerIdFound_NoAttachment_UsesUrl()
+	{
+
+		// Arrange.
+		_accountRepositoryMock!.SearchByNameAsync(SearchType.Exact, "IGN")
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([new() { AccountId = 123 }]));
+
+		_battleRepositoryMock!.GetBattle(Arg.Any<string>(), Arg.Any<byte[]>(), "title", 123)
+			.Returns(Task.FromResult<WotbBattle?>(new WotbBattle { Summary = new WotbBattleSummary { Title = "title" } }));
+
+		// Act.
+		WotbBattle? result = await _replayService!.GetReplayInfo("title", null!, "IGN");
+
+		// Assert.
+		Assert.IsNotNull(result);
+		Assert.AreEqual("title", result.Summary.Title);
+	}
+
+	[TestMethod]
+	public async Task GetReplayInfo_PlayerIdNotFound_WithAttachment_ReturnsBattle()
+	{
+
+		// Arrange.
+		_accountRepositoryMock!.SearchByNameAsync(SearchType.Exact, "player name")
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([]));
+
+		IDiscordAttachment attachment = Substitute.For<IDiscordAttachment>();
+		attachment.Url.Returns("http://attachment.url");
+
+		_discordAttachmentServiceMock!.DownloadAttachmentAsync(attachment)
+			.Returns(Task.FromResult(("test.wotbreplay", new byte[] { 1, 2, 3 })));
+
+		_battleRepositoryMock!.GetBattle("test.wotbreplay", Arg.Any<byte[]>(), "title", null)
+			.Returns(Task.FromResult<WotbBattle?>(new WotbBattle { Summary = new WotbBattleSummary { Title = "title" } }));
+
+		// Act.
+		WotbBattle? result = await _replayService!.GetReplayInfo("title", attachment, "player name");
+
+		// Assert.
+		Assert.IsNotNull(result);
+		Assert.AreEqual("title", result.Summary.Title);
+	}
+
+	[TestMethod]
+	public async Task GetReplayInfo_PlayerIdNotFound_NoAttachment_ReturnsBattle()
+	{
+		// Arrange.
+		_accountRepositoryMock!.SearchByNameAsync(SearchType.Exact, "IGN")
+			.Returns(Task.FromResult<IReadOnlyList<WotbAccountListItem>>([]));
+
+		_battleRepositoryMock!.GetBattle(Arg.Any<string>(), Arg.Any<byte[]>(), "title", null)
+			.Returns(Task.FromResult<WotbBattle?>(new WotbBattle { Summary = new WotbBattleSummary { Title = "title" } }));
+
+		// Act.
+		WotbBattle? result = await _replayService!.GetReplayInfo("title", null!, "IGN");
+
+		// Assert.
+		Assert.IsNotNull(result);
+		Assert.AreEqual("title", result.Summary.Title);
 	}
 }

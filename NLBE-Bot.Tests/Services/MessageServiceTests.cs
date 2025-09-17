@@ -11,7 +11,7 @@ using NLBE_Bot.Services;
 using NSubstitute;
 using System;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class MessageServiceTests
@@ -860,9 +860,12 @@ public class MessageServiceTests
 	public async Task SayReplay_Wrappers_ShouldBehaveAsExpected(string methodName, string battleMapName, string? mapUrl, bool lastCreatedExists, bool expectThumbnail)
 	{
 		// Arrange.
-		WGBattle battle = new()
+		WotbBattle battle = new()
 		{
-			map_name = battleMapName
+			Summary = new()
+			{
+				MapName = battleMapName
+			}
 		};
 
 		List<Tuple<string, string>> maps = [];

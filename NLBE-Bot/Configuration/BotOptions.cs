@@ -49,6 +49,12 @@ internal class BotOptions
 	{
 		get; set;
 	} = new();
+
+	[Required]
+	public WotInspectorApiOptions WotInspectorApi
+	{
+		get; set;
+	} = new();
 }
 
 

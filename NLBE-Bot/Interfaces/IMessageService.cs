@@ -3,7 +3,7 @@ namespace NLBE_Bot.Interfaces;
 using DSharpPlus.Entities;
 using NLBE_Bot.Models;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
 internal interface IMessageService
 {
@@ -33,9 +33,9 @@ internal interface IMessageService
 
 	public Task<IDiscordMessage?> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType);
 
-	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription);
+	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WotbBattle battle, string extraDescription);
 
-	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position);
+	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WotbBattle battle, string extraDescription, int position);
 
 	public Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count);
 

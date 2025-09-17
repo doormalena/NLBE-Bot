@@ -2,7 +2,7 @@ namespace NLBE_Bot.Interfaces;
 
 using NLBE_Bot.Models;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
 internal interface IWeeklyEventService
 {
@@ -15,7 +15,7 @@ internal interface IWeeklyEventService
 
 	public Task ReadWeeklyEvent(IDiscordGuild guild);
 
-	public Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WGBattle battle);
+	public Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WotbBattle battle);
 
 	public Task CreateNewWeeklyEvent(string tank, IDiscordChannel weeklyEventChannel);
 }

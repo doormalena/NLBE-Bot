@@ -16,18 +16,18 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 
 	public async Task<IReadOnlyList<WotbClanListItem>> SearchByNameAsync(SearchType searchType, string term, bool loadMembers = false, int maxResults = 20)
 	{
-		string jsonText = await SearchByName(term, searchType, maxResults);
-		WotbClanList? response = JsonSerializer.Deserialize<WotbClanList>(jsonText);
+		string json = await SearchByName(term, searchType, maxResults);
+		WotbClanList? response = JsonSerializer.Deserialize<WotbClanList>(json);
 
 		return response == null || response.Data == null ? [] : (IReadOnlyList<WotbClanListItem>) response.Data;
 	}
 
 	public async Task<WotbClanInfo?> GetByIdAsync(long clanId, bool loadMembers = false)
 	{
-		string clanJson = await GetById(clanId, loadMembers);
+		string json = await GetById(clanId, loadMembers);
 
 		// The API returns: { "status": "...", "data": { "clan_id": { ...clan fields... } } }
-		JsonNode? rootNode = JsonNode.Parse(clanJson);
+		JsonNode? rootNode = JsonNode.Parse(json);
 		JsonNode? dataNode = rootNode?["data"];
 
 		if (dataNode != null)
@@ -45,10 +45,10 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 
 	public async Task<WotbAccountClanInfo?> GetAccountClanInfoAsync(long accountId)
 	{
-		string accountClanJson = await GetAccountClanInfo(accountId);
+		string json = await GetAccountClanInfo(accountId);
 
 		// The API returns: { "status": "...", "data": { "account_id": { ...account-clan fields... } } }
-		JsonNode? rootNode = JsonNode.Parse(accountClanJson);
+		JsonNode? rootNode = JsonNode.Parse(json);
 		JsonNode? dataNode = rootNode?["data"];
 
 		if (dataNode != null)

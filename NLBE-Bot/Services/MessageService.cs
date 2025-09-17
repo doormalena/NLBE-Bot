@@ -11,7 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
 internal class MessageService(IDiscordClient discordClient, ILogger<MessageService> logger, IOptions<BotOptions> options, IBotState botState,
 								IChannelService channelService, IDiscordMessageUtils discordMessageUtils,
@@ -198,14 +198,14 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 	}
 
-	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription)
+	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WotbBattle battle, string extraDescription)
 	{
 		string description = "De statistieken van deze replay waren onvoldoende om in de Hall Of Fame te komen te staan!\n\n"
 							 + extraDescription;
 		return SendReplayMessage(channel, battle, "Helaas...", description);
 	}
 
-	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position)
+	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WotbBattle battle, string extraDescription, int position)
 	{
 		string description = "Je replay heeft een plaatsje gekregen in onze Hall Of Fame!\n\n"
 							 + extraDescription;
@@ -453,7 +453,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return theMessage;
 	}
 
-	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WGBattle battle, string title, string description)
+	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WotbBattle battle, string title, string description)
 	{
 		DiscordEmbedBuilder embedBuilder = new()
 		{
@@ -466,7 +466,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		Tuple<string, string>? matchingMap = images.FirstOrDefault(map =>
 					!string.IsNullOrEmpty(map.Item1) &&
-					string.Equals(map.Item1, battle.map_name, StringComparison.OrdinalIgnoreCase));
+					string.Equals(map.Item1, battle.Summary.MapName, StringComparison.OrdinalIgnoreCase));
 
 		if (matchingMap != null)
 		{

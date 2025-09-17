@@ -1,7 +1,6 @@
 namespace NLBE_Bot.EventHandlers;
 
 using DSharpPlus;
-using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 using JsonObjectConverter;
 using Microsoft.Extensions.Logging;
@@ -17,7 +16,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 using WorldOfTanksBlitzApi.Vehicles;
 
 internal class MessageEventHandler(IOptions<BotOptions> options,
@@ -104,34 +103,38 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 					_botState!.LastCreatedDiscordMessage = message;
 					IDiscordMember? member = await guild.GetMemberAsync(author.Id);
 
-					if (channel.Id == _options.ChannelIds.MasteryReplays && member != null &&
+					if (member == null)
+					{
+						return;
+					}
+
+					if (channel.Id == _options.ChannelIds.MasteryReplays &&
 						(member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) || member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE))))
 					{
 						//MasteryChannel (komt wel in HOF)
 						if (message.Attachments.Count > 0)
 						{
-							foreach (IDiscordAttachment attachment in message.Attachments)
+							IDiscordAttachment? replayAttachment = message.Attachments
+								.FirstOrDefault(a => a.FileName.EndsWith(".wotbreplay", StringComparison.OrdinalIgnoreCase));
+
+							if (replayAttachment != null)
 							{
-								if (attachment.FileName.EndsWith(".wotbreplay"))
-								{
-									Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, attachment, channel, guild, string.Empty, await guild.GetMemberAsync(author.Id));
-									await _hallOfFameService.HofAfterUpload(returnedTuple, message);
-									break;
-								}
+								Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, replayAttachment, channel, guild, string.Empty, member);
+								await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 							}
 						}
 						else if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
 						{
 							string[] splitted = message.Content.Split(' ');
 							string url = splitted[0];
-							Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, string.Empty, channel, guild, url, await guild.GetMemberAsync(author.Id));
+							Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, null!, channel, guild, url, member);
 							await _hallOfFameService.HofAfterUpload(returnedTuple, message);
 						}
 					}
 					else
 					{
 						//ReplayResults die niet in HOF komen
-						WGBattle replayInfo = new(string.Empty);
+						WotbBattle? replayInfo = null;
 						bool wasReplay = false;
 
 						if (message.Attachments.Count > 0)
@@ -142,14 +145,8 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							{
 								await _messageService.ConfirmCommandExecuting(message);
 								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, null!);
+								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName);
 							}
-						}
-						else if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
-						{
-							await _messageService.ConfirmCommandExecuting(message);
-							wasReplay = true;
-							replayInfo = await _replayService.GetReplayInfo(string.Empty, string.Empty, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName, message.Content);
 						}
 
 						if (wasReplay && replayInfo != null)
@@ -168,7 +165,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							List<Tuple<string, string>> images = await _mapService.GetAllMaps(guild);
 
 							foreach (Tuple<string, string> map in from Tuple<string, string> map in images
-																  where replayInfo.map_name.Contains(map.Item1, StringComparison.OrdinalIgnoreCase)
+																  where replayInfo.Summary.MapName.Contains(map.Item1, StringComparison.OrdinalIgnoreCase)
 																  select map)
 							{
 								try

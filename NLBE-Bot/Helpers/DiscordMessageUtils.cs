@@ -5,6 +5,7 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 internal class DiscordMessageUtils(IDiscordClient discordClient) : IDiscordMessageUtils
@@ -13,15 +14,15 @@ internal class DiscordMessageUtils(IDiscordClient discordClient) : IDiscordMessa
 
 	public async Task<Dictionary<IDiscordEmoji, List<IDiscordUser>>> SortReactions(IDiscordMessage message)
 	{
-		Dictionary<IDiscordEmoji, List<IDiscordUser>> result = [];
-
-		foreach (IDiscordReaction reaction in message.Reactions)
+		IEnumerable<Task<KeyValuePair<IDiscordEmoji, List<IDiscordUser>>>> reactionTasks = message.Reactions.Select(async reaction =>
 		{
 			IReadOnlyList<IDiscordUser> users = await message.GetReactionsAsync(reaction.Emoji);
-			result[reaction.Emoji] = [.. users];
-		}
+			return new KeyValuePair<IDiscordEmoji, List<IDiscordUser>>(reaction.Emoji, [.. users]);
+		});
 
-		return result;
+		KeyValuePair<IDiscordEmoji, List<IDiscordUser>>[] results = await Task.WhenAll(reactionTasks);
+
+		return results.ToDictionary(pair => pair.Key, pair => pair.Value);
 	}
 
 	public Dictionary<DateTime, List<IDiscordMessage>> SortMessages(IReadOnlyList<IDiscordMessage> messages)

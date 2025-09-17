@@ -31,7 +31,8 @@ public class ProgramTests
 								{
 									DiscordToken = "dummy-token",
 									RoleIds = new() { Members = 1234567890 },
-									WotbApi = new() { ApplicationId = "dummy-appid", BaseUri = "https://apitest.something.test" }
+									WotbApi = new() { ApplicationId = "dummy-appid", BaseUri = "https://apitest.something.test" },
+									WotInspectorApi = new() { BaseUri = "https://api.wotinspector.test" }
 								}));
 							})
 							.Build();
@@ -45,6 +46,7 @@ public class ProgramTests
 		Assert.IsNotNull(services.GetService<IDiscordClient>());
 		Assert.IsNotNull(services.GetService<IBotState>());
 		Assert.IsNotNull(services.GetService<IWotbConnection>());
+		Assert.IsNotNull(services.GetService<IWotInspectorConnection>());
 		Assert.IsNotNull(botHostedService);
 		Assert.IsNotNull(services.GetService<BotCommands>());
 		Assert.IsNotNull(services.GetService<IBotEventHandlers>());
@@ -66,7 +68,9 @@ public class ProgramTests
 		Assert.IsNotNull(services.GetService<IDiscordMessageUtils>());
 		Assert.IsNotNull(services.GetService<IPublicIpAddress>());
 		Assert.IsNotNull(services.GetService<IApiRequester>());
+		Assert.IsNotNull(services.GetService<IAttachmentService>());
 		Assert.IsNotNull(services.GetService<IAccountsRepository>());
 		Assert.IsNotNull(services.GetService<IClansRepository>());
+		Assert.IsNotNull(services.GetService<IBattleRepository>());
 	}
 }

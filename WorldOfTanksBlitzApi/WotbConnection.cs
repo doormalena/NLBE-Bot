@@ -14,9 +14,9 @@ public class WotbConnection(HttpClient client,
 							string baseUri,
 							string applicationId,
 							int maxRetries = 3,
-							Func<TimeSpan, Task> delayFunc = null) : IWotbConnection
+							Func<TimeSpan, Task>? delayFunc = null) : IWotbConnection
 {
-	private readonly HttpClient _client = client ?? throw new ArgumentNullException(nameof(client));
+	private readonly HttpClient _httpClient = client ?? throw new ArgumentNullException(nameof(client));
 	private readonly ILogger<WotbConnection> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 	private readonly string _baseUri = baseUri ?? throw new ArgumentNullException(nameof(baseUri));
 	private readonly string _applicationId = applicationId ?? throw new ArgumentNullException(nameof(applicationId));
@@ -36,7 +36,7 @@ public class WotbConnection(HttpClient client,
 
 		for (int attempt = 0; attempt < _maxRetries; attempt++)
 		{
-			HttpResponseMessage response = await _client.PostAsync(url, form);
+			HttpResponseMessage response = await _httpClient.PostAsync(url, form);
 
 			if ((int) response.StatusCode >= 500)
 			{
@@ -77,7 +77,7 @@ public class WotbConnection(HttpClient client,
 	{
 		JsonElement error = root.GetProperty("error");
 		int errorCode = error.GetProperty("code").GetInt32();
-		string message = error.GetProperty("message").GetString();
+		string? message = error.GetProperty("message").GetString();
 
 		if (errorCode == 407)
 		{
