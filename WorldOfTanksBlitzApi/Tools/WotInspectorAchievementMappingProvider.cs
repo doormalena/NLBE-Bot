@@ -1,5 +1,6 @@
 namespace WorldOfTanksBlitzApi.Tools;
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -7,14 +8,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Interfaces;
 
-public class WotInspectorAchievementMappingProvider : IWotInspectorAchievementMappingProvider
+public class WotInspectorAchievementMappingProvider(string resourceName = "WorldOfTanksBlitzApi.Resources.WotInspectorAchievementMapping.json") : IWotInspectorAchievementMappingProvider
 {
-	private readonly string _resourceName;
-
-	public WotInspectorAchievementMappingProvider(string resourceName = "WorldOfTanksBlitzApi.Resources.WotInspectorAchievementMapping.json")
-	{
-		_resourceName = resourceName;
-	}
+	private readonly string _resourceName = resourceName ?? throw new ArgumentNullException(nameof(resourceName));
 
 	public async Task<Dictionary<string, string>?> GetMappingAsync()
 	{

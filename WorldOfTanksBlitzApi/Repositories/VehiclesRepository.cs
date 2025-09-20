@@ -1,11 +1,11 @@
-namespace WorldOfTanksBlitzApi.Interfaces;
+namespace WorldOfTanksBlitzApi.Repositories;
 
 using System;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Models;
-
+using WorldOfTanksBlitzApi.Interfaces;
 
 public class VehiclesRepository(IWotbConnection connection) : IVehiclesRepository
 {

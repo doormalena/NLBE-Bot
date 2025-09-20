@@ -27,16 +27,14 @@ internal class MapService(IOptions<BotOptions> options, ILogger<MapService> logg
 		}
 
 		IReadOnlyList<IDiscordMessage> messages = await mapChannel.GetMessagesAsync(100);
-		// TODO: move images to resources or download them from a site such as https://wottactic.com/
+		// TODO: investigate to move images to embeded resources or download them from a site such as https://wottactic.com/
 
 		List<Tuple<string, string>> images = [];
 		foreach (IDiscordMessage message in messages)
 		{
-			foreach (IDiscordAttachment attachment in message.Attachments)
-			{
-				string fileName = GetProperFileName(attachment.Url);
-				images.Add(new Tuple<string, string>(fileName, attachment.Url));
-			}
+			images.AddRange(from IDiscordAttachment attachment in message.Attachments
+							let fileName = GetProperFileName(attachment.Url)
+							select new Tuple<string, string>(fileName, attachment.Url));
 		}
 
 		Dictionary<string, MapInfo>? maps = await _mapsRepository.GetAllAsync();

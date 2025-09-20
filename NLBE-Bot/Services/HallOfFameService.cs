@@ -4,7 +4,6 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NLBE_Bot.Blitzstars;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
@@ -24,7 +23,6 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 							 	 IMessageService messageService,
 								 IMapService mapService,
 								 IReplayService replayService,
-								 IUserService userService,
 								 IVehiclesRepository vehiclesRepository) : IHallOfFameService
 {
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));

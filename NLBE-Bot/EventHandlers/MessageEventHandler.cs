@@ -403,7 +403,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			return;
 		}
 
-		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WotbApi.ApplicationId, ["name"]);
+		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WotbApi.ApplicationId, ["name"]); // TODO: migrate to repository call where we search on tank name directly.
 		Json json = new(vehiclesInString, string.Empty);
 		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
 

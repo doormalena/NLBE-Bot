@@ -112,4 +112,18 @@ public class MapServiceTests
 		// Assert.
 		Assert.AreEqual(0, result.Count);
 	}
+
+	[TestMethod]
+	public async Task GetAllMaps_ShouldReturnEmptyList_WhenRepositoryReturnsNull()
+	{
+		// Arrange.
+		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
+		_mapRepositoryMock!.GetAllAsync().Returns(Task.FromResult<Dictionary<string, MapInfo>?>(null));
+
+		// Act.
+		Dictionary<string, MapInfo> result = await _mapService!.GetAllMaps(guildMock);
+
+		// Assert.
+		Assert.AreEqual(0, result.Count);
+	}
 }
