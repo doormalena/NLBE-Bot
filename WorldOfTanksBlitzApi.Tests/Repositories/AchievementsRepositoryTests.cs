@@ -28,6 +28,7 @@ public class AchievementsRepositoryTests
         {
             "achievement1": {
                 "achievement_id": "achievement1",
+                "condition": "condition1",
                 "name": "Achievement One",
                 "description": "Desc",
                 "image": "img.png",
@@ -38,6 +39,7 @@ public class AchievementsRepositoryTests
             },
             "achievement2": {
                 "achievement_id": "achievement2",
+                "condition": "condition2",
                 "name": "Achievement Two",
                 "description": "Desc2",
                 "image": "img2.png",

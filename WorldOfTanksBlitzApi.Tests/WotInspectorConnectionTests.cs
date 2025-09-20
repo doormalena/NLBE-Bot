@@ -116,21 +116,21 @@ public class WotInspectorConnectionTests
 	}
 
 	[TestMethod]
-	public async Task UploadReplayAsync_ThrowsHttpRequestException_OnValidationError()
+	public async Task UploadReplayAsync_ThrowsHttpRequestException_OnValidationErrorJson()
 	{
-		// Arrange
-		string errorJson = @"{
+		// Arrange.
+		const string errorJson = @"{
 		  ""title"": [""This field may not be null.""],
 		  ""upload_file"": [""The submitted data was not a file. Check the encoding type on the form.""]
 		}";
 
-		_mockHttp!.When($"{BaseUri}/{RelativeUrl}")
+		_mockHttp!.When(HttpMethod.Post, $"{BaseUri}/{RelativeUrl}")
 			.Respond(req => new HttpResponseMessage(HttpStatusCode.BadRequest)
 			{
 				Content = new StringContent(errorJson, Encoding.UTF8, "application/json")
 			});
 
-		// Act & Assert
+		// Act & Assert.
 		HttpRequestException ex = await Assert.ThrowsExceptionAsync<HttpRequestException>(async () =>
 		{
 			await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, null!);
