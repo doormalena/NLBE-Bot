@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi;
+using WorldOfTanksBlitzApi.Exceptions;
 
 [TestClass]
 public class WotInspectorConnectionTests
@@ -50,7 +51,7 @@ public class WotInspectorConnectionTests
 				});
 
 		// Act.
-		string result = await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, "Battle Title", 123456);
+		string result = await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, "Battle Title");
 
 		// Assert.
 		Assert.AreEqual(ExpectedResponse, result);
@@ -76,59 +77,67 @@ public class WotInspectorConnectionTests
 			{
 				Assert.AreEqual("Battle Title", value);
 			}
-
-			if (name == "loaded_by")
-			{
-				Assert.AreEqual("123456", value);
-			}
 		}
 	}
 
 	[TestMethod]
-	public async Task UploadReplayAsync_WithNullTitleAndAccountId_ReturnsExpectedJson()
-	{
-		// Arrange.
-		_mockHttp!.When(HttpMethod.Post, $"{BaseUri}/{RelativeUrl}")
-				 .Respond("application/json", ExpectedResponse);
-
-		// Act.
-		string result = await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, null, null);
-
-		// Assert.
-		Assert.AreEqual(ExpectedResponse, result);
-	}
-
-	[TestMethod]
-	public async Task UploadReplayAsync_LogsDebugMessage()
-	{
-		// Arrange.
-		_mockHttp!.When(HttpMethod.Post, $"{BaseUri}/{RelativeUrl}")
-				 .Respond("application/json", ExpectedResponse);
-
-		// Act.
-		await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, "Battle Title", 123456);
-
-		// Assert.
-		_loggerMock!.Received().Log(
-			LogLevel.Debug,
-			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains(ExpectedFileName)),
-			Arg.Any<Exception>(),
-			Arg.Any<Func<object, Exception?, string>>());
-	}
-
-	[TestMethod]
-	public async Task UploadReplayAsync_ThrowsException_WhenPostFails()
+	public async Task UploadReplayAsync_ThrowsInternalServerErrorException_OnServerError()
 	{
 		// Arrange.
 		_mockHttp!.When($"{BaseUri}/{RelativeUrl}")
 				.Respond(HttpStatusCode.InternalServerError);
 
 		// Act & Assert.
-		await Assert.ThrowsExceptionAsync<HttpRequestException>(async () =>
+		await Assert.ThrowsExceptionAsync<InternalServerErrorException>(async () =>
 		{
-			await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, "Title", 123);
+			await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, "Title");
 		});
+	}
+
+	[TestMethod]
+	public async Task UploadReplayAsync_ThrowsInvalidOperationException_OnMalformedJson()
+	{
+		// Arrange.
+		string malformedJson = "{ \"status\": \"ok\", \"data\": [ "; // Incomplete JSON
+
+		_mockHttp!.When($"{BaseUri}/{RelativeUrl}")
+			.Respond(req => new HttpResponseMessage(HttpStatusCode.BadRequest)
+			{
+				Content = new StringContent(malformedJson, Encoding.UTF8, "application/json")
+			});
+
+		// Act & Assert.
+		InvalidOperationException ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(async () =>
+		{
+			await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, "Title");
+		});
+
+		Assert.AreEqual("Failed to parse API response.", ex.Message);
+	}
+
+	[TestMethod]
+	public async Task UploadReplayAsync_ThrowsHttpRequestException_OnValidationError()
+	{
+		// Arrange
+		string errorJson = @"{
+		  ""title"": [""This field may not be null.""],
+		  ""upload_file"": [""The submitted data was not a file. Check the encoding type on the form.""]
+		}";
+
+		_mockHttp!.When($"{BaseUri}/{RelativeUrl}")
+			.Respond(req => new HttpResponseMessage(HttpStatusCode.BadRequest)
+			{
+				Content = new StringContent(errorJson, Encoding.UTF8, "application/json")
+			});
+
+		// Act & Assert
+		HttpRequestException ex = await Assert.ThrowsExceptionAsync<HttpRequestException>(async () =>
+		{
+			await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, null!);
+		});
+
+		Assert.IsTrue(ex.Message.Contains("title: This field may not be null."));
+		Assert.IsTrue(ex.Message.Contains("upload_file: The submitted data was not a file. Check the encoding type on the form."));
 	}
 
 	[TestMethod]

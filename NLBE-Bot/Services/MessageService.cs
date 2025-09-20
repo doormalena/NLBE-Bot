@@ -198,14 +198,14 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 	}
 
-	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WotbBattle battle, string extraDescription)
+	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription)
 	{
 		string description = "De statistieken van deze replay waren onvoldoende om in de Hall Of Fame te komen te staan!\n\n"
 							 + extraDescription;
 		return SendReplayMessage(channel, battle, "Helaas...", description);
 	}
 
-	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WotbBattle battle, string extraDescription, int position)
+	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription, int position)
 	{
 		string description = "Je replay heeft een plaatsje gekregen in onze Hall Of Fame!\n\n"
 							 + extraDescription;
@@ -453,7 +453,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return theMessage;
 	}
 
-	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WotbBattle battle, string title, string description)
+	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WotInspectorBattle battle, string title, string description)
 	{
 		DiscordEmbedBuilder embedBuilder = new()
 		{
@@ -462,17 +462,14 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 			Description = description
 		};
 
-		List<Tuple<string, string>> images = await _mapService.GetAllMaps(channel.Guild);
+		Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
+		MapInfo map = maps[battle.MapId.ToString()];
 
-		Tuple<string, string>? matchingMap = images.FirstOrDefault(map =>
-					!string.IsNullOrEmpty(map.Item1) &&
-					string.Equals(map.Item1, battle.Summary.MapName, StringComparison.OrdinalIgnoreCase));
-
-		if (matchingMap != null)
-		{
+		if (!string.IsNullOrEmpty(map.ImageUrl))
+		{		
 			embedBuilder.Thumbnail = new()
 			{
-				Url = matchingMap.Item2
+				Url = map.ImageUrl
 			};
 		}
 

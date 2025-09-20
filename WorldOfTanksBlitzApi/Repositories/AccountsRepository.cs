@@ -47,7 +47,7 @@ public class AccountsRepository(IWotbConnection connection) : IAccountsRepositor
 	{
 		const string relativeUrl = "/account/list/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(searchTerm), "search");
 		form.Add(new StringContent(limit.ToString()), "limit");
 		form.Add(new StringContent(searchType.ToString().ToLower()), "type");
@@ -59,7 +59,7 @@ public class AccountsRepository(IWotbConnection connection) : IAccountsRepositor
 	{
 		const string relativeUrl = "/account/info/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(accountId.ToString()), "account_id");
 		form.Add(new StringContent("statistics.rating"), "extra");
 

@@ -23,6 +23,7 @@ using System.Threading.Tasks;
 using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Repositories;
+using WorldOfTanksBlitzApi.Tools;
 
 public static class Program
 {
@@ -62,7 +63,7 @@ public static class Program
 					Bind(hostContext.Configuration.GetSection("NLBEBot")).
 					ValidateDataAnnotations().
 					ValidateOnStart();
-
+				services.AddMemoryCache();
 				services.AddSingleton(provider =>
 				{
 					return CreateDiscordClient(provider) as IDiscordClient;
@@ -106,6 +107,10 @@ public static class Program
 				services.AddSingleton<IAccountsRepository, AccountsRepository>();
 				services.AddSingleton<IClansRepository, ClansRepository>();
 				services.AddSingleton<IBattleRepository, BattleRepository>();
+				services.AddSingleton<IAchievementsRepository, AchievementsRepository>();
+				services.AddSingleton<IMapsRepository, MapsRepository>();
+				services.AddSingleton<IVehiclesRepository, VehiclesRepository>();
+				services.AddSingleton<IWotInspectorAchievementMappingProvider, WotInspectorAchievementMappingProvider>();
 			});
 	}
 

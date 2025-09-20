@@ -1,35 +1,33 @@
 namespace NLBE_Bot.Services;
 
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
-using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 
 internal class ReplayService(ILogger<ReplayService> logger,
-					 		 IOptions<BotOptions> options,
 						 	 IWeeklyEventService weeklyEventHandler,
-							 IAccountsRepository accountRepository,
 							 IBattleRepository battleRepository,
-							 IAttachmentService attachmentService) : IReplayService
+							 IAchievementsRepository achievementsRepository,
+							 IAttachmentService attachmentService,
+							 IMemoryCache cache) : IReplayService
 {
+	private const string AllAchievementsCacheKey = "AllAchievements";
 	private readonly ILogger<ReplayService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IWeeklyEventService _weeklyEventHandler = weeklyEventHandler ?? throw new ArgumentNullException(nameof(weeklyEventHandler));
-	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IBattleRepository _battleRepository = battleRepository ?? throw new ArgumentNullException(nameof(battleRepository));
+	private readonly IAchievementsRepository _achievementsRepository = achievementsRepository ?? throw new ArgumentNullException(nameof(achievementsRepository));
 	private readonly IAttachmentService _attachmentService = attachmentService ?? throw new ArgumentNullException(nameof(attachmentService));
+	private readonly IMemoryCache _cache = cache ?? throw new ArgumentNullException(nameof(cache));
 
-	public async Task<string> GetDescriptionForReplay(IDiscordGuild guild, WotbBattle battle, int position, string preDescription = "")
+	public async Task<string> GetDescriptionForReplay(IDiscordGuild guild, WotInspectorBattle battle, int position, string preDescription = "")
 	{
 		StringBuilder sb = new(preDescription);
 
@@ -52,54 +50,61 @@ internal class ReplayService(ILogger<ReplayService> logger,
 		return sb.ToString();
 	}
 
-	public async Task<WotbBattle?> GetReplayInfo(string title, IDiscordAttachment attachment, string playerName)
+	public async Task<WotInspectorBattle?> GetReplayInfo(string title, IDiscordAttachment attachment)
 	{
-		IReadOnlyList<WotbAccountListItem> accountInfo = await _accountRepository.SearchByNameAsync(SearchType.Exact, playerName);
-
-		long? accountId = accountInfo.Count > 0 ? accountInfo[0].AccountId : null;
 		(string fileName, byte[] fileContent) = await _attachmentService.DownloadAttachmentAsync(attachment);
-		return await _battleRepository.GetBattle(fileName, fileContent, title, accountId);
+		return await _battleRepository.GetBattle(fileName, fileContent, title);
 	}
 
-	private async Task<string> GetSomeReplayInfoAsText(WotbBattle battle, int position)
+	private async Task<string> GetSomeReplayInfoAsText(WotInspectorBattle battle, int position)
 	{
 		StringBuilder sb = new();
-		WotbBattleSummary summary = battle.Summary;
 
-		sb.AppendLine(GetInfoInFormat("Link", "[" + summary.Title.AdaptToChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.ViewUrl.AdaptToChat() + ")", false));
-		sb.AppendLine(GetInfoInFormat("Speler", summary.PlayerName.AdaptToChat()));
-		sb.AppendLine(GetInfoInFormat("Clan", summary.Details.clan_tag));
-		sb.AppendLine(GetInfoInFormat("Tank", summary.Vehicle));
-		sb.AppendLine(GetInfoInFormat("Tier", Emoj.GetName(summary.VehicleTier), false));
-		sb.AppendLine(GetInfoInFormat("Damage", summary.Details.damage_made.ToString()));
-		sb.AppendLine(GetInfoInFormat("Damage bounced", summary.Details.damage_blocked.ToString()));
-		sb.AppendLine(GetInfoInFormat("Assist damage", (summary.Details.damage_assisted + summary.Details.damage_assisted_track).ToString()));
-		sb.AppendLine(GetInfoInFormat("exp", summary.Details.exp.ToString()));
-		sb.AppendLine(GetInfoInFormat("Hits", summary.Details.shots_pen.ToString()));
-		sb.AppendLine(GetInfoInFormat("Tanks vernietigd", summary.Details.enemies_destroyed.ToString()));
-		sb.AppendLine(GetInfoInFormat("Map", summary.MapName));
-		string resultaat = "Gewonnen";
-		if (summary.ProtagonistTeam != summary.WinnerTeam)
+		if (battle == null)
 		{
-			resultaat = summary.WinnerTeam is not 2 and not 1 ? "Gelijk gespeeld" : "Verloren";
+			return "Geen replay info gevonden.";
 		}
-		sb.AppendLine(GetInfoInFormat("Resultaat", resultaat));
-		if (summary.BattleStartTime.HasValue)
+
+		WotInspectorPlayerData? protagonistPlayerData = battle.ProtagonistPlayerData;
+
+		if (protagonistPlayerData == null)
 		{
-			sb.AppendLine(GetInfoInFormat("Datum", (summary.BattleStartTime.Value.Day < 10 ? "0" : string.Empty) + summary.BattleStartTime.Value.Day + "-" + summary.BattleStartTime.Value.Month + "-" + summary.BattleStartTime.Value.Year + " " + summary.BattleStartTime.Value.Hour + ":" + (summary.BattleStartTime.Value.Minute < 10 ? "0" : string.Empty) + summary.BattleStartTime.Value.Minute + ":" + (summary.BattleStartTime.Value.Second < 10 ? "0" : string.Empty) + summary.BattleStartTime.Value.Second));
+			return "The player data could not be found in the replay data.";
 		}
-		sb.AppendLine(GetInfoInFormat("Type", WotbBattleSummary.GetBattleType(summary.BattleType)));
-		sb.AppendLine(GetInfoInFormat("Mode", WotbBattleSummary.GetBattleRoom(summary.RoomType)));
+
+		sb.AppendLine(GetInfoInFormat("Link", "[" + battle.Title.AdaptToChat().Replace('_', Constants.UNDERSCORE_REPLACEMENT_CHAR) + "](" + battle.DetailsUrl.AdaptToChat() + ")", false));
+		sb.AppendLine(GetInfoInFormat("Speler", battle.PlayerName.AdaptToChat()));
+		sb.AppendLine(GetInfoInFormat("Clan", battle.ProtagonistClan.ToString())); // TODO: covert to name using clan repository
+		sb.AppendLine(GetInfoInFormat("Tank", battle.VehicleDescr.ToString())); // TODO: covert to name using Wotb API?
+		//sb.AppendLine(GetInfoInFormat("Tier", Emoj.GetName(battle.VehicleTier), false)); // TODO: get from verhicle using Wotb API?
+		sb.AppendLine(GetInfoInFormat("Damage", battle.DamageMade.ToString()));
+		sb.AppendLine(GetInfoInFormat("Damage assisted (total)", protagonistPlayerData.DamageAssistedCombined.ToString()));
+		sb.AppendLine(GetInfoInFormat("Damage blocked", protagonistPlayerData.DamageBlocked.ToString()));
+		sb.AppendLine(GetInfoInFormat("Exp (total)", battle.ExpTotal.ToString()));
+		sb.AppendLine(GetInfoInFormat("Hits", protagonistPlayerData.ShotsPen.ToString()));
+		sb.AppendLine(GetInfoInFormat("Tanks vernietigd", protagonistPlayerData.EnemiesDestroyed.ToString()));
+		sb.AppendLine(GetInfoInFormat("Map", battle.MapId.ToString())); // TODO: covert to name using Wotb API?
+		sb.AppendLine(GetInfoInFormat("Resultaat", battle.BattleResultAsString));
+		sb.AppendLine(GetInfoInFormat("Datum", battle.BattleStartTime.ToString("dd-MM-yyyy HH:mm:ss")));
+		sb.AppendLine(GetInfoInFormat("Type", battle.BattleTypeAsString));
+		sb.AppendLine(GetInfoInFormat("Mode", battle.RoomTypeAsString));
+
 		if (position > 0)
 		{
 			sb.AppendLine(GetInfoInFormat("Positie in HOF", position.ToString()));
 		}
-		if (summary.Details.achievements != null && summary.Details.achievements.Count > 0)
+
+		if (protagonistPlayerData.Achievements != null && protagonistPlayerData.Achievements.Count > 0)
 		{
-			List<Achievement> achievementList = [];
-			for (int i = 0; i < summary.Details.achievements.Count; i++)
+			List<WotbAchievement> achievementList = [];
+
+			for (int i = 0; i < protagonistPlayerData.Achievements.Count; i++)
 			{
-				Achievement tempAchievement = await Achievement.getAchievement(_options.WotbApi.ApplicationId, summary.Details.achievements.ElementAt(i).t);
+				KeyValuePair<string, int> a = protagonistPlayerData.Achievements.ElementAt(i);
+				int.TryParse(a.Key, out int achievementId);
+
+				WotbAchievement? tempAchievement = await GetAchievement(achievementId);
+
 				if (tempAchievement != null)
 				{
 					achievementList.Add(tempAchievement);
@@ -107,17 +112,29 @@ internal class ReplayService(ILogger<ReplayService> logger,
 			}
 			if (achievementList.Count > 0)
 			{
-				achievementList = achievementList.OrderBy(x => x.order).ToList();
+				achievementList = achievementList.OrderBy(x => x.Order).ToList();
 				sb.AppendLine("Achievements:");
 				sb.Append("```");
-				foreach (Achievement tempAchievement in achievementList)
+				foreach (WotbAchievement tempAchievement in achievementList)
 				{
-					sb.AppendLine(tempAchievement.name.Replace("\n", string.Empty).Replace("(" + tempAchievement.achievement_id + ")", string.Empty));
+					sb.AppendLine(tempAchievement.Name.Replace("\n", string.Empty).Replace("(" + tempAchievement.AchievementId + ")", string.Empty));
 				}
 				sb.Append("```");
 			}
 		}
 		return sb.ToString();
+	}
+
+	private async Task<WotbAchievement?> GetAchievement(int id)
+	{
+		Dictionary<string, WotbAchievement>? achievements = await _cache.GetOrCreateAsync(AllAchievementsCacheKey, entry => _achievementsRepository.GetAllAsync());
+
+		if (achievements == null)
+		{
+			return null;
+		}
+
+		return achievements.FirstOrDefault(x => x.Value.WotInspectorId == id).Value;
 	}
 
 	private static string GetInfoInFormat(string key, string value, bool bold = true)

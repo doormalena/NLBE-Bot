@@ -134,7 +134,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 					else
 					{
 						//ReplayResults die niet in HOF komen
-						WotbBattle? replayInfo = null;
+						WotInspectorBattle? battle = null;
 						bool wasReplay = false;
 
 						if (message.Attachments.Count > 0)
@@ -145,48 +145,31 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							{
 								await _messageService.ConfirmCommandExecuting(message);
 								wasReplay = true;
-								replayInfo = await _replayService.GetReplayInfo(string.Empty, attachment, _userService.GetWotbPlayerNameFromDisplayName(member.DisplayName).PlayerName);
+								battle = await _replayService.GetReplayInfo(string.Empty, attachment);
 							}
 						}
 
-						if (wasReplay && replayInfo != null)
+						if (wasReplay && battle != null)
 						{
 							string thumbnail = string.Empty;
 							string eventDescription = string.Empty;
 							try
 							{
-								eventDescription = await _weeklyEventService.GetStringForWeeklyEvent(guild, replayInfo);
+								eventDescription = await _weeklyEventService.GetStringForWeeklyEvent(guild, battle);
 							}
 							catch (Exception ex)
 							{
 								_logger.LogError(ex, "Error while getting weekly event description for replay.");
 							}
 
-							List<Tuple<string, string>> images = await _mapService.GetAllMaps(guild);
-
-							foreach (Tuple<string, string> map in from Tuple<string, string> map in images
-																  where replayInfo.Summary.MapName.Contains(map.Item1, StringComparison.OrdinalIgnoreCase)
-																  select map)
-							{
-								try
-								{
-									if (map.Item1 != string.Empty)
-									{
-										thumbnail = map.Item2;
-									}
-								}
-								catch (Exception ex)
-								{
-									_logger.LogError(ex, "Could not set thumbnail for embed.");
-									thumbnail = string.Empty;
-								}
-							}
+							Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
+							MapInfo map = maps[battle.MapId.ToString()];
 
 							EmbedOptions embedOptions = new()
 							{
-								Thumbnail = thumbnail,
+								Thumbnail = map?.ImageUrl,
 								Title = "Resultaat",
-								Description = await _replayService.GetDescriptionForReplay(guild, replayInfo, -1, eventDescription),
+								Description = await _replayService.GetDescriptionForReplay(guild, battle, -1, eventDescription),
 								IsForReplay = true,
 							};
 							await _messageService.CreateEmbed(channel, embedOptions);

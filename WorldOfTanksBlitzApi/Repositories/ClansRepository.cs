@@ -68,7 +68,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 	{
 		const string relativeUrl = "/clans/accountinfo/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(accountId.ToString()), "account_id");
 		form.Add(new StringContent("clan"), "extra");
 
@@ -79,7 +79,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 	{
 		const string relativeUrl = "/clans/list/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(searchTerm), "search");
 		form.Add(new StringContent(limit.ToString()), "limit");
 		form.Add(new StringContent(searchType.ToString().ToLower()), "type");
@@ -91,7 +91,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 	{
 		const string relativeUrl = "/clans/info/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(clanId.ToString()), "clan_id");
 
 		if (loadMembers)

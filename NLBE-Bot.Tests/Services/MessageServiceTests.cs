@@ -860,21 +860,17 @@ public class MessageServiceTests
 	public async Task SayReplay_Wrappers_ShouldBehaveAsExpected(string methodName, string battleMapName, string? mapUrl, bool lastCreatedExists, bool expectThumbnail)
 	{
 		// Arrange.
-		WotbBattle battle = new()
+		int mapId = 23;
+		WotInspectorBattle battle = new()
 		{
-			Summary = new()
-			{
-				MapName = battleMapName
-			}
+			MapId = mapId
 		};
 
-		List<Tuple<string, string>> maps = [];
-		if (mapUrl != null)
-		{
-			// If we don't expect a thumbnail, simulate empty name in map list
-			string mapNameForList = expectThumbnail ? battleMapName : string.Empty;
-			maps.Add(Tuple.Create(mapNameForList, mapUrl));
-		}
+		// If we don't expect a thumbnail, simulate empty name in map list
+		string mapNameForList = expectThumbnail ? battleMapName : string.Empty;
+		Dictionary<string, MapInfo> maps = [];
+		maps.Add(mapId.ToString(), new MapInfo() { Id = mapId, Name = mapNameForList, ImageUrl = mapUrl });
+
 		_mapServiceMock!.GetAllMaps(_channelMock!.Guild)
 			.Returns(Task.FromResult(maps));
 

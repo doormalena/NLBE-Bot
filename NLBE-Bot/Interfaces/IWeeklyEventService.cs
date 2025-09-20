@@ -15,7 +15,7 @@ internal interface IWeeklyEventService
 
 	public Task ReadWeeklyEvent(IDiscordGuild guild);
 
-	public Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WotbBattle battle);
+	public Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WotInspectorBattle battle);
 
 	public Task CreateNewWeeklyEvent(string tank, IDiscordChannel weeklyEventChannel);
 }

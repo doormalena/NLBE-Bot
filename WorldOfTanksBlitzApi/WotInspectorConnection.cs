@@ -2,9 +2,13 @@ namespace WorldOfTanksBlitzApi;
 
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Exceptions;
 using WorldOfTanksBlitzApi.Interfaces;
 
 public class WotInspectorConnection(HttpClient client,
@@ -15,34 +19,60 @@ public class WotInspectorConnection(HttpClient client,
 	private readonly ILogger<WotInspectorConnection> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 	private readonly string _baseUri = baseUri ?? throw new ArgumentNullException(nameof(baseUri));
 
-	public async Task<string> UploadReplayAsync(string relativeUrl, string fileName, byte[] fileContent, string? title, long? accountId)
+	public async Task<string> UploadReplayAsync(string relativeUrl, string fileName, byte[] fileContent, string title)
 	{
 		string url = _baseUri.TrimEnd(Path.AltDirectorySeparatorChar) + Path.AltDirectorySeparatorChar + relativeUrl.TrimStart(Path.AltDirectorySeparatorChar);
 
-		string base64Data = Convert.ToBase64String(fileContent);
-
-		MultipartFormDataContent form = new()
+		using MultipartFormDataContent form = new()
 		{
-			{ new StringContent(fileName), "filename" },
-			{ new StringContent(base64Data), "file" }
+			{
+				new StringContent(title ?? string.Empty),
+				"title"
+			},
+			{
+				new ByteArrayContent(fileContent),
+				"upload_file",
+				fileName
+			}
 		};
 
-		if (!string.IsNullOrWhiteSpace(title))
-		{
-			form.Add(new StringContent(title), "title");
-		}
-
-		if (accountId.HasValue)
-		{
-			form.Add(new StringContent(accountId.Value.ToString()), "loaded_by");
-		}
-
-		_logger.LogDebug("Uploading replay to WotInspecor at {Url} with filename {FileName} for account {AccountId}", url, fileName, accountId.HasValue ? accountId.Value.ToString() : "N/A");
+		_logger.LogDebug("Uploading replay to WotInspector at {Url}", url);
 
 		HttpResponseMessage response = await _httpClient.PostAsync(url, form);
 
-		return !response.IsSuccessStatusCode ?
-				throw new HttpRequestException($"Upload failed: {(int) response.StatusCode} {response.ReasonPhrase}") :
-				await response.Content.ReadAsStringAsync();
+		if ((int) response.StatusCode >= 500)
+		{
+			throw new InternalServerErrorException();
+		}
+
+		string content = await response.Content.ReadAsStringAsync();
+
+		try
+		{
+			/* Examples:
+			 * 200 - { "id": "833246b4e310af8087f9bafd38f539f5", "map_id": 23, ... }
+			 * 400 - { "title": [ "This field may not be null." ], "upload_file": [ "The submitted data was not a file. Check the encoding type on the form." ] }
+			*/
+			if (!response.IsSuccessStatusCode)
+			{
+				Dictionary<string, string[]>? errorDoc = JsonSerializer.Deserialize<Dictionary<string, string[]>>(content);
+				if (errorDoc != null && errorDoc.Count > 0)
+				{
+					StringBuilder errorMessages = new();
+					foreach (KeyValuePair<string, string[]> kvp in errorDoc)
+					{
+						errorMessages.AppendLine($"{kvp.Key}: {string.Join("; ", kvp.Value)}");
+					}
+
+					throw new HttpRequestException($"Upload failed: {(int) response.StatusCode} {response.ReasonPhrase}\n{errorMessages}");
+				}
+			}
+
+			return content;
+		}
+		catch (JsonException)
+		{
+			throw new InvalidOperationException("Failed to parse API response.");
+		}
 	}
 }

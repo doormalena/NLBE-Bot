@@ -72,5 +72,9 @@ public class ProgramTests
 		Assert.IsNotNull(services.GetService<IAccountsRepository>());
 		Assert.IsNotNull(services.GetService<IClansRepository>());
 		Assert.IsNotNull(services.GetService<IBattleRepository>());
+		Assert.IsNotNull(services.GetService<IAchievementsRepository>());
+		Assert.IsNotNull(services.GetService<IMapsRepository>());
+		Assert.IsNotNull(services.GetService<IVehiclesRepository>());
+		Assert.IsNotNull(services.GetService<IWotInspectorAchievementMappingProvider>());
 	}
 }

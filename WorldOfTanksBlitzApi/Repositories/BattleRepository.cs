@@ -11,18 +11,17 @@ public class BattleRepository(IWotInspectorConnection connection) : IBattleRepos
 {
 	private readonly IWotInspectorConnection _connection = connection ?? throw new ArgumentNullException(nameof(connection));
 
-	public async Task<WotbBattle?> GetBattle(string fileName, byte[] fileContent, string? title, long? accountId)
+	public async Task<WotInspectorBattle?> GetBattle(string fileName, byte[] fileContent, string title)
 	{
-		const string relativeUrl = "/replay/upload?url=";
+		const string relativeUrl = "/v2/blitz/replays/";
 
-		string json = await _connection.UploadReplayAsync(relativeUrl, fileName, fileContent, title, accountId);
+		string json = await _connection.UploadReplayAsync(relativeUrl, fileName, fileContent, title);
 
-		// The API returns: { "status": "...", "data": { "summary": { ...details... } } }
+		// The API returns: { "id": "833df4545fg45246b4e31038f539f5", "map_id": 23, ... }
 		JsonNode? rootNode = JsonNode.Parse(json);
-		JsonNode? dataNode = rootNode?["data"];
 
-		return dataNode != null && dataNode.ToJsonString() != "null" ?
-			JsonSerializer.Deserialize<WotbBattle>(dataNode.ToJsonString()) :
+		return rootNode != null ?
+			JsonSerializer.Deserialize<WotInspectorBattle>(rootNode.ToJsonString()) :
 			null;
 	}
 }

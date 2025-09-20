@@ -7,9 +7,10 @@ using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using NSubstitute;
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class MapServiceTests
@@ -17,6 +18,7 @@ public class MapServiceTests
 	private ILogger<MapService>? _loggerMock;
 	private IOptions<BotOptions>? _optionsMock;
 	private MapService? _mapService;
+	private IMapsRepository? _mapRepositoryMock;
 
 	[TestInitialize]
 	public void Setup()
@@ -32,11 +34,12 @@ public class MapServiceTests
 		};
 
 		_optionsMock = Options.Create(botOptions);
-		_mapService = new MapService(_optionsMock, _loggerMock);
+		_mapRepositoryMock = Substitute.For<IMapsRepository>();
+		_mapService = new MapService(_optionsMock, _loggerMock, _mapRepositoryMock);
 	}
 
 	[TestMethod]
-	public async Task GetAllMaps_ShouldReturnSortedMapList_WhenAttachmentsExist()
+	public async Task GetAllMaps_ShouldReturnMaps_WithImages_WhenAttachmentsExist()
 	{
 		// Arrange.
 		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
@@ -52,13 +55,48 @@ public class MapServiceTests
 		channelMock.GetMessagesAsync(100).Returns(Task.FromResult<IReadOnlyList<IDiscordMessage>>([messageMock]));
 		guildMock.GetChannel(_optionsMock!.Value.ChannelIds.Maps).Returns(channelMock);
 
+		_mapRepositoryMock!.GetAllAsync().Returns(Task.FromResult<Dictionary<string, MapInfo>?>(new()
+		{
+			{ "1", new MapInfo { Id = 1, Name = "Map Alpha" } },
+			{ "2", new MapInfo { Id = 2, Name = "Map Beta" } }
+		}));
+
 		// Act.
-		List<Tuple<string, string>> result = await _mapService!.GetAllMaps(guildMock);
+		Dictionary<string, MapInfo> result = await _mapService!.GetAllMaps(guildMock);
 
 		// Assert.
 		Assert.AreEqual(2, result.Count);
-		Assert.AreEqual("map alpha", result[0].Item1);
-		Assert.AreEqual("map beta", result[1].Item1);
+		Assert.AreEqual("Map Alpha", result["1"].Name);
+		Assert.AreEqual("https://cdn.discordapp.com/maps/map_alpha.jpg", result["1"].ImageUrl);
+		Assert.AreEqual("Map Beta", result["2"].Name);
+		Assert.AreEqual("https://cdn.discordapp.com/maps/map_beta.jpg", result["2"].ImageUrl);
+	}
+	[TestMethod]
+	public async Task GetAllMaps_ShouldReturnMaps_WithoutImages_WhenAttachmentsDoNotExist()
+	{
+		// Arrange.
+		IDiscordGuild guildMock = Substitute.For<IDiscordGuild>();
+		IDiscordChannel channelMock = Substitute.For<IDiscordChannel>();
+		IDiscordMessage messageMock = Substitute.For<IDiscordMessage>();
+
+		channelMock.GetMessagesAsync(100).Returns(Task.FromResult<IReadOnlyList<IDiscordMessage>>([messageMock]));
+		guildMock.GetChannel(_optionsMock!.Value.ChannelIds.Maps).Returns(channelMock);
+
+		_mapRepositoryMock!.GetAllAsync().Returns(Task.FromResult<Dictionary<string, MapInfo>?>(new()
+		{
+			{ "1", new MapInfo { Id = 1, Name = "Map Alpha" } },
+			{ "2", new MapInfo { Id = 2, Name = "Map Beta" } }
+		}));
+
+		// Act.
+		Dictionary<string, MapInfo> result = await _mapService!.GetAllMaps(guildMock);
+
+		// Assert.
+		Assert.AreEqual(2, result.Count);
+		Assert.AreEqual("Map Alpha", result["1"].Name);
+		Assert.AreEqual("", result["1"].ImageUrl);
+		Assert.AreEqual("Map Beta", result["2"].Name);
+		Assert.AreEqual("", result["2"].ImageUrl);
 	}
 
 	[TestMethod]
@@ -69,7 +107,7 @@ public class MapServiceTests
 		guildMock.GetChannel(_optionsMock!.Value.ChannelIds.Maps).Returns((IDiscordChannel?) null);
 
 		// Act.
-		List<Tuple<string, string>> result = await _mapService!.GetAllMaps(guildMock);
+		Dictionary<string, MapInfo> result = await _mapService!.GetAllMaps(guildMock);
 
 		// Assert.
 		Assert.AreEqual(0, result.Count);

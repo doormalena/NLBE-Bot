@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Interfaces;
@@ -793,7 +794,7 @@ internal class BotCommands(IDiscordClient discordClient,
 		await ExecuteIfAllowedAsync(ctx, async () =>
 		{
 			await _messageService.ConfirmCommandExecuting(ctx.Message);
-			List<Tuple<string, string>> images = await _mapService.GetAllMaps(ctx.Guild);
+			Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(ctx.Guild);
 
 			StringBuilder sbMap = new();
 			for (int i = 0; i < map.Length; i++)
@@ -807,10 +808,12 @@ internal class BotCommands(IDiscordClient discordClient,
 			if (sbMap.ToString().ToLower().Equals("list") || sbMap.Length == 0)
 			{
 				StringBuilder sb = new();
-				foreach (Tuple<string, string> item in images)
+
+				foreach (KeyValuePair<string, MapInfo> map in maps)
 				{
-					sb.AppendLine(item.Item1);
+					sb.AppendLine(map.Value.Name);
 				}
+
 				EmbedOptions embedOptions = new()
 				{
 					Title = "Mappen",
@@ -820,29 +823,19 @@ internal class BotCommands(IDiscordClient discordClient,
 			}
 			else
 			{
-				bool mapFound = false;
-				foreach (Tuple<string, string> item in from Tuple<string, string> item in images
-													   where item.Item1.Contains(sbMap.ToString(), StringComparison.OrdinalIgnoreCase)
-													   select item)
-				{
-					mapFound = true;
-					EmbedOptions embedOptions = new()
-					{
-						Title = item.Item1,
-						ImageUrl = item.Item2
-					};
-					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-					break;
-				}
-
-				if (!mapFound)
-				{
-					EmbedOptions embedOptions = new()
+				MapInfo? map = maps.Values.FirstOrDefault(x => x.Name.Equals(sbMap.ToString(), StringComparison.OrdinalIgnoreCase));
+				EmbedOptions embedOptions = map == null
+					? new()
 					{
 						Title = "De map `" + sbMap.ToString() + "` kon niet gevonden worden."
+					}
+					: new()
+					{
+						Title = map.Name,
+						ImageUrl = map.ImageUrl
 					};
-					await _messageService.CreateEmbed(ctx.Channel, embedOptions);
-				}
+
+				await _messageService.CreateEmbed(ctx.Channel, embedOptions);
 			}
 
 			await _messageService.ConfirmCommandExecuted(ctx.Message);

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 internal class EmbedOptions
 {
-	public string Thumbnail
+	public string? Thumbnail
 	{
 		get; set;
 	} = string.Empty;
@@ -41,7 +41,7 @@ internal class EmbedOptions
 		get; set;
 	} = [];
 
-	public string ImageUrl
+	public string? ImageUrl
 	{
 		get; set;
 	} = string.Empty;

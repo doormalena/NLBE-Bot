@@ -10,17 +10,20 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 
 internal class WeeklyEventService(IUserService userService,
 								  IBotState botState,
 								  ILogger<WeeklyEventService> _logger,
-								  IOptions<BotOptions> options) : IWeeklyEventService
+								  IOptions<BotOptions> options,
+								  IVehiclesRepository vehiclesRepository) : IWeeklyEventService
 {
 	private readonly ILogger<WeeklyEventService> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+	private readonly IVehiclesRepository _vehiclesRepository = vehiclesRepository ?? throw new ArgumentNullException(nameof(vehiclesRepository));
 
 	public IDiscordMessage? DiscordMessage
 	{
@@ -116,48 +119,75 @@ internal class WeeklyEventService(IUserService userService,
 		}
 	}
 
-	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WotbBattle battle)
+	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WotInspectorBattle battle)
 	{
 		List<WeeklyEventType> weeklyEventTypes = [];
 
-		if (battle.Summary.Vehicle == WeeklyEvent?.Tank)
+		if (WeeklyEvent == null)
 		{
+			_logger.LogError("WeeklyEvent was null while executing CheckAndHandleWeeklyEvent method.");
+			return weeklyEventTypes;
+		}
+
+		WotbVehicle? vehicle = await _vehiclesRepository.GetById(battle.VehicleDescr);
+
+		if (vehicle == null)
+		{
+			_logger.LogWarning("The vehicle could not be found in the vehicles repository.");
+			return weeklyEventTypes;
+		}
+
+		if (string.Equals(WeeklyEvent.Tank, vehicle.Name, StringComparison.OrdinalIgnoreCase))
+		{
+			WotInspectorPlayerData? protagonistPlayerData = battle.ProtagonistPlayerData;
+
+			if (protagonistPlayerData == null)
+			{
+				_logger.LogWarning("The player data could not be found in the replay data.");
+			}
+
 			//TODO: refactor into a switch statement
 
-			if (WeeklyEvent.WeeklyEventItems[0].Value < battle.Summary.Details.damage_made)
+			if (WeeklyEvent.WeeklyEventItems[0].Value < battle.DamageMade)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_damage);
-				WeeklyEvent.WeeklyEventItems[0] = new WeeklyEventItem(battle.Summary.Details.damage_made, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[0] = new WeeklyEventItem(battle.DamageMade, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[1].Value < battle.Summary.ExpBase)
+
+			if (WeeklyEvent.WeeklyEventItems[1].Value < battle.ExpBase)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_exp);
-				WeeklyEvent.WeeklyEventItems[1] = new WeeklyEventItem(battle.Summary.ExpBase, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[1] = new WeeklyEventItem(battle.ExpBase, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[2].Value < battle.Summary.CreditsBase)
+
+			if (WeeklyEvent.WeeklyEventItems[2].Value < battle.CreditsBase)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_credits);
-				WeeklyEvent.WeeklyEventItems[2] = new WeeklyEventItem(battle.Summary.CreditsBase, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[2] = new WeeklyEventItem(battle.CreditsBase, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[3].Value < battle.Summary.Details.damage_blocked)
-			{
-				weeklyEventTypes.Add(WeeklyEventType.Most_damage_bounced);
-				WeeklyEvent.WeeklyEventItems[3] = new WeeklyEventItem(battle.Summary.Details.damage_blocked, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
-			}
-			if (WeeklyEvent.WeeklyEventItems[4].Value < battle.Summary.Details.damage_assisted + battle.Summary.Details.damage_assisted_track)
+
+			if (WeeklyEvent.WeeklyEventItems[4].Value < protagonistPlayerData?.DamageAssistedCombined)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_assist_damage);
-				WeeklyEvent.WeeklyEventItems[4] = new WeeklyEventItem(battle.Summary.Details.damage_assisted + battle.Summary.Details.damage_assisted_track, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[4] = new WeeklyEventItem(protagonistPlayerData.DamageAssistedCombined, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[5].Value < battle.Summary.Details.enemies_destroyed)
+
+			if (WeeklyEvent.WeeklyEventItems[3].Value < protagonistPlayerData?.DamageBlocked)
+			{
+				weeklyEventTypes.Add(WeeklyEventType.Most_damage_bounced);
+				WeeklyEvent.WeeklyEventItems[3] = new WeeklyEventItem(protagonistPlayerData.DamageBlocked, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+			}
+
+			if (WeeklyEvent.WeeklyEventItems[5].Value < protagonistPlayerData?.EnemiesDestroyed)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_destroyed);
-				WeeklyEvent.WeeklyEventItems[5] = new WeeklyEventItem(battle.Summary.Details.enemies_destroyed, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[5] = new WeeklyEventItem(protagonistPlayerData.EnemiesDestroyed, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[6].Value < battle.Summary.Details.shots_pen)
+
+			if (WeeklyEvent.WeeklyEventItems[6].Value < protagonistPlayerData?.ShotsPen)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_hits);
-				WeeklyEvent.WeeklyEventItems[6] = new WeeklyEventItem(battle.Summary.Details.shots_pen, battle.Summary.PlayerName, battle.ViewUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[6] = new WeeklyEventItem(protagonistPlayerData.ShotsPen, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
 
 			await UpdateLastWeeklyEvent();
@@ -166,12 +196,24 @@ internal class WeeklyEventService(IUserService userService,
 		return weeklyEventTypes;
 	}
 
-	public async Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WotbBattle battle)
+	public async Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WotInspectorBattle battle)
 	{
 		string content = string.Empty;
 		await ReadWeeklyEvent(guild);
+		WotbVehicle? vehicle = await _vehiclesRepository.GetById(battle.VehicleDescr);
 
-		if (WeeklyEvent != null && WeeklyEvent.Tank == battle.Summary.Vehicle && DiscordMessage != null && battle.Summary.RoomType is 1 or 5 or 7 or 4 && battle.Summary.BattleStartTime.HasValue && WeeklyEvent.StartDate < battle.Summary.BattleStartTime.Value && WeeklyEvent.StartDate.AddDays(7) > battle.Summary.BattleStartTime.Value)
+		if (vehicle == null)
+		{
+			_logger.LogWarning("The vehicle could not be found in the vehicles repository.");
+			return content;
+		}
+
+		if (WeeklyEvent != null &&
+			DiscordMessage != null &&
+			string.Equals(WeeklyEvent.Tank, vehicle.Name, StringComparison.OrdinalIgnoreCase) &&
+			battle.RoomType is 1 or 5 or 7 or 4 &&
+			WeeklyEvent.StartDate < battle.BattleStartTime &&
+			WeeklyEvent.StartDate.AddDays(7) > battle.BattleStartTime)
 		{
 			List<WeeklyEventType> weeklyEventTypes = await CheckAndHandleWeeklyEvent(battle);
 
