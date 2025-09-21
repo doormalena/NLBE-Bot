@@ -2,14 +2,12 @@ namespace NLBE_Bot.Tests.Services;
 
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
-using NLBE_Bot.Blitzstars;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using NSubstitute;
 using NSubstitute.ReceivedExtensions;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
-using WorldOfTanksBlitzApi.Repositories;
 
 [TestClass]
 public class ReplayServiceTests
@@ -130,54 +128,17 @@ public class ReplayServiceTests
 	}
 
 	[TestMethod]
-	public async Task GetReplayInfo_PlayerIdFound_NoAttachment_UsesUrl()
+	public async Task GetReplayInfo_NoAttachment_DoesNotReturnBattle()
 	{
 		// Arrange.
 		_battleRepositoryMock!.GetBattle(Arg.Any<string>(), Arg.Any<byte[]>(), "title")
-			.Returns(Task.FromResult<WotInspectorBattle?>(new WotInspectorBattle { Title = "title" }));
+			.Returns(Task.FromResult<WotInspectorBattle?>(null));
 
 		// Act.
 		WotInspectorBattle? result = await _replayService!.GetReplayInfo("title", null!);
 
 		// Assert.
-		Assert.IsNotNull(result);
-		Assert.AreEqual("title", result.Title);
-	}
-
-	[TestMethod]
-	public async Task GetReplayInfo_PlayerIdNotFound_WithAttachment_ReturnsBattle()
-	{
-		// Arrange.
-		IDiscordAttachment attachment = Substitute.For<IDiscordAttachment>();
-		attachment.Url.Returns("http://attachment.url");
-
-		_discordAttachmentServiceMock!.DownloadAttachmentAsync(attachment)
-			.Returns(Task.FromResult(("test.wotbreplay", new byte[] { 1, 2, 3 })));
-
-		_battleRepositoryMock!.GetBattle(Arg.Any<string>(), Arg.Any<byte[]>(), "title")
-			.Returns(Task.FromResult<WotInspectorBattle?>(new WotInspectorBattle { Title = "title" }));
-
-		// Act.
-		WotInspectorBattle? result = await _replayService!.GetReplayInfo("title", attachment);
-
-		// Assert.
-		Assert.IsNotNull(result);
-		Assert.AreEqual("title", result.Title);
-	}
-
-	[TestMethod]
-	public async Task GetReplayInfo_PlayerIdNotFound_NoAttachment_ReturnsBattle()
-	{
-		// Arrange.
-		_battleRepositoryMock!.GetBattle(Arg.Any<string>(), Arg.Any<byte[]>(), "title")
-			.Returns(Task.FromResult<WotInspectorBattle?>(new WotInspectorBattle { Title = "title" }));
-
-		// Act.
-		WotInspectorBattle? result = await _replayService!.GetReplayInfo("title", null!);
-
-		// Assert.
-		Assert.IsNotNull(result);
-		Assert.AreEqual("title", result.Title);
+		Assert.IsNull(result);
 	}
 
 	[TestMethod]

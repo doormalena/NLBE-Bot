@@ -108,7 +108,11 @@ internal class ReplayService(ILogger<ReplayService> logger,
 			for (int i = 0; i < protagonistPlayerData.Achievements.Count; i++)
 			{
 				KeyValuePair<string, int> a = protagonistPlayerData.Achievements.ElementAt(i);
-				int.TryParse(a.Key, out int achievementId);
+
+				if (!int.TryParse(a.Key, out int achievementId))
+				{
+					continue;
+				}
 
 				WotbAchievement? tempAchievement = await GetAchievement(achievementId);
 
@@ -119,7 +123,7 @@ internal class ReplayService(ILogger<ReplayService> logger,
 			}
 			if (achievementList.Count > 0)
 			{
-				achievementList = achievementList.OrderBy(x => x.Order).ToList();
+				achievementList = [.. achievementList.OrderBy(x => x.Order)];
 				sb.AppendLine("Achievements:");
 				sb.Append("```");
 				foreach (WotbAchievement tempAchievement in achievementList)
