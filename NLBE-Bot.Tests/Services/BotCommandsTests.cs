@@ -4,9 +4,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using NLBE_Bot.Services;
 using NSubstitute;
 using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class BotCommandsTests
@@ -105,5 +107,116 @@ public class BotCommandsTests
 			Arg.Is<string>(s => s.Contains("https://eu.wargaming.net/shop/redeem/"))
 		);
 		await _messageServiceMock!.Received(1).ConfirmCommandExecuted(_messageMock!);
+	}
+
+	[TestMethod]
+	public async Task HandleMapLoader_ShouldListMaps_WhenInputIsList()
+	{
+		// Arrange.
+		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
+		commandMock.Name.Returns("Map");
+		_ctxMock!.Command.Returns(commandMock);
+
+		Dictionary<string, MapInfo> maps = new()
+		{
+			{ "Yamato", new MapInfo { Name = "Yamato" } },
+			{ "Canyon", new MapInfo { Name = "Canyon" } }
+		};
+		_mapServiceMock!.GetAllMaps(_ctxMock!.Guild).Returns(maps);
+
+		// Act.
+		await _commands!.HandleMapLoader(_ctxMock, "list");
+
+		// Assert.
+		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
+			e.Title == "Mappen" &&
+			e.Description.Contains("Yamato") &&
+			e.Description.Contains("Canyon")));
+	}
+
+	[TestMethod]
+	public async Task HandleMapLoader_ShouldListMaps_WhenInputIsEmpty()
+	{
+		// Arrange.
+		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
+		commandMock.Name.Returns("Map");
+		_ctxMock!.Command.Returns(commandMock);
+
+		Dictionary<string, MapInfo> maps = new()
+		{
+			{ "Canyon", new MapInfo { Name = "Canyon" } }
+		};
+		_mapServiceMock!.GetAllMaps(_ctxMock!.Guild).Returns(maps);
+
+		// Act.
+		await _commands!.HandleMapLoader(_ctxMock);
+
+		// Assert.
+		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
+			e.Title == "Mappen" &&
+			e.Description.Contains("Canyon")));
+	}
+
+	[TestMethod]
+	public async Task HandleMapLoader_ShouldReturnMapEmbed_WhenMapExists()
+	{
+		// Arrange.
+		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
+		commandMock.Name.Returns("Map");
+		_ctxMock!.Command.Returns(commandMock);
+
+		Dictionary<string, MapInfo> maps = new()
+		{
+			{ "Canyon", new MapInfo { Name = "Canyon", ImageUrl = "https://example.com/canyon.png" } }
+		};
+		_mapServiceMock!.GetAllMaps(_ctxMock!.Guild).Returns(maps);
+
+		// Act.
+		await _commands!.HandleMapLoader(_ctxMock, "Canyon");
+
+		// Assert.
+		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
+			e.Title == "Canyon" &&
+			e.ImageUrl == "https://example.com/canyon.png"));
+	}
+
+	[TestMethod]
+	public async Task HandleMapLoader_ShouldReturnNotFoundEmbed_WhenMapDoesNotExist()
+	{
+		// Arrange.
+		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
+		commandMock.Name.Returns("Map");
+		_ctxMock!.Command.Returns(commandMock);
+
+		Dictionary<string, MapInfo> maps = new()
+		{
+			{ "Yamato", new MapInfo { Name = "Yamato" } }
+		};
+		_mapServiceMock!.GetAllMaps(_ctxMock!.Guild).Returns(maps);
+
+		// Act.
+		await _commands!.HandleMapLoader(_ctxMock!, "UnknownMap");
+
+		// Assert.
+		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
+			e.Title.Contains("kon niet gevonden worden")));
+	}
+
+	[TestMethod]
+	public async Task HandleMapLoader_ShouldConfirmExecutionLifecycle()
+	{
+		// Arrange.
+		IDiscordCommand commandMock = Substitute.For<IDiscordCommand>();
+		commandMock.Name.Returns("Map");
+		_ctxMock!.Command.Returns(commandMock);
+
+		_mapServiceMock!.GetAllMaps(_ctxMock!.Guild).Returns([]);
+
+		// Act.
+		await _commands!.HandleMapLoader(_ctxMock!, "list");
+
+		// Assert.
+		await _messageServiceMock!.Received().ConfirmCommandExecuting(_messageMock!);
+		await _messageServiceMock!.Received().ConfirmCommandExecuted(_messageMock!);
 	}
 }

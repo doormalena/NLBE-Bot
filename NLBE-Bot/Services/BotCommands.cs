@@ -2309,9 +2309,9 @@ internal class BotCommands(IDiscordClient discordClient,
 
 		await action();
 	}
-	private static bool HasPermission(IDiscordMember member, IDiscordCommand command)
+	private static bool HasPermission(IDiscordMember? member, IDiscordCommand? command)
 	{
-		return command.Name.ToLower() switch
+		return member != null && command != null && command.Name.ToLower() switch
 		{
 			"help" or "map" or "gebruiker" or "gebruikerslijst" or "clan" or "clanmembers" or "spelerinfo" or "bonuscode" => true, // These commands are allowed for everyone.
 			"toernooi" or "toernooien" => HasAnyRole(member, Constants.TOERNOOI_DIRECTIE),
