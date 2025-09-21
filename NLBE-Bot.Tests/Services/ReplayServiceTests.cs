@@ -2,12 +2,14 @@ namespace NLBE_Bot.Tests.Services;
 
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using NLBE_Bot.Blitzstars;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using NSubstitute;
 using NSubstitute.ReceivedExtensions;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
+using WorldOfTanksBlitzApi.Repositories;
 
 [TestClass]
 public class ReplayServiceTests
@@ -16,6 +18,9 @@ public class ReplayServiceTests
 	private IWeeklyEventService? _weeklyEventServiceMock;
 	private IBattleRepository? _battleRepositoryMock;
 	private IAchievementsRepository? _achievementsRepositoryMock;
+	private IVehiclesRepository? _vehiclesRepositoryMock;
+	private IClansRepository? _clansRepositoryMock;
+	private IMapService? _mapServiceMock;
 	private IAttachmentService? _discordAttachmentServiceMock;
 	private WotInspectorBattle? _battle;
 	private IDiscordGuild? _guildMock;
@@ -30,6 +35,9 @@ public class ReplayServiceTests
 		_weeklyEventServiceMock = Substitute.For<IWeeklyEventService>();
 		_battleRepositoryMock = Substitute.For<IBattleRepository>();
 		_achievementsRepositoryMock = Substitute.For<IAchievementsRepository>();
+		_vehiclesRepositoryMock = Substitute.For<IVehiclesRepository>();
+		_clansRepositoryMock = Substitute.For<IClansRepository>();
+		_mapServiceMock = Substitute.For<IMapService>();
 		_discordAttachmentServiceMock = Substitute.For<IAttachmentService>();
 		_guildMock = Substitute.For<IDiscordGuild>();
 		_cacheMock = Substitute.For<IMemoryCache>();
@@ -39,32 +47,39 @@ public class ReplayServiceTests
 			_weeklyEventServiceMock,
 			_battleRepositoryMock,
 			_achievementsRepositoryMock,
+			_vehiclesRepositoryMock,
+			_clansRepositoryMock,
+			_mapServiceMock,
 			_discordAttachmentServiceMock,
 			_cacheMock
 		);
+		int vehicleId = 12345;
 		_battle = new()
 		{
 			Title = "Test Battle",
 			DetailsUrl = "http://example.com/replay.wotbreplay",
 			Protagonist = 12345,
 			BattleStartTime = new DateTime(2025, 9, 17, 12, 0, 0, DateTimeKind.Local),
+			VehicleDescr = vehicleId,
 			PlayersData =
 			[
 				new WotInspectorPlayerData
 				{
 					DbId = 12345,
 					Team = 1,
-					VehicleDescr = 12134,
+					VehicleDescr = vehicleId,
 					DamageMade = 1500
 				}
 			]
 		};
+		_vehiclesRepositoryMock!.GetById(vehicleId).Returns(new WotbVehicle { TankId = vehicleId, Name = "TankName", Tier = 7 });
+		_clansRepositoryMock!.GetAccountClanInfoAsync(_battle.Protagonist).Returns(new WotbAccountClanInfo { Clan = new WotbClanInfo { Tag = "CLAN" } });
+		_mapServiceMock!.GetAllMaps(_guildMock!).Returns(new Dictionary<string, MapInfo> { { _battle.MapId.ToString(), new MapInfo { Name = "MapName" } } });
 	}
 
 	[TestMethod]
 	public async Task GetDescriptionForReplay_ShouldIncludeWeeklyEventAndReplayInfo()
 	{
-
 		// Arrange.
 		_weeklyEventServiceMock!.GetStringForWeeklyEvent(_guildMock!, _battle!).Returns("Weekly Event Info");
 
@@ -81,7 +96,7 @@ public class ReplayServiceTests
 	[TestMethod]
 	public async Task GetDescriptionForReplay_ShouldLogError_WhenWeeklyEventFails()
 	{
-		// Arrange.
+		// Arrange.		
 		_weeklyEventServiceMock!.GetStringForWeeklyEvent(_guildMock!, _battle!)
 			.Returns<Task<string>>(x => throw new Exception("Failed to get weekly event string"));
 

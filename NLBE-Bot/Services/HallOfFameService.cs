@@ -102,7 +102,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		}
 
 		Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
-		MapInfo map = maps[battle.MapId.ToString()];
+		maps.TryGetValue(battle.MapId.ToString(), out MapInfo? map);
 
 		EmbedOptions embedOptions = new()
 		{
@@ -201,7 +201,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 					else
 					{
 						Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
-						MapInfo map = maps[battle.MapId.ToString()];
+						maps.TryGetValue(battle.MapId.ToString(), out MapInfo? map);
 
 						EmbedOptions embedOptions = new()
 						{

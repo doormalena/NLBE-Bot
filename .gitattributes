@@ -1,1 +1,2 @@
-*.cs text eol=crlf
+## End of line normalization
+* text=auto eol=lf

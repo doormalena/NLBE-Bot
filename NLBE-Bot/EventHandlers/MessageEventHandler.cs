@@ -163,7 +163,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 							}
 
 							Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
-							MapInfo map = maps[battle.MapId.ToString()];
+							maps.TryGetValue(battle.MapId.ToString(), out MapInfo? map);
 
 							EmbedOptions embedOptions = new()
 							{

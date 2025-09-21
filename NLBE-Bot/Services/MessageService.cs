@@ -463,9 +463,9 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		};
 
 		Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
-		MapInfo map = maps[battle.MapId.ToString()];
+		maps.TryGetValue(battle.MapId.ToString(), out MapInfo? map);
 
-		if (!string.IsNullOrEmpty(map.ImageUrl))
+		if (!string.IsNullOrEmpty(map?.ImageUrl))
 		{		
 			embedBuilder.Thumbnail = new()
 			{
