@@ -11,7 +11,7 @@ public class BattleRepository(IWotInspectorConnection connection) : IBattleRepos
 {
 	private readonly IWotInspectorConnection _connection = connection ?? throw new ArgumentNullException(nameof(connection));
 
-	public async Task<WotInspectorBattle?> GetBattle(string fileName, byte[] fileContent, string title)
+	public async Task<WotInspectorBattle?> GetBattleAsync(string fileName, byte[] fileContent, string title)
 	{
 		const string relativeUrl = "/v2/blitz/replays/";
 

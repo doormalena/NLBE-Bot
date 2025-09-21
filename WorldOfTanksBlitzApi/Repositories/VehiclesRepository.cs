@@ -3,15 +3,16 @@ namespace WorldOfTanksBlitzApi.Repositories;
 using System;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Models;
 using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 public class VehiclesRepository(IWotbConnection connection) : IVehiclesRepository
 {
 	private readonly IWotbConnection _connection = connection ?? throw new ArgumentNullException(nameof(connection));
 
-	public async Task<WotbVehicle?> GetById(long tankId)
+	public async Task<WotbVehicle?> GetByIdAsync(long tankId)
 	{
 		string relativeUrl = "encyclopedia/vehicles/";
 
@@ -20,10 +21,19 @@ public class VehiclesRepository(IWotbConnection connection) : IVehiclesRepositor
 
 		string json = await _connection.PostAsync(relativeUrl, form);
 
-		JsonElement root = JsonDocument.Parse(json).RootElement;
+		JsonNode? rootNode = JsonNode.Parse(json);
+		JsonNode? dataNode = rootNode?["data"];
 
-		return root.TryGetProperty("data", out JsonElement data)
-			? JsonSerializer.Deserialize<WotbVehicle?>(data.GetRawText())
-			: null;
+		if (dataNode != null)
+		{
+			JsonNode? vehicleNode = dataNode[tankId.ToString()];
+
+			if (vehicleNode != null && vehicleNode.ToJsonString() != "null")
+			{
+				return JsonSerializer.Deserialize<WotbVehicle>(vehicleNode.ToJsonString());
+			}
+		}
+
+		return null;
 	}
 }

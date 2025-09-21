@@ -129,7 +129,7 @@ internal class WeeklyEventService(IUserService userService,
 			return weeklyEventTypes;
 		}
 
-		WotbVehicle? vehicle = await _vehiclesRepository.GetById(battle.VehicleDescr);
+		WotbVehicle? vehicle = await _vehiclesRepository.GetByIdAsync(battle.VehicleDescr);
 
 		if (vehicle == null)
 		{
@@ -200,7 +200,7 @@ internal class WeeklyEventService(IUserService userService,
 	{
 		string content = string.Empty;
 		await ReadWeeklyEvent(guild);
-		WotbVehicle? vehicle = await _vehiclesRepository.GetById(battle.VehicleDescr);
+		WotbVehicle? vehicle = await _vehiclesRepository.GetByIdAsync(battle.VehicleDescr);
 
 		if (vehicle == null)
 		{

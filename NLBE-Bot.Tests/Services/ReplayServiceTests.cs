@@ -70,7 +70,7 @@ public class ReplayServiceTests
 				}
 			]
 		};
-		_vehiclesRepositoryMock!.GetById(vehicleId).Returns(new WotbVehicle { TankId = vehicleId, Name = "TankName", Tier = 7 });
+		_vehiclesRepositoryMock!.GetByIdAsync(vehicleId).Returns(new WotbVehicle { TankId = vehicleId, Name = "TankName", Tier = 7 });
 		_clansRepositoryMock!.GetAccountClanInfoAsync(_battle.Protagonist).Returns(new WotbAccountClanInfo { Clan = new WotbClanInfo { Tag = "CLAN" } });
 		_mapServiceMock!.GetAllMaps(_guildMock!).Returns(new Dictionary<string, MapInfo> { { _battle.MapId.ToString(), new MapInfo { Name = "MapName" } } });
 	}
@@ -116,7 +116,7 @@ public class ReplayServiceTests
 		_discordAttachmentServiceMock!.DownloadAttachmentAsync(attachment)
 			.Returns(Task.FromResult(("test.wotbreplay", new byte[] { 1, 2, 3 })));
 
-		_battleRepositoryMock!.GetBattle(Arg.Any<string>(), Arg.Any<byte[]>(), "title")
+		_battleRepositoryMock!.GetBattleAsync(Arg.Any<string>(), Arg.Any<byte[]>(), "title")
 			.Returns(Task.FromResult<WotInspectorBattle?>(new WotInspectorBattle { Title = "title" }));
 
 		// Act.
@@ -131,7 +131,7 @@ public class ReplayServiceTests
 	public async Task GetReplayInfo_NoAttachment_DoesNotReturnBattle()
 	{
 		// Arrange.
-		_battleRepositoryMock!.GetBattle(Arg.Any<string>(), Arg.Any<byte[]>(), "title")
+		_battleRepositoryMock!.GetBattleAsync(Arg.Any<string>(), Arg.Any<byte[]>(), "title")
 			.Returns(Task.FromResult<WotInspectorBattle?>(null));
 
 		// Act.

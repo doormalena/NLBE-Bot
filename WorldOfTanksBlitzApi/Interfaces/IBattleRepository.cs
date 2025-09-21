@@ -5,5 +5,5 @@ using WorldOfTanksBlitzApi.Models;
 
 public interface IBattleRepository
 {
-	public Task<WotInspectorBattle?> GetBattle(string fileName, byte[] fileContent, string title);
+	public Task<WotInspectorBattle?> GetBattleAsync(string fileName, byte[] fileContent, string title);
 }

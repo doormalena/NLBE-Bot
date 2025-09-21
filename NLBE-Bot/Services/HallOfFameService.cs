@@ -120,7 +120,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		if (battle.ProtagonistClan.Equals(Constants.NLBE_CLAN_ID) ||
 			battle.ProtagonistClan.Equals(Constants.NLBE2_CLAN_ID))
 		{
-			WotbVehicle? vehicle = await _vehiclesRepository.GetById(battle.VehicleDescr);
+			WotbVehicle? vehicle = await _vehiclesRepository.GetByIdAsync(battle.VehicleDescr);
 
 			if (vehicle == null)
 			{
@@ -464,7 +464,7 @@ internal class HallOfFameService(ILogger<HallOfFameService> logger,
 		bool foundItem = false;
 		int position = 1;
 
-		WotbVehicle? vehicle = await _vehiclesRepository.GetById(battle.VehicleDescr);
+		WotbVehicle? vehicle = await _vehiclesRepository.GetByIdAsync(battle.VehicleDescr);
 
 		if (vehicle == null)
 		{

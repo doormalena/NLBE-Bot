@@ -21,10 +21,9 @@ public class MapsRepositoryTests
 		foreach (KeyValuePair<string, MapInfo> kvp in result)
 		{
 			Assert.IsFalse(string.IsNullOrWhiteSpace(kvp.Key));
-			Assert.IsNotNull(kvp.Value);
 			Assert.IsTrue(kvp.Value.Id > 0);
 			Assert.IsFalse(string.IsNullOrWhiteSpace(kvp.Value.Name));
-			Assert.IsNotNull(kvp.Value.Modes);
+			Assert.IsTrue(kvp.Value.Modes.Count > 0);
 		}
 	}
 }

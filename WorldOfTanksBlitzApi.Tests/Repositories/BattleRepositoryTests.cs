@@ -36,7 +36,7 @@ public class BattleRepositoryTests
 			.Returns(Task.FromResult(json));
 
 		// Act.
-		WotInspectorBattle? result = await _repository!.GetBattle(fileName, fileContent, title);
+		WotInspectorBattle? result = await _repository!.GetBattleAsync(fileName, fileContent, title);
 
 		// Assert.
 		Assert.IsNotNull(result);
@@ -59,7 +59,7 @@ public class BattleRepositoryTests
 		// Act & Assert.
 		await Assert.ThrowsExceptionAsync<Exception>(async () =>
 		{
-			await _repository!.GetBattle(fileName, fileContent, title);
+			await _repository!.GetBattleAsync(fileName, fileContent, title);
 		});
 	}
 }

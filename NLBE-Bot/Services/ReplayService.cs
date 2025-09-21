@@ -61,7 +61,7 @@ internal class ReplayService(ILogger<ReplayService> logger,
 	public async Task<WotInspectorBattle?> GetReplayInfo(string title, IDiscordAttachment attachment)
 	{
 		(string fileName, byte[] fileContent) = await _attachmentService.DownloadAttachmentAsync(attachment);
-		return await _battleRepository.GetBattle(fileName, fileContent, title);
+		return await _battleRepository.GetBattleAsync(fileName, fileContent, title);
 	}
 
 	private async Task<string> GetSomeReplayInfoAsText(IDiscordGuild guild, WotInspectorBattle battle, int position)
@@ -70,7 +70,7 @@ internal class ReplayService(ILogger<ReplayService> logger,
 
 		if (Guard.ReturnIfNull(battle, _logger, "battle data of the replay", out battle) ||
 			Guard.ReturnIfNull(battle.ProtagonistPlayerData, _logger, "protagonist's player data", out WotInspectorPlayerData protagonistPlayerData) ||
-			Guard.ReturnIfNull(await _vehiclesRepository.GetById(battle.VehicleDescr), _logger, "vehicle information", out WotbVehicle vehicle) ||
+			Guard.ReturnIfNull(await _vehiclesRepository.GetByIdAsync(battle.VehicleDescr), _logger, "vehicle information", out WotbVehicle vehicle) ||
 			Guard.ReturnIfNull(await _clanRepository.GetAccountClanInfoAsync(battle.Protagonist), _logger, "account's clan information", out WotbAccountClanInfo accountClanInfo))
 		{
 			return string.Empty;
@@ -138,14 +138,9 @@ internal class ReplayService(ILogger<ReplayService> logger,
 
 	private async Task<WotbAchievement?> GetAchievement(int id)
 	{
-		Dictionary<string, WotbAchievement>? achievements = await _cache.GetOrCreateAsync(AllAchievementsCacheKey, entry => _achievementsRepository.GetAllAsync());
-
-		if (achievements == null)
-		{
-			return null;
-		}
-
-		return achievements.FirstOrDefault(x => x.Value.WotInspectorId == id).Value;
+		return Guard.ReturnIfNull(await _cache.GetOrCreateAsync(AllAchievementsCacheKey, entry => _achievementsRepository.GetAllAsync()), _logger, "achievements", out Dictionary<string, WotbAchievement> achievements)
+			? null
+			: achievements.FirstOrDefault(x => x.Value.WotInspectorId == id).Value;
 	}
 
 	private static string GetInfoInFormat(string key, string value, bool bold = true)
