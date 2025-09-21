@@ -55,17 +55,18 @@ public class WotInspectorConnection(HttpClient client,
 			*/
 			if (!response.IsSuccessStatusCode)
 			{
+				StringBuilder errorMessages = new();
 				Dictionary<string, string[]>? errorDoc = JsonSerializer.Deserialize<Dictionary<string, string[]>>(content);
+
 				if (errorDoc != null && errorDoc.Count > 0)
 				{
-					StringBuilder errorMessages = new();
 					foreach (KeyValuePair<string, string[]> kvp in errorDoc)
 					{
-						errorMessages.AppendLine($"{kvp.Key}: {string.Join("; ", kvp.Value)}");
+						errorMessages.Append($"\n{kvp.Key}: {string.Join("; ", kvp.Value)}");
 					}
-
-					throw new HttpRequestException($"Upload failed: {(int) response.StatusCode} {response.ReasonPhrase}\n{errorMessages}");
 				}
+
+				throw new HttpRequestException($"Upload failed: {(int) response.StatusCode} {response.ReasonPhrase}{errorMessages}");
 			}
 
 			return content;

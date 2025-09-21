@@ -136,8 +136,30 @@ public class WotInspectorConnectionTests
 			await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, null!);
 		});
 
-		Assert.IsTrue(ex.Message.Contains("title: This field may not be null."));
-		Assert.IsTrue(ex.Message.Contains("upload_file: The submitted data was not a file. Check the encoding type on the form."));
+		Assert.IsTrue(ex.Message.Contains("Upload failed: 400 Bad Request"));
+		Assert.IsTrue(ex.Message.Contains("\ntitle: This field may not be null."));
+		Assert.IsTrue(ex.Message.Contains("\nupload_file: The submitted data was not a file. Check the encoding type on the form."));
+	}
+
+	[TestMethod]
+	public async Task UploadReplayAsync_ThrowsHttpRequestException_OnMissingErrorJson()
+	{
+		// Arrange.
+		const string errorJson = @"{}";
+
+		_mockHttp!.When(HttpMethod.Post, $"{BaseUri}/{RelativeUrl}")
+			.Respond(req => new HttpResponseMessage(HttpStatusCode.BadRequest)
+			{
+				Content = new StringContent(errorJson, Encoding.UTF8, "application/json")
+			});
+
+		// Act & Assert.
+		HttpRequestException ex = await Assert.ThrowsExceptionAsync<HttpRequestException>(async () =>
+		{
+			await _connection!.UploadReplayAsync(RelativeUrl, ExpectedFileName, ExpectedFileContent, null!);
+		});
+
+		Assert.IsTrue(ex.Message.Equals("Upload failed: 400 Bad Request"));
 	}
 
 	[TestMethod]
