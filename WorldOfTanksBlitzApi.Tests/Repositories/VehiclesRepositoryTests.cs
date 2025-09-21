@@ -66,29 +66,12 @@ public class VehiclesRepositoryTests
 	}
 
 	[TestMethod]
-	public async Task GetByIdAsync_ReturnsNull_WhenApiReturnsNullData()
+	[DataRow("{\"data\": null}")]
+	[DataRow("{\"data\":{}}")]
+	public async Task GetByIdAsync_ReturnsNull_WhenDataIsMissing(string json)
 	{
 		// Arrange
 		long tankId = 123;
-		string json = "{\"data\": null}";
-
-		_connectionMock!.PostAsync(Arg.Any<string>(), Arg.Any<MultipartFormDataContent>())
-			.Returns(Task.FromResult(json));
-
-		// Act
-		WotbVehicle? vehicle = await _repository!.GetByIdAsync(tankId);
-
-		// Assert
-		Assert.IsNull(vehicle);
-	}
-
-	[TestMethod]
-	public async Task GetByIdAsync_ReturnsNull_WhenVehicleNotFound()
-	{
-		// Arrange
-		long tankId = 123;
-		string json = "{\"data\":null}";
-
 		_connectionMock!.PostAsync(Arg.Any<string>(), Arg.Any<MultipartFormDataContent>())
 			.Returns(Task.FromResult(json));
 
