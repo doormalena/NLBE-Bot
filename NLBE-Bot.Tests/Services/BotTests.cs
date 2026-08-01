@@ -81,6 +81,7 @@ public class BotTests
 
 		// Act.
 		await _bot!.StartAsync(CancellationToken.None);
+		await Task.Delay(500); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
 		_loggerMock!.Received().Log(
@@ -104,6 +105,7 @@ public class BotTests
 
 		// Act.
 		await _bot!.StartAsync(CancellationToken.None);
+		await Task.Delay(500); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
 		_loggerMock!.Received().Log(
