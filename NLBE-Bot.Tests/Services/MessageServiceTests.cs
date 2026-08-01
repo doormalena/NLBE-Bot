@@ -233,7 +233,7 @@ public class MessageServiceTests
 		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Could not send message to channel")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Could not send message to channel")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>());
 		await serviceSub.Received(1).SayBotNotAuthorized(_channelMock!);
@@ -267,7 +267,7 @@ public class MessageServiceTests
 		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Could not send message to channel")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Could not send message to channel")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>());
 		await serviceSub.Received(1).SayTooManyCharacters(_channelMock!);
@@ -312,7 +312,7 @@ public class MessageServiceTests
 		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Could not send private message to member")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Could not send private message to member")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>());
 	}
@@ -385,7 +385,7 @@ public class MessageServiceTests
 		_loggerMock!.Received(1).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -426,7 +426,7 @@ public class MessageServiceTests
 		_loggerMock!.Received(1).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -512,7 +512,7 @@ public class MessageServiceTests
 		_loggerMock!.Received(1).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -554,7 +554,7 @@ public class MessageServiceTests
 		_loggerMock!.Received(1).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -598,7 +598,7 @@ public class MessageServiceTests
 		_loggerMock!.Received(1).Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Something went wrong while trying to send an embedded message")),
 			Arg.Any<Exception>(),
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -846,7 +846,7 @@ public class MessageServiceTests
 		await serviceSub.Received(1).CreateEmbed(
 			_channelMock!,
 			Arg.Is<EmbedOptions>(opts =>
-				opts.Title == options.Title &&
+				opts!.Title == options.Title &&
 				opts.Description == options.Description
 			)
 		);

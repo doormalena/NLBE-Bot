@@ -85,7 +85,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("An error occured while verifing all server nicknames.")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("An error occured while verifing all server nicknames.")),
 			ex,
 			Arg.Any<Func<object, Exception?, string>>());
 		Assert.AreEqual(_botStateMock!.LasTimeServerNicknamesWereVerified, yesterday);
@@ -117,7 +117,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("Bot Test channel is missing")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("Bot Test channel is missing")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -138,7 +138,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains($"Default member role with id `{_optionsMock!.Value.RoleIds.Members}` is missing")),
+			Arg.Is<object>(o => o!.ToString()!.Contains($"Default member role with id `{_optionsMock!.Value.RoleIds.Members}` is missing")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -188,11 +188,11 @@ public class VerifyServerNicknamesJobTests
 		await _job!.Execute(_guildMock!, DateTime.Today);
 
 		// Assert.
-		await channelMock.Received().SendMessageAsync(Arg.Is<string>(s => s.Contains("geen wijzigingen waren nodig")));
+		await channelMock.Received().SendMessageAsync(Arg.Is<string>(s => s!.Contains("geen wijzigingen waren nodig")));
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("All nicknames have been reviewed; no changes were necessary")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("All nicknames have been reviewed; no changes were necessary")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -272,19 +272,19 @@ public class VerifyServerNicknamesJobTests
 
 		// Assert.
 		await _userServiceMock!.Received(2).ChangeMemberNickname(
-			Arg.Any<IDiscordMember>(),
-			Arg.Is<string>(s => s.Contains(accountInfo1.Nickname) || s.Contains(accountInfo2.Nickname))
-		);
+				Arg.Any<IDiscordMember>(),
+				Arg.Is<string>(s => s!.Contains(accountInfo1.Nickname) || s!.Contains(accountInfo2.Nickname))
+			);
 		await _messageServcieMock!.Received(2).SendMessage(
 			channelMock,
 			null,
 			_guildMock.Name,
-			Arg.Is<string>(msg => msg.Contains("is aangepast van"))
+			Arg.Is<string>(msg => msg!.Contains("is aangepast van"))
 		);
 		_loggerMock!.Received(2).Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("updated from")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("updated from")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -321,18 +321,18 @@ public class VerifyServerNicknamesJobTests
 		await _messageServcieMock!.Received(1).SendPrivateMessage(
 			member,
 			_guildMock.Name,
-			Arg.Is<string>(s => s.Contains("Voor iedere gebruiker in de NLBE discord server wordt gecontroleerd of de ingestelde bijnaam overeenkomt met je WoTB spelersnaam.\nHelaas is dit voor jou niet het geval.\nWil je dit aanpassen?"))
+			Arg.Is<string>(s => s!.Contains("Voor iedere gebruiker in de NLBE discord server wordt gecontroleerd of de ingestelde bijnaam overeenkomt met je WoTB spelersnaam.\nHelaas is dit voor jou niet het geval.\nWil je dit aanpassen?"))
 		);
 		await _messageServcieMock!.Received(1).SendMessage(
 			channelMock,
 			null,
 			_guildMock.Name,
-			Arg.Is<string>(msg => msg.Contains("komt niet overeen met een WoTB-spelersnaam"))
+			Arg.Is<string>(msg => msg!.Contains("komt niet overeen met een WoTB-spelersnaam"))
 		);
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("does not match any WoTB player name")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("does not match any WoTB player name")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -376,7 +376,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("All nicknames have been reviewed; no changes were necessary")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("All nicknames have been reviewed; no changes were necessary")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -424,7 +424,7 @@ public class VerifyServerNicknamesJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Failed to change nickname for user `Player`")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Failed to change nickname for user `Player`")),
 			ex,
 			Arg.Any<Func<object, Exception?, string>>());
 	}

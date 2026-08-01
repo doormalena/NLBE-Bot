@@ -102,9 +102,9 @@ public class BotCommandsTests
 		await _messageServiceMock!.Received(1).ConfirmCommandExecuting(_messageMock!);
 		await _messageServiceMock!.Received(1).SendMessage(
 			_channelMock!,
-			_memberMock,
+			_memberMock!,
 			"TestGuild",
-			Arg.Is<string>(s => s.Contains("https://eu.wargaming.net/shop/redeem/"))
+			Arg.Is<string>(s => s!.Contains("https://eu.wargaming.net/shop/redeem/"))
 		);
 		await _messageServiceMock!.Received(1).ConfirmCommandExecuted(_messageMock!);
 	}
@@ -129,9 +129,9 @@ public class BotCommandsTests
 
 		// Assert.
 		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
-			e.Title == "Mappen" &&
-			e.Description.Contains("Yamato") &&
-			e.Description.Contains("Canyon")));
+			e!.Title == "Mappen" &&
+			e.Description!.Contains("Yamato") &&
+			e.Description!.Contains("Canyon")));
 	}
 
 	[TestMethod]
@@ -153,8 +153,8 @@ public class BotCommandsTests
 
 		// Assert.
 		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
-			e.Title == "Mappen" &&
-			e.Description.Contains("Canyon")));
+			e!.Title == "Mappen" &&
+			e.Description!.Contains("Canyon")));
 	}
 
 	[TestMethod]
@@ -176,7 +176,7 @@ public class BotCommandsTests
 
 		// Assert.
 		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
-			e.Title == "Canyon" &&
+			e!.Title == "Canyon" &&
 			e.ImageUrl == "https://example.com/canyon.png"));
 	}
 
@@ -199,7 +199,7 @@ public class BotCommandsTests
 
 		// Assert.
 		await _messageServiceMock!.Received().CreateEmbed(_channelMock!, Arg.Is<EmbedOptions>(e =>
-			e.Title.Contains("kon niet gevonden worden")));
+			e!.Title!.Contains("kon niet gevonden worden")));
 	}
 
 	[TestMethod]

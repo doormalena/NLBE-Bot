@@ -79,11 +79,11 @@ public class BotEventHandlerTests
 
 		// Assert.
 		_loggerMock!.Received().Log(
-					LogLevel.Error,
-					Arg.Any<EventId>(),
-					Arg.Is<object>(v => v.ToString()!.Contains(eventName)),
-					exception,
-					Arg.Any<Func<object, Exception?, string>>());
+				LogLevel.Error,
+				Arg.Any<EventId>(),
+				Arg.Is<object>(v => v!.ToString()!.Contains(eventName)),
+				exception,
+				Arg.Any<Func<object, Exception?, string>>());
 	}
 
 	[TestMethod]
@@ -131,11 +131,11 @@ public class BotEventHandlerTests
 
 		// Assert.
 		_loggerMock!.Received().Log(
-					LogLevel.Error,
-					Arg.Any<EventId>(),
-					Arg.Is<object>(v => v.ToString()!.Contains("Could not leave non-whitelisted guilds.")),
-					ex,
-					Arg.Any<Func<object, Exception?, string>>());
+				LogLevel.Error,
+				Arg.Any<EventId>(),
+				Arg.Is<object>(v => v!.ToString()!.Contains("Could not leave non-whitelisted guilds.")),
+				ex,
+				Arg.Any<Func<object, Exception?, string>>());
 	}
 
 	[TestMethod]
@@ -179,11 +179,11 @@ public class BotEventHandlerTests
 
 		// Assert.
 		_loggerMock!.Received().Log(
-					LogLevel.Error,
-					Arg.Any<EventId>(),
-					Arg.Is<object>(v => v.ToString()!.Contains("Socket closed unexpectedly.")),
-					Arg.Any<Exception>(),
-					Arg.Any<Func<object, Exception?, string>>());
+				LogLevel.Error,
+				Arg.Any<EventId>(),
+				Arg.Is<object>(v => v!.ToString()!.Contains("Socket closed unexpectedly.")),
+				Arg.Any<Exception>(),
+				Arg.Any<Func<object, Exception?, string>>());
 	}
 
 	[TestMethod]
@@ -196,7 +196,7 @@ public class BotEventHandlerTests
 		_loggerMock!.Received(1).Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("Socket closed normally.")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("Socket closed normally.")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);

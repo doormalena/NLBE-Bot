@@ -61,7 +61,7 @@ public class CommandEventHandlerTests
 		_loggerMock!.Received().Log(
 			LogLevel.Information,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("testcmd")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("testcmd")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -131,7 +131,7 @@ public class CommandEventHandlerTests
 		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("testcmd")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("testcmd")),
 			ex,
 			Arg.Any<Func<object, Exception?, string>>());
 	}

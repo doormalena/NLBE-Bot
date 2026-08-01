@@ -149,7 +149,7 @@ public class MessageEventHandlerTests
 		// Assert.
 		await message.Received(1).DeleteReactionAsync(emoji, reactingUser);
 		await member.Received(1).RevokeRoleAsync(mustReadRulesRole);
-		await _userServiceMock!.Received(1).ChangeMemberNickname(member, Arg.Is<string>(s => s.Equals("[] PlayerName")));
+		await _userServiceMock!.Received(1).ChangeMemberNickname(member, Arg.Is<string>(s => s!.Equals("[] PlayerName")));
 		await member.Received(1).GrantRoleAsync(membersRole);
 		await _generalChannelMock!.Received(1).SendMessageAsync("@PlayerName, welkom op de NLBE discord server. Good luck, have fun!");
 	}

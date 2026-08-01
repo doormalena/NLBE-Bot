@@ -240,7 +240,7 @@ public class WotbConnectionTests
 		_loggerMock!.Received().Log(
 			LogLevel.Debug,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("Rate limit exceeded")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("Rate limit exceeded")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);

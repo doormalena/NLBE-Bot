@@ -165,7 +165,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Error,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v.ToString()!.Contains("An error occured while anouncing the weekly winner.")),
+			Arg.Is<object>(v => v!.ToString()!.Contains("An error occured while anouncing the weekly winner.")),
 			ex,
 			Arg.Any<Func<object, Exception?, string>>());
 		Assert.AreEqual(_botStateMock!.LastWeeklyWinnerAnnouncement, monday15Minus1Day);
@@ -187,7 +187,7 @@ public class AnnounceWeeklyWinnerJobTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("Bot Test channel is missing")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("Bot Test channel is missing")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);

@@ -226,12 +226,12 @@ public class GuildMemberEventHandlerTests
 
 		// Assert.
 		await member.Received().GrantRoleAsync(noobRole);
-		await welcomeChannel.Received().SendMessageAsync(Arg.Is<string>(msg => msg.Contains("welkom")));
+		await welcomeChannel.Received().SendMessageAsync(Arg.Is<string>(msg => msg!.Contains("welkom")));
 		await _messageServiceMock.Received().AskQuestion(welcomeChannel, user, guild, Arg.Any<string>());
-		await member.Received().SendMessageAsync(Arg.Is<string>(msg => msg.Contains("regels")));
+		await member.Received().SendMessageAsync(Arg.Is<string>(msg => msg!.Contains("regels")));
 		await member.Received().GrantRoleAsync(rulesNotReadRole);
 		await member.Received().RevokeRoleAsync(noobRole);
-		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name.Contains(accountInfo.Nickname)));
+		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(name => name!.Contains(accountInfo.Nickname)));
 	}
 
 	[TestMethod]
@@ -320,7 +320,7 @@ public class GuildMemberEventHandlerTests
 
 		// Assert.
 		await _messageServiceMock.Received(2).AskQuestion(welcomeChannel, user, guild, Arg.Any<string>()); // Verify AskQuestion was called twice (first fail, then retry)
-		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(s => s.Contains(accountInfo.Nickname))); // Verify that the nickname was updated after successful second attempt
+		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(s => s!.Contains(accountInfo.Nickname))); // Verify that the nickname was updated after successful second attempt
 	}
 
 	[TestMethod]
@@ -420,7 +420,7 @@ public class GuildMemberEventHandlerTests
 
 		// Assert.		
 		await _messageServiceMock.Received(1).WaitForReply(welcomeChannel, user, Arg.Any<string>(), Arg.Any<int>()); // Verify that WaitForReply was called to let the user choose		
-		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(s => s.Contains(account2.Nickname))); // Verify nickname was set to the chosen account
+		await _userServiceMock.Received().ChangeMemberNickname(member, Arg.Is<string>(s => s!.Contains(account2.Nickname))); // Verify nickname was set to the chosen account
 	}
 
 	[TestMethod]
@@ -508,7 +508,7 @@ public class GuildMemberEventHandlerTests
 
 		// Assert.
 		await _userServiceMock.Received()
-			.ChangeMemberNickname(member, Arg.Is<string>(s => s.Contains("[TAG123]")));
+			.ChangeMemberNickname(member, Arg.Is<string>(s => s!.Contains("[TAG123]")));
 	}
 
 
@@ -610,7 +610,7 @@ public class GuildMemberEventHandlerTests
 		_loggerMock!.Received().Log(
 			LogLevel.Warning,
 			Arg.Any<EventId>(),
-			Arg.Is<object>(o => o.ToString()!.Contains("Old Members channel is missing")),
+			Arg.Is<object>(o => o!.ToString()!.Contains("Old Members channel is missing")),
 			null,
 			Arg.Any<Func<object, Exception?, string>>()
 		);
@@ -679,7 +679,7 @@ public class GuildMemberEventHandlerTests
 
 		// Assert.
 		await _messageServiceMock!.Received(1).CreateEmbed(oldMembersChannel, Arg.Is<EmbedOptions>(embed =>
-			embed.Title.Contains("heeft de server verlaten") &&
+			embed!.Title.Contains("heeft de server verlaten") &&
 			embed.Fields.Any(f => f.Name == "Gebruiker:" && f.Value == "alex#1234") &&
 			embed.Fields.Any(f => f.Name == "GebruikersID:" && f.Value == 100ul.ToString()) &&
 			embed.Fields.Any(f => f.Name == "Bijnaam:" && f.Value == "Alex") &&
