@@ -23,9 +23,15 @@ internal class Bot(IDiscordClient discordClient,
 	private readonly IServiceProvider _provider = provider ?? throw new ArgumentNullException(nameof(provider));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 
+	internal TaskCompletionSource<bool>? StartedSignal
+	{
+		get; set;
+	}
+
 	protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 	{
 		_logger.LogInformation("NLBE Bot is starting.");
+		StartedSignal?.TrySetResult(true);
 
 		string ipAddress = await _publicIpAddress.GetPublicIpAddressAsync();
 		_logger.LogInformation("Ensure the public ip address {IpAddress} is allowed to access the WarGaming application.", ipAddress);
