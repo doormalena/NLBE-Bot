@@ -40,6 +40,8 @@ public class UserServiceTests
 		_userService = new UserService(_loggerMock, _messageServiceMock, _accountsRepositoryMock, _clansRepositoryMock);
 	}
 
+	#region GetWotbPlayerNameFromDisplayName Tests
+
 	[TestMethod]
 	[DataRow("[TAG] PlayerName", "[TAG]", "PlayerName")]
 	[DataRow("[NLBE] JohnDoe", "[NLBE]", "JohnDoe")]
@@ -58,6 +60,8 @@ public class UserServiceTests
 		Assert.AreEqual(expectedClanTag, result.ClanTag);
 		Assert.AreEqual(expectedPlayerName, result.PlayerName);
 	}
+
+	#endregion
 
 	#region GetDiscordMember Tests
 
