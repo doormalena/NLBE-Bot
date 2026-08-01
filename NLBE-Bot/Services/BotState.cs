@@ -82,26 +82,6 @@ internal class BotState(string stateFile = "botstate.json", bool autoSave = true
 		}
 	}
 
-	private IDiscordMessage? _lastCreatedDiscordMessage;
-
-	public IDiscordMessage? LastCreatedDiscordMessage
-	{
-		get
-		{
-			lock (_lock)
-			{
-				return _lastCreatedDiscordMessage;
-			}
-		}
-		set
-		{
-			lock (_lock)
-			{
-				_lastCreatedDiscordMessage = value;
-			}
-		}
-	}
-
 	public DateTime? LasTimeServerNicknamesWereVerified
 	{
 		get

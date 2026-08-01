@@ -1,9 +1,7 @@
 namespace NLBE_Bot.Tests.Services;
 
-using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using NLBE_Bot.Services;
-using NSubstitute;
 
 [TestClass]
 public class BotStateTests
@@ -168,15 +166,6 @@ public class BotStateTests
 			WeeklyEventWinner = weeklyEventWinner
 		};
 		Assert.AreEqual(weeklyEventWinner, state.WeeklyEventWinner);
-	}
-
-	[TestMethod]
-	public void LastCreatedDiscordMessage_GetSet_Works()
-	{
-		BotState state = new();
-		IDiscordMessage message = Substitute.For<IDiscordMessage>();
-		state.LastCreatedDiscordMessage = message;
-		Assert.AreEqual(message, state.LastCreatedDiscordMessage);
 	}
 
 	[TestMethod]

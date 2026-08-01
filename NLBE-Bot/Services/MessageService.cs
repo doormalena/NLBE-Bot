@@ -9,7 +9,6 @@ using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Models;
 
@@ -198,18 +197,18 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}
 	}
 
-	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription)
+	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription, IDiscordMessage lastCreatedDiscordMessage)
 	{
 		string description = "De statistieken van deze replay waren onvoldoende om in de Hall Of Fame te komen te staan!\n\n"
 							 + extraDescription;
-		return SendReplayMessage(channel, battle, "Helaas...", description);
+		return SendReplayMessage(channel, battle, "Helaas...", description, lastCreatedDiscordMessage);
 	}
 
-	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription, int position)
+	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription, int position, IDiscordMessage lastCreatedDiscordMessage)
 	{
 		string description = "Je replay heeft een plaatsje gekregen in onze Hall Of Fame!\n\n"
 							 + extraDescription;
-		return SendReplayMessage(channel, battle, "Hoera! :trophy:", description);
+		return SendReplayMessage(channel, battle, "Hoera! :trophy:", description, lastCreatedDiscordMessage);
 	}
 
 	public async Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count)
@@ -389,7 +388,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		}.Build());
 	}
 
-	public virtual async Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options)
+	public virtual async Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options, IDiscordMessage? lastCreatedDiscordMessage = null)
 	{
 		DiscordEmbedBuilder newDiscEmbedBuilder = new()
 		{
@@ -433,8 +432,8 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		IDiscordEmbed embed = new DiscordEmbedWrapper(newDiscEmbedBuilder.Build());
 
-		IDiscordMessage theMessage = options.IsForReplay && _botState.LastCreatedDiscordMessage != null
-			? await _botState.LastCreatedDiscordMessage.RespondAsync(options.Content, embed)
+		IDiscordMessage theMessage = options.IsForReplay && lastCreatedDiscordMessage != null
+			? await lastCreatedDiscordMessage.RespondAsync(options.Content, embed)
 			: await _discordClient.SendMessageAsync(channel, options.Content, embed);
 
 		if (options.Emojis != null)
@@ -453,7 +452,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		return theMessage;
 	}
 
-	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WotInspectorBattle battle, string title, string description)
+	private async Task<IDiscordMessage> SendReplayMessage(IDiscordChannel channel, WotInspectorBattle battle, string title, string description, IDiscordMessage? lastCreatedDiscordMessage)
 	{
 		DiscordEmbedBuilder embedBuilder = new()
 		{
@@ -466,7 +465,7 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 		maps.TryGetValue(battle.MapId.ToString(), out MapInfo? map);
 
 		if (!string.IsNullOrEmpty(map?.ImageUrl))
-		{		
+		{
 			embedBuilder.Thumbnail = new()
 			{
 				Url = map.ImageUrl
@@ -475,8 +474,8 @@ internal class MessageService(IDiscordClient discordClient, ILogger<MessageServi
 
 		IDiscordEmbed embed = new DiscordEmbedWrapper(embedBuilder.Build());
 
-		return _botState.LastCreatedDiscordMessage != null
-			? await _botState.LastCreatedDiscordMessage.RespondAsync(embed)
+		return lastCreatedDiscordMessage != null
+			? await lastCreatedDiscordMessage.RespondAsync(embed)
 			: await channel.SendMessageAsync(embed);
 	}
 }

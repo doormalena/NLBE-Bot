@@ -1,8 +1,8 @@
 namespace WorldOfTanksBlitzApi.Tests.Repositories;
 
+using NSubstitute;
 using System.Net.Http;
 using System.Threading.Tasks;
-using NSubstitute;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 using WorldOfTanksBlitzApi.Repositories;

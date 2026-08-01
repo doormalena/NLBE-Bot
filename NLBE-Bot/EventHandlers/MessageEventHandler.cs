@@ -91,108 +91,103 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 
 			if (!author.IsBot)
 			{
-				List<ulong> allowedChannelIds =
-				[
-					masteryChannel.Id,
-					replayChannel.Id,
-					botTestChannel.Id
-				];
-
-				if (allowedChannelIds.Contains(channel.Id))
-				{
-					_botState!.LastCreatedDiscordMessage = message;
-					IDiscordMember? member = await guild.GetMemberAsync(author.Id);
-
-					if (member == null)
-					{
-						return;
-					}
-
-					if (channel.Id == _options.ChannelIds.MasteryReplays &&
-						(member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) || member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE))))
-					{
-						//MasteryChannel (komt wel in HOF)
-						if (message.Attachments.Count > 0)
-						{
-							IDiscordAttachment? replayAttachment = message.Attachments
-								.FirstOrDefault(a => a.FileName.EndsWith(".wotbreplay", StringComparison.OrdinalIgnoreCase));
-
-							if (replayAttachment != null)
-							{
-								Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, replayAttachment, channel, guild, string.Empty, member);
-								await _hallOfFameService.HofAfterUpload(returnedTuple, message);
-							}
-						}
-						else if (message.Content.StartsWith("http") && message.Content.Contains("wotinspector"))
-						{
-							string[] splitted = message.Content.Split(' ');
-							string url = splitted[0];
-							Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, null!, channel, guild, url, member);
-							await _hallOfFameService.HofAfterUpload(returnedTuple, message);
-						}
-					}
-					else
-					{
-						//ReplayResults die niet in HOF komen
-						WotInspectorBattle? battle = null;
-						bool wasReplay = false;
-
-						if (message.Attachments.Count > 0)
-						{
-							foreach (IDiscordAttachment attachment in from IDiscordAttachment attachment in message.Attachments
-																	  where attachment.FileName.EndsWith(".wotbreplay")
-																	  select attachment)
-							{
-								await _messageService.ConfirmCommandExecuting(message);
-								wasReplay = true;
-								battle = await _replayService.GetReplayInfo(string.Empty, attachment);
-							}
-						}
-
-						if (wasReplay && battle != null)
-						{
-							string thumbnail = string.Empty;
-							string eventDescription = string.Empty;
-							try
-							{
-								eventDescription = await _weeklyEventService.GetStringForWeeklyEvent(guild, battle);
-							}
-							catch (Exception ex)
-							{
-								_logger.LogError(ex, "Error while getting weekly event description for replay.");
-							}
-
-							Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
-							maps.TryGetValue(battle.MapId.ToString(), out MapInfo? map);
-
-							EmbedOptions embedOptions = new()
-							{
-								Thumbnail = map?.ImageUrl,
-								Title = "Resultaat",
-								Description = await _replayService.GetDescriptionForReplay(guild, battle, -1, eventDescription),
-								IsForReplay = true,
-							};
-							await _messageService.CreateEmbed(channel, embedOptions);
-							await _messageService.ConfirmCommandExecuted(message);
-						}
-						else if (wasReplay)
-						{
-							IDiscordEmoji inProgressEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)!;
-							IDiscordEmoji errorEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION)!;
-
-							await message.DeleteReactionsEmojiAsync(inProgressEmoji);
-							await message.CreateReactionAsync(errorEmoji);
-						}
-					}
-				}
-
-				_botState!.LastCreatedDiscordMessage = null;
+				await ProcessSubmittedReplay(guild, channel, message, author, masteryChannel, replayChannel, botTestChannel);
 			}
-			else if (channel.IsPrivate)
+
+			if (author.IsBot && channel.IsPrivate)
 			{
 				await HandleWeeklyEventDM(channel, message, weeklyEventChannel);
 			}
 		});
+	}
+
+	private async Task ProcessSubmittedReplay(IDiscordGuild guild, IDiscordChannel channel, IDiscordMessage message,
+											  IDiscordUser author, IDiscordChannel masteryChannel,
+											  IDiscordChannel replayChannel, IDiscordChannel botTestChannel)
+	{
+		List<ulong> allowedChannelIds = [masteryChannel.Id, replayChannel.Id, botTestChannel.Id];
+
+		if (!allowedChannelIds.Contains(channel.Id))
+		{
+			return;
+		}
+
+		IDiscordMember? member = await guild.GetMemberAsync(author.Id);
+
+		if (member == null)
+		{
+			return;
+		}
+
+		if (channel.Id == _options.ChannelIds.MasteryReplays &&
+			(member.Roles.Contains(guild.GetRole(Constants.NLBE_ROLE)) || member.Roles.Contains(guild.GetRole(Constants.NLBE2_ROLE))))
+		{
+			//MasteryChannel (komt wel in HOF)
+			if (message.Attachments.Count > 0)
+			{
+				IDiscordAttachment? replayAttachment = message.Attachments
+					.FirstOrDefault(a => a.FileName.EndsWith(".wotbreplay", StringComparison.OrdinalIgnoreCase));
+
+				if (replayAttachment != null)
+				{
+					Tuple<string, IDiscordMessage?> returnedTuple = await _hallOfFameService.Handle(string.Empty, replayAttachment, channel, guild, member, message);
+					await _hallOfFameService.HofAfterUpload(returnedTuple, message);
+				}
+			}
+		}
+		else
+		{
+			//ReplayResults die niet in HOF komen
+			WotInspectorBattle? battle = null;
+			bool wasReplay = false;
+
+			if (message.Attachments.Count > 0)
+			{
+				foreach (IDiscordAttachment attachment in from IDiscordAttachment attachment in message.Attachments
+														  where attachment.FileName.EndsWith(".wotbreplay")
+														  select attachment)
+				{
+					await _messageService.ConfirmCommandExecuting(message);
+					wasReplay = true;
+					battle = await _replayService.GetReplayInfo(string.Empty, attachment);
+				}
+			}
+
+			if (wasReplay && battle != null)
+			{
+				string thumbnail = string.Empty;
+				string eventDescription = string.Empty;
+				try
+				{
+					eventDescription = await _weeklyEventService.GetStringForWeeklyEvent(guild, battle);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Error while getting weekly event description for replay.");
+				}
+
+				Dictionary<string, MapInfo> maps = await _mapService.GetAllMaps(channel.Guild);
+				maps.TryGetValue(battle.MapId.ToString(), out MapInfo? map);
+
+				EmbedOptions embedOptions = new()
+				{
+					Thumbnail = map?.ImageUrl,
+					Title = "Resultaat",
+					Description = await _replayService.GetDescriptionForReplay(guild, battle, -1, eventDescription),
+					IsForReplay = true,
+				};
+				await _messageService.CreateEmbed(channel, embedOptions, message);
+				await _messageService.ConfirmCommandExecuted(message);
+			}
+			else if (wasReplay)
+			{
+				IDiscordEmoji inProgressEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)!;
+				IDiscordEmoji errorEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION)!;
+
+				await message.DeleteReactionsEmojiAsync(inProgressEmoji);
+				await message.CreateReactionAsync(errorEmoji);
+			}
+		}
 	}
 
 	internal async Task HandleMessageDeleted(IDiscordMessage message, IDiscordGuild guild, IDiscordChannel channel)

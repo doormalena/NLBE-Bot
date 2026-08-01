@@ -853,11 +853,11 @@ public class MessageServiceTests
 	}
 
 	[DataTestMethod]
-	[DataRow("SayReplayNotWorthy", "TestMap", "http://image.url/", true, true, DisplayName = "NotWorthy - RespondAsync with thumbnail")]
-	[DataRow("SayReplayIsWorthy", "OtherMap", null, false, false, DisplayName = "IsWorthy - SendMessageAsync no map match")]
-	[DataRow("SayReplayNotWorthy", "TestMap", "http://image.url/", false, true, DisplayName = "NotWorthy - SendMessageAsync with thumbnail")]
-	[DataRow("SayReplayIsWorthy", "TestMap", null, true, false, DisplayName = "IsWorthy - RespondAsync no thumbnail (empty name)")]
-	public async Task SayReplay_Wrappers_ShouldBehaveAsExpected(string methodName, string battleMapName, string? mapUrl, bool lastCreatedExists, bool expectThumbnail)
+	[DataRow("SayReplayNotWorthy", "TestMap", "http://image.url/", true, DisplayName = "NotWorthy - RespondAsync with thumbnail")]
+	[DataRow("SayReplayIsWorthy", "OtherMap", null, false, DisplayName = "IsWorthy - RespondAsync no map match")]
+	[DataRow("SayReplayNotWorthy", "TestMap", "http://image.url/", true, DisplayName = "NotWorthy - RespondAsync with thumbnail")]
+	[DataRow("SayReplayIsWorthy", "TestMap", null, false, DisplayName = "IsWorthy - RespondAsync no thumbnail (empty name)")]
+	public async Task SayReplay_Wrappers_ShouldBehaveAsExpected(string methodName, string battleMapName, string? mapUrl, bool expectThumbnail)
 	{
 		// Arrange.
 		int mapId = 23;
@@ -888,26 +888,16 @@ public class MessageServiceTests
 			}
 		}
 
-		if (lastCreatedExists)
-		{
-			IDiscordMessage lastCreated = Substitute.For<IDiscordMessage>();
-			_botStateMock!.LastCreatedDiscordMessage.Returns(lastCreated);
+		IDiscordMessage lastCreated = Substitute.For<IDiscordMessage>();
 
-			lastCreated.RespondAsync(Arg.Do<IDiscordEmbed>(embed => AssertThumbnail(embed, expectThumbnail, mapUrl)))
+		lastCreated.RespondAsync(Arg.Do<IDiscordEmbed>(embed => AssertThumbnail(embed, expectThumbnail, mapUrl)))
 									.Returns(Task.FromResult(expectedMessage));
-		}
-		else
-		{
-			_botStateMock!.LastCreatedDiscordMessage.Returns((IDiscordMessage?) null);
-			_channelMock!.SendMessageAsync(Arg.Do<IDiscordEmbed>(embed => AssertThumbnail(embed, expectThumbnail, mapUrl)))
-										   .Returns(Task.FromResult(expectedMessage));
-		}
 
 		// Act.
 		IDiscordMessage result = methodName switch
 		{
-			"SayReplayNotWorthy" => await _service!.SayReplayNotWorthy(_channelMock!, battle, "Extra"),
-			"SayReplayIsWorthy" => await _service!.SayReplayIsWorthy(_channelMock!, battle, "Extra", 1),
+			"SayReplayNotWorthy" => await _service!.SayReplayNotWorthy(_channelMock!, battle, "Extra", lastCreated),
+			"SayReplayIsWorthy" => await _service!.SayReplayIsWorthy(_channelMock!, battle, "Extra", 1, lastCreated),
 			_ => throw new ArgumentException("Unknown method name")
 		};
 
@@ -921,7 +911,6 @@ public class MessageServiceTests
 		// Arrange.
 		IDiscordMessage expectedMessage = Substitute.For<IDiscordMessage>();
 		IDiscordMessage lastCreated = Substitute.For<IDiscordMessage>();
-		_botStateMock!.LastCreatedDiscordMessage.Returns(lastCreated);
 
 		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
 
@@ -953,7 +942,7 @@ public class MessageServiceTests
 		.Returns(Task.FromResult(expectedMessage));
 
 		// Act.
-		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options);
+		IDiscordMessage result = await _service!.CreateEmbed(_channelMock!, options, lastCreated);
 
 		// Assert.
 		Assert.AreSame(expectedMessage, result);

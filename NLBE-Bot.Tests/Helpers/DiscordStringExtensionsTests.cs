@@ -1,7 +1,7 @@
 namespace NLBE_Bot.Tests.Helpers;
 
-using NLBE_Bot.Helpers;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NLBE_Bot.Helpers;
 
 [TestClass]
 public class DiscordStringExtensionsTests

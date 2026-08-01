@@ -19,10 +19,6 @@ internal interface IBotState
 	{
 		get; set;
 	}
-	public IDiscordMessage? LastCreatedDiscordMessage
-	{
-		get; set;
-	}
 
 	public DateTime? LasTimeServerNicknamesWereVerified
 	{

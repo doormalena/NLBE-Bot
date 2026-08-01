@@ -1,4 +1,5 @@
 namespace NLBE_Bot.Configuration;
+
 using System.ComponentModel.DataAnnotations;
 
 public class RoleIdsOptions

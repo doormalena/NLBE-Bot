@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 internal interface IHallOfFameService
 {
-	public Task<Tuple<string, IDiscordMessage?>> Handle(string titel, IDiscordAttachment? attachment, IDiscordChannel channel, IDiscordGuild guild, string iets, IDiscordMember member);
+	public Task<Tuple<string, IDiscordMessage?>> Handle(string title, IDiscordAttachment attachment, IDiscordChannel channel, IDiscordGuild guild, IDiscordMember member, IDiscordMessage lastCreatedDiscordMessage);
 
 	public Task<bool> CreateOrCleanHOFMessages(IDiscordChannel HOFchannel, List<Tuple<int, IDiscordMessage>> tiersFound);
 

@@ -122,6 +122,7 @@ public static class Program
 
 		return new WotbConnection(client, logger, options.WotbApi.BaseUri, options.WotbApi.ApplicationId);
 	}
+
 	private static WotInspectorConnection CreateWotInspectorConnection(IServiceProvider provider, HttpClient client)
 	{
 		IOptions<BotOptions>? optionsWrapper = provider.GetService<IOptions<BotOptions>>() ?? throw new InvalidOperationException("IOptions<BotOptions> is not registered in the service provider.");
