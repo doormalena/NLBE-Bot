@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Services;
 using NSubstitute;
+using NSubstitute.Core;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -56,20 +57,28 @@ public class BotTests
 		await Task.Delay(500); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
-		_loggerMock!.Received().Log(
-			LogLevel.Information,
-			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v!.ToString()!.Contains("NLBE Bot is starting.")),
-			null,
-			Arg.Any<Func<object, Exception?, string>>());
+		List<ICall> logCalls = _loggerMock!.ReceivedCalls()
+								  .Where(c => c.GetMethodInfo().Name == "Log")
+								  .ToList();
 
-		_loggerMock!.Received().Log(
-			LogLevel.Information,
-			Arg.Any<EventId>(),
-			Arg.Is<object>(v => v!.ToString()!.Contains("NLBE Bot is stopped.") ||
-						v!.ToString()!.Contains("NLBE Bot was cancelled gracefully.")),
-			Arg.Any<Exception?>(),
-			Arg.Any<Func<object, Exception?, string>>());
+		// Startup log
+		object?[] startupArgs = logCalls[0].GetArguments();
+		object? startupState = startupArgs[2];
+		Delegate? startupFormatter = (Delegate?) startupArgs[4];
+		string? startupMessage = (string?) startupFormatter!.DynamicInvoke(startupState, null);
+
+		Assert.IsTrue(startupMessage!.Contains("NLBE Bot is starting."));
+
+		// Shutdown log
+		List<ICall> shutdownCalls = [.. logCalls.Skip(1)];
+		object?[] shutdownArgs = shutdownCalls[^1].GetArguments();
+		object? shutdownState = shutdownArgs[2];
+		Delegate? shutdownFormatter = (Delegate?) shutdownArgs[4];
+		string? shutdownMessage = (string?) shutdownFormatter!.DynamicInvoke(shutdownState, null);
+
+		Assert.IsTrue(
+			shutdownMessage!.Contains("NLBE Bot is stopped.") ||
+			shutdownMessage.Contains("NLBE Bot was cancelled gracefully."));
 	}
 
 	[TestMethod]
