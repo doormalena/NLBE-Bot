@@ -7,7 +7,7 @@ using WorldOfTanksBlitzApi.Models;
 
 internal interface IUserService
 {
-	public Task<IDiscordMember> GetDiscordMember(IDiscordGuild guild, ulong userID);
+	public Task<IDiscordMember?> GetDiscordMember(IDiscordGuild guild, ulong userID);
 
 	public Task ChangeMemberNickname(IDiscordMember member, string nickname);
 
@@ -21,5 +21,5 @@ internal interface IUserService
 
 	public List<DEF> ListInMemberEmbed(int columns, List<IDiscordMember> memberList, string searchTerm);
 
-	public Task<WotbAccountInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam);
+	public Task<WotbAccountInfo?> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam);
 }
