@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36202.13
+# Visual Studio Version 18
+VisualStudioVersion = 18.8.12023.21 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NLBE-Bot", "NLBE-Bot\NLBE-Bot.csproj", "{0403FB1E-D9FA-818D-F61F-E7764C974118}"
 EndProject
@@ -12,6 +12,11 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsonObjectConverter", "JsonObjectConverter\JsonObjectConverter.csproj", "{89385A6A-D25F-4721-92D2-8E995EDABCC3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorldOfTanksBlitzApi.Tests", "WorldOfTanksBlitzApi.Tests\WorldOfTanksBlitzApi.Tests.csproj", "{95F8F033-C77E-461C-8C75-8DF9690E8FE6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{EFC43976-16A8-446C-80CE-F279C48857EF}"
+	ProjectSection(SolutionItems) = preProject
+		discord-application-setup-guide.md = discord-application-setup-guide.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
