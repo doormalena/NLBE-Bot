@@ -38,13 +38,13 @@ public class BotTests
 		_discordClientMock.GetCommandsNext().Returns(commandsNextMock);
 
 		_bot = new(_discordClientMock, _eventHandlersMock, _loggerMock, _publicIpMock, _serviceProviderMock, _botStateMock);
+		_bot!.StartedSignal = new TaskCompletionSource<bool>();
 	}
 
 	[TestMethod]
 	public async Task ExecuteAsync_LogsStartupAndShutdown()
 	{
 		// Arrange.
-		_bot!.StartedSignal = new TaskCompletionSource<bool>();
 		_discordClientMock!.ConnectAsync(Arg.Any<DiscordActivity>(), Arg.Any<UserStatus>())
 								.Returns(Task.CompletedTask);
 
@@ -82,6 +82,7 @@ public class BotTests
 
 		// Act.
 		await _bot!.StartAsync(CancellationToken.None);
+		await _bot.StartedSignal!.Task;
 		await Task.Delay(500); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
@@ -106,6 +107,7 @@ public class BotTests
 
 		// Act.
 		await _bot!.StartAsync(CancellationToken.None);
+		await _bot.StartedSignal!.Task;
 		await Task.Delay(500); // Workaround to give the logger time to flush, otherwise causing the test to fail.
 
 		// Assert.
