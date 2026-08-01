@@ -15,7 +15,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorldOfTanksBlitzApi.Tests"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{EFC43976-16A8-446C-80CE-F279C48857EF}"
 	ProjectSection(SolutionItems) = preProject
-		discord-application-setup-guide.md = discord-application-setup-guide.md
+		docs\discord-application-setup-guide.md = docs\discord-application-setup-guide.md
 	EndProjectSection
 EndProject
 Global
