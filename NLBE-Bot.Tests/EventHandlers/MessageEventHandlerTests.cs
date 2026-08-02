@@ -8,7 +8,11 @@ using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
 using NLBE_Bot.EventHandlers;
 using NLBE_Bot.Interfaces;
+using NLBE_Bot.Models;
 using NSubstitute;
+using System.Globalization;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
 [TestClass]
 public class MessageEventHandlerTests
@@ -16,6 +20,7 @@ public class MessageEventHandlerTests
 	private IDiscordClient _discordClientMock = null!;
 	private ILogger<MessageEventHandler> _loggerMock = null!;
 	private IOptions<BotOptions> _options = null!;
+	private IVehiclesRepository _vehiclesRepositoryMock = null!;
 	private IUserService _userServiceMock = null!;
 	private IDiscordMessageUtils _discordMessageUtilsMock = null!;
 	private IWeeklyEventService _weeklyEventServiceMock = null!;
@@ -30,6 +35,7 @@ public class MessageEventHandlerTests
 	private IDiscordChannel _rulesChannelMock = null!;
 	private IDiscordChannel _generalChannelMock = null!;
 	private IDiscordChannel _tournamentSignUpChannelMock = null!;
+	private IDiscordChannel _replayChannelMock = null!;
 
 	#region TestInitialize
 
@@ -64,6 +70,9 @@ public class MessageEventHandlerTests
 		_generalChannelMock = Substitute.For<IDiscordChannel>();
 		_generalChannelMock.Id.Returns(botOptions.ChannelIds.General);
 
+		_replayChannelMock = Substitute.For<IDiscordChannel>();
+		_replayChannelMock.Id.Returns(botOptions.ChannelIds.ReplayResults);
+
 		_tournamentSignUpChannelMock = Substitute.For<IDiscordChannel>();
 		_tournamentSignUpChannelMock.Id.Returns(botOptions.ChannelIds.TournamentSignUp);
 
@@ -73,11 +82,13 @@ public class MessageEventHandlerTests
 		_guildMock.GetChannel(botOptions.ChannelIds.Rules).Returns(_rulesChannelMock);
 		_guildMock.GetChannel(botOptions.ChannelIds.General).Returns(_generalChannelMock);
 		_guildMock.GetChannel(botOptions.ChannelIds.TournamentSignUp).Returns(_tournamentSignUpChannelMock);
+		_guildMock.GetChannel(botOptions.ChannelIds.ReplayResults).Returns(_replayChannelMock);
 
 		_discordClientMock = Substitute.For<IDiscordClient>();
 		_discordClientMock.GetGuildAsync(botOptions.ServerId).Returns(Task.FromResult(_guildMock));
 
 		_loggerMock = Substitute.For<ILogger<MessageEventHandler>>();
+		_vehiclesRepositoryMock = Substitute.For<IVehiclesRepository>();
 		_userServiceMock = Substitute.For<IUserService>();
 		_discordMessageUtilsMock = Substitute.For<IDiscordMessageUtils>();
 		_weeklyEventServiceMock = Substitute.For<IWeeklyEventService>();
@@ -90,6 +101,7 @@ public class MessageEventHandlerTests
 		_handler = new MessageEventHandler(
 			_options,
 			_loggerMock,
+			_vehiclesRepositoryMock,
 			_userServiceMock,
 			_discordMessageUtilsMock,
 			_weeklyEventServiceMock,
@@ -123,50 +135,298 @@ public class MessageEventHandlerTests
 	#region HandleMessageCreated
 
 	[TestMethod]
-	public async Task HandleMessageCreated_IgnoresBotInPublicChannel()
+	public async Task HandleMessageCreated_ProcessesMasteryReplay_CallsHallOfFame()
 	{
-		// Arrange.
+		// Arrange
 		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
-		IDiscordUser botUser = Substitute.For<IDiscordUser>();
-		botUser.IsBot.Returns(true);
 
-		IDiscordChannel publicChannel = Substitute.For<IDiscordChannel>();
-		publicChannel.IsPrivate.Returns(false);
+		IDiscordChannel weeklyEventChannel = Substitute.For<IDiscordChannel>();
+		weeklyEventChannel.Id.Returns(_options.Value.ChannelIds.WeeklyEvent);
+		IDiscordChannel masteryChannel = Substitute.For<IDiscordChannel>();
+		masteryChannel.Id.Returns(_options.Value.ChannelIds.MasteryReplays);
+		IDiscordChannel replayChannel = Substitute.For<IDiscordChannel>();
+		replayChannel.Id.Returns(_options.Value.ChannelIds.ReplayResults);
+		IDiscordChannel botTestChannel = Substitute.For<IDiscordChannel>();
+		botTestChannel.Id.Returns(_options.Value.ChannelIds.BotTest);
 
-		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
-		msg.Attachments.Returns([]);
+		_guildMock.GetChannel(_options.Value.ChannelIds.WeeklyEvent).Returns(weeklyEventChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.MasteryReplays).Returns(masteryChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.ReplayResults).Returns(replayChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.BotTest).Returns(botTestChannel);
 
-		_guildMock.GetChannel(_options.Value.ChannelIds.WeeklyEvent).Returns(Substitute.For<IDiscordChannel>());
-		_guildMock.GetChannel(_options.Value.ChannelIds.MasteryReplays).Returns(Substitute.For<IDiscordChannel>());
-		_guildMock.GetChannel(_options.Value.ChannelIds.ReplayResults).Returns(Substitute.For<IDiscordChannel>());
-		_guildMock.GetChannel(_options.Value.ChannelIds.BotTest).Returns(Substitute.For<IDiscordChannel>());
+		IDiscordUser author = Substitute.For<IDiscordUser>();
+		author.IsBot.Returns(false);
+		author.Id.Returns(123UL);
 
-		// Act.
-		await _handler.HandleMessageCreated(_guildMock, publicChannel, msg, botUser);
+		IDiscordChannel channel = masteryChannel;
 
-		// Assert.
-		await _replayServiceMock.DidNotReceive().GetReplayInfo(Arg.Any<string>(), Arg.Any<IDiscordAttachment>());
-		await _weeklyEventServiceMock.DidNotReceive().CreateNewWeeklyEvent(Arg.Any<string>(), Arg.Any<IDiscordChannel>());
+		IDiscordAttachment replayAttachment = Substitute.For<IDiscordAttachment>();
+		replayAttachment.FileName.Returns("battle.wotbreplay");
+
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		message.Attachments.Returns([replayAttachment]);
+
+		IDiscordRole nlbeRole = Substitute.For<IDiscordRole>();
+		nlbeRole.Id.Returns(Constants.NLBE_ROLE);
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.Roles.Returns([nlbeRole]);
+		_guildMock.GetMemberAsync(author.Id).Returns(member);
+		_guildMock.GetRole(Constants.NLBE_ROLE).Returns(nlbeRole);
+
+		Tuple<string, IDiscordMessage?> hofResult = new("ok", null);
+		_hallOfFameServiceMock.Handle(
+			Arg.Any<string>(),
+			replayAttachment,
+			channel,
+			_guildMock,
+			member,
+			message).Returns(hofResult);
+
+		// Act
+		await _handler.HandleMessageCreated(_guildMock, channel, message, author);
+
+		// Assert
+		await _hallOfFameServiceMock.Received(1).Handle(
+			Arg.Any<string>(),
+			replayAttachment,
+			channel,
+			_guildMock,
+			member,
+			message);
+		await _hallOfFameServiceMock.Received(1).HofAfterUpload(hofResult, message);
 	}
 
 	[TestMethod]
-	public async Task HandleMessageCreated_ReturnsEarly_WhenRequiredChannelMissing()
+	public async Task HandleMessageCreated_ProcessesReplayResults_CallsReplayAndEmbed()
 	{
-		// Arrange.
+		// Arrange
 		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
-		_guildMock.GetChannel(_options.Value.ChannelIds.WeeklyEvent).Returns((IDiscordChannel?) null);
 
-		IDiscordUser user = Substitute.For<IDiscordUser>();
-		user.IsBot.Returns(false);
+		IDiscordChannel weeklyEventChannel = Substitute.For<IDiscordChannel>();
+		weeklyEventChannel.Id.Returns(_options.Value.ChannelIds.WeeklyEvent);
+		IDiscordChannel masteryChannel = Substitute.For<IDiscordChannel>();
+		masteryChannel.Id.Returns(_options.Value.ChannelIds.MasteryReplays);
+		IDiscordChannel replayChannel = Substitute.For<IDiscordChannel>();
+		replayChannel.Id.Returns(_options.Value.ChannelIds.ReplayResults);
+		IDiscordChannel botTestChannel = Substitute.For<IDiscordChannel>();
+		botTestChannel.Id.Returns(_options.Value.ChannelIds.BotTest);
 
-		IDiscordChannel channel = Substitute.For<IDiscordChannel>();
+		_guildMock.GetChannel(_options.Value.ChannelIds.WeeklyEvent).Returns(weeklyEventChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.MasteryReplays).Returns(masteryChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.ReplayResults).Returns(replayChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.BotTest).Returns(botTestChannel);
+
+		IDiscordUser author = Substitute.For<IDiscordUser>();
+		author.IsBot.Returns(false);
+		author.Id.Returns(123UL);
+
+		IDiscordChannel channel = replayChannel;
+
+		IDiscordAttachment replayAttachment = Substitute.For<IDiscordAttachment>();
+		replayAttachment.FileName.Returns("battle.wotbreplay");
+
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		message.Attachments.Returns([replayAttachment]);
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.Roles.Returns([]);
+		_guildMock.GetMemberAsync(author.Id).Returns(member);
+
+		WotInspectorBattle battle = new();
+		_replayServiceMock.GetReplayInfo(Arg.Any<string>(), replayAttachment).Returns(battle);
+		_weeklyEventServiceMock.GetStringForWeeklyEvent(_guildMock, battle).Returns("event");
+		_mapServiceMock.GetAllMaps(channel.Guild).Returns([]);
+		_replayServiceMock.GetDescriptionForReplay(_guildMock, battle, -1, "event").Returns("desc");
+
+		// Act
+		await _handler.HandleMessageCreated(_guildMock, channel, message, author);
+
+		// Assert
+		await _messageServiceMock.Received(1).ConfirmCommandExecuting(message);
+		await _replayServiceMock.Received(1).GetReplayInfo(Arg.Any<string>(), replayAttachment);
+		await _messageServiceMock.Received(1).CreateEmbed(
+			channel,
+			Arg.Is<EmbedOptions>(e => e!.IsForReplay && e.Title == "Resultaat"),
+			message);
+		await _messageServiceMock.Received(1).ConfirmCommandExecuted(message);
+	}
+
+	[TestMethod]
+	public async Task HandleMessageCreated_ReplayResults_UsesVehicleRepository()
+	{
+		// Arrange
+		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
+		IDiscordUser author = Substitute.For<IDiscordUser>();
+		author.IsBot.Returns(false);
+		author.Id.Returns(123UL);
+
+		IDiscordMember member = Substitute.For<IDiscordMember>();
+		member.Roles.Returns([]);
+		_guildMock.GetMemberAsync(author.Id).Returns(member);
+
+		IDiscordAttachment attachment = Substitute.For<IDiscordAttachment>();
+		attachment.FileName.Returns("battle.wotbreplay");
+
 		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
+		msg.Attachments.Returns([attachment]);
 
-		// Act.
-		await _handler.HandleMessageCreated(_guildMock, channel, msg, user);
+		WotInspectorBattle battle = new()
+		{
+			VehicleDescr = 777 // tank ID
+		};
 
-		// Assert.
-		await _replayServiceMock.DidNotReceive().GetReplayInfo(Arg.Any<string>(), Arg.Any<IDiscordAttachment>());
+		_replayServiceMock.GetReplayInfo(Arg.Any<string>(), attachment).Returns(battle);
+
+		_vehiclesRepositoryMock.GetByIdAsync(777)
+			.Returns(new WotbVehicle { TankId = 777, Name = "IS-7" });
+
+		_weeklyEventServiceMock.GetStringForWeeklyEvent(_guildMock, battle).Returns("event");
+		_mapServiceMock.GetAllMaps(_replayChannelMock.Guild).Returns([]);
+		_replayServiceMock.GetDescriptionForReplay(_guildMock, battle, -1, "event")
+			.Returns("Replay description with IS-7");
+
+		// Act
+		await _handler.HandleMessageCreated(_guildMock, _replayChannelMock, msg, author);
+
+		// Assert
+		await _messageServiceMock.Received(1).CreateEmbed(
+			_replayChannelMock,
+			Arg.Is<EmbedOptions>(e => e!.Description.Contains("IS-7")),
+			msg);
+	}
+
+	[TestMethod]
+	public async Task HandleMessageCreated_WeeklyEventDM_SelectsExactTank_AndCreatesNewEvent()
+	{
+		// Arrange
+		IBotState botState = Substitute.For<IBotState>();
+		botState.WeeklyEventWinner = new WeeklyEventWinner
+		{
+			UserId = 123,
+			LastEventDate = DateTime.UnixEpoch
+		};
+		_handler.Register(_discordClientMock, botState);
+
+		IDiscordChannel dmChannel = Substitute.For<IDiscordChannel>();
+		dmChannel.IsPrivate.Returns(true);
+
+		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
+		msg.Author.IsBot.Returns(false);
+		msg.CreationTimestamp.Returns(DateTimeOffset.UtcNow);
+		msg.Content.Returns("Panther");
+
+		Dictionary<string, WotbVehicle> vehicles = new()
+		{
+			{ "101", new WotbVehicle { TankId = 101, Name = "Panther" } },
+			{ "102", new WotbVehicle { TankId = 102, Name = "Panzer" } }
+		};
+		_vehiclesRepositoryMock.GetAllAsync().Returns(vehicles);
+
+		IDiscordChannel? weeklyEventChannel = _guildMock!.GetChannel(_options.Value.ChannelIds.WeeklyEvent);
+
+		// Act
+		await _handler.HandleMessageCreated(_guildMock, dmChannel, msg, msg.Author);
+
+		// Assert
+		await _weeklyEventServiceMock.Received(1)
+			.CreateNewWeeklyEvent("Panther", weeklyEventChannel!);
+	}
+	[TestMethod]
+	public async Task HandleMessageCreated_WeeklyEventDM_TooManyMatches_ShowsWarning()
+	{
+		// Arrange
+		IBotState botState = Substitute.For<IBotState>();
+		botState.WeeklyEventWinner = new WeeklyEventWinner
+		{
+			UserId = 123,
+			LastEventDate = DateTime.UnixEpoch
+		};
+		_handler.Register(_discordClientMock, botState);
+
+		IDiscordChannel dmChannel = Substitute.For<IDiscordChannel>();
+		dmChannel.IsPrivate.Returns(true);
+
+		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
+		msg.Author.IsBot.Returns(false);
+		msg.CreationTimestamp.Returns(DateTimeOffset.UtcNow);
+		msg.Content.Returns("Pan");
+
+		Dictionary<string, WotbVehicle> vehicles = [];
+		for (int i = 0; i < 30; i++)
+		{
+			vehicles.Add(i.ToString(), new WotbVehicle { Name = "Panther" });
+		}
+
+		_vehiclesRepositoryMock.GetAllAsync().Returns(vehicles);
+
+		// Act
+		await _handler.HandleMessageCreated(_guildMock, dmChannel, msg, msg.Author);
+
+		// Assert
+		await dmChannel.Received(1).SendMessageAsync(
+			Arg.Is<string>(s => s!.Contains("te veel resultaten")));
+	}
+
+	[TestMethod]
+	public async Task HandleMessageCreated_WeeklyEventDM_NoMatches_ShowsNotFound()
+	{
+		// Arrange
+		IBotState botState = Substitute.For<IBotState>();
+		botState.WeeklyEventWinner = new WeeklyEventWinner
+		{
+			UserId = 123,
+			LastEventDate = DateTime.UnixEpoch
+		};
+		_handler.Register(_discordClientMock, botState);
+
+		IDiscordChannel dmChannel = Substitute.For<IDiscordChannel>();
+		dmChannel.IsPrivate.Returns(true);
+
+		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
+		msg.Author.IsBot.Returns(false);
+		msg.CreationTimestamp.Returns(DateTimeOffset.UtcNow);
+		msg.Content.Returns("UnknownTank");
+		_vehiclesRepositoryMock.GetAllAsync().Returns([]);
+
+		// Act
+		await _handler.HandleMessageCreated(_guildMock, dmChannel, msg, msg.Author);
+
+		// Assert
+		await dmChannel.Received(1).SendMessageAsync(
+			Arg.Is<string>(s => s!.Contains("kon niet gevonden")));
+	}
+
+	[TestMethod]
+	public async Task HandleMessageCreated_WeeklyEventDM_MultipleMatches_ShowsList()
+	{
+		// Arrange
+		IBotState botState = Substitute.For<IBotState>();
+		botState.WeeklyEventWinner = new WeeklyEventWinner
+		{
+			UserId = 123,
+			LastEventDate = DateTime.UnixEpoch
+		};
+		_handler.Register(_discordClientMock, botState);
+
+		IDiscordChannel dmChannel = Substitute.For<IDiscordChannel>();
+		dmChannel.IsPrivate.Returns(true);
+
+		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
+		msg.Author.IsBot.Returns(false);
+		msg.CreationTimestamp.Returns(DateTimeOffset.UtcNow);
+		msg.Content.Returns("Pan");
+
+		_vehiclesRepositoryMock.GetAllAsync().Returns(new Dictionary<string, WotbVehicle>
+		{
+			{ "101", new WotbVehicle { TankId = 101, Name = "Panther" } },
+			{ "102", new WotbVehicle { TankId = 102, Name = "Panzer" } }
+		});
+
+		// Act
+		await _handler.HandleMessageCreated(_guildMock, dmChannel, msg, msg.Author);
+
+		// Assert
+		await dmChannel.Received(2).SendMessageAsync(Arg.Any<string>());
 	}
 
 	#endregion
@@ -174,23 +434,33 @@ public class MessageEventHandlerTests
 	#region HandleMessageDeleted
 
 	[TestMethod]
-	public async Task HandleMessageDeleted_IgnoresWhenNotTournamentChannel()
+	public async Task HandleMessageDeleted_DeletesLogMessage_WhenTournamentChannel()
 	{
-		// Arrange.
+		// Arrange
 		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
-		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
-		IDiscordChannel otherChannel = Substitute.For<IDiscordChannel>();
-		otherChannel.Id.Returns(123UL);
 
-		// Act.
-		await _handler.HandleMessageDeleted(msg, _guildMock, otherChannel);
+		IDiscordChannel tournamentChannel = Substitute.For<IDiscordChannel>();
+		tournamentChannel.Id.Returns(_options.Value.ChannelIds.TournamentSignUp);
+		IDiscordChannel logChannel = Substitute.For<IDiscordChannel>();
 
-		// Assert.
-		await _tournamentServiceMock.DidNotReceive().GenerateLogMessage(
-			Arg.Any<IDiscordMessage>(),
-			Arg.Any<IDiscordChannel>(),
-			Arg.Any<ulong>(),
-			Arg.Any<string>());
+		_guildMock.GetChannel(_options.Value.ChannelIds.TournamentSignUp).Returns(tournamentChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.Log).Returns(logChannel);
+
+		DateTime now = DateTime.Now;
+		IDiscordMessage deletedMessage = Substitute.For<IDiscordMessage>();
+		deletedMessage.Timestamp.Returns(new DateTimeOffset(now));
+
+		IDiscordMessage logMsg = Substitute.For<IDiscordMessage>();
+		logMsg.Content.Returns($"{now.ToString("dd-MM-yyyy HH:mm:ss", new CultureInfo("nl-NL"))}|rest");
+		logMsg.DeleteAsync().Returns(Task.CompletedTask);
+
+		logChannel.GetMessagesAsync(100).Returns([logMsg]);
+
+		// Act
+		await _handler.HandleMessageDeleted(deletedMessage, _guildMock, tournamentChannel);
+
+		// Assert
+		await logMsg.Received(1).DeleteAsync();
 	}
 
 	#endregion
@@ -198,53 +468,79 @@ public class MessageEventHandlerTests
 	#region HandleMessageReactionAdded
 
 	[TestMethod]
-	public async Task HandleMessageReactionAdded_ProcessesRulesReadEmoji()
+	public async Task HandleMessageReactionAdded_TournamentSignUp_CallsGenerateLogMessage()
 	{
-		// Arrange.
-		ulong reactingUserId = 555UL;
+		// Arrange
+		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
 
+		IDiscordChannel tournamentChannel = Substitute.For<IDiscordChannel>();
+		tournamentChannel.Id.Returns(_options.Value.ChannelIds.TournamentSignUp);
+		IDiscordChannel rulesChannel = Substitute.For<IDiscordChannel>();
+		rulesChannel.Id.Returns(_options.Value.ChannelIds.Rules);
+		IDiscordChannel generalChannel = Substitute.For<IDiscordChannel>();
+		generalChannel.Id.Returns(_options.Value.ChannelIds.General);
 		IDiscordRole membersRole = Substitute.For<IDiscordRole>();
-		membersRole.Id.Returns(_options.Value.RoleIds.Members);
+
+		_guildMock.GetChannel(_options.Value.ChannelIds.TournamentSignUp).Returns(tournamentChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.Rules).Returns(rulesChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.General).Returns(generalChannel);
 		_guildMock.GetRole(_options.Value.RoleIds.Members).Returns(membersRole);
 
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		IDiscordUser user = Substitute.For<IDiscordUser>();
+		user.IsBot.Returns(false);
+		user.Id.Returns(123UL);
+
 		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
-		emoji.GetDiscordName().Returns(":ok:");
 		emoji.Name.Returns("ok");
 		_discordMessageUtilsMock.GetDiscordEmoji("ok").Returns(emoji);
 
-		IDiscordMessage message = Substitute.For<IDiscordMessage>();
-		IDiscordUser reactingUser = Substitute.For<IDiscordUser>();
-		reactingUser.Id.Returns(reactingUserId);
-		reactingUser.IsBot.Returns(false);
+		// Act
+		await _handler.HandleMessageReactionAdded(message, _guildMock, tournamentChannel, user, emoji);
 
-		message.GetReactionsAsync(emoji).Returns([reactingUser]);
+		// Assert
+		await _tournamentServiceMock.Received(1).GenerateLogMessage(
+			Arg.Any<IDiscordMessage>(),
+			tournamentChannel,
+			user.Id,
+			Arg.Any<string>());
+	}
 
-		IDiscordMember member = Substitute.For<IDiscordMember>();
-		member.Id.Returns(reactingUserId);
-		member.DisplayName.Returns("[NLBE] PlayerName");
-		member.Username.Returns("PlayerName");
-
-		IDiscordRole mustReadRulesRole = Substitute.For<IDiscordRole>();
-		mustReadRulesRole.Id.Returns(_options.Value.RoleIds.MustReadRules);
-		member.Roles.Returns([mustReadRulesRole]);
-
-		_guildMock.GetMemberAsync(reactingUserId).Returns(member);
-
-		IDiscordUser addingUser = Substitute.For<IDiscordUser>();
-		addingUser.IsBot.Returns(false);
-		addingUser.Mention.Returns("@PlayerName");
-
+	[TestMethod]
+	public async Task HandleMessageReactionAdded_NonRulesEmoji_DeletesReactionsFromNonBotUsers()
+	{
+		// Arrange
 		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
 
-		// Act.
-		await _handler.HandleMessageReactionAdded(message, _guildMock, _rulesChannelMock, addingUser, emoji);
+		IDiscordChannel tournamentChannel = Substitute.For<IDiscordChannel>();
+		tournamentChannel.Id.Returns(_options.Value.ChannelIds.TournamentSignUp);
+		IDiscordChannel rulesChannel = Substitute.For<IDiscordChannel>();
+		rulesChannel.Id.Returns(_options.Value.ChannelIds.Rules);
+		IDiscordChannel generalChannel = Substitute.For<IDiscordChannel>();
+		generalChannel.Id.Returns(_options.Value.ChannelIds.General);
+		IDiscordRole membersRole = Substitute.For<IDiscordRole>();
 
-		// Assert.
+		_guildMock.GetChannel(_options.Value.ChannelIds.TournamentSignUp).Returns(tournamentChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.Rules).Returns(rulesChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.General).Returns(generalChannel);
+		_guildMock.GetRole(_options.Value.RoleIds.Members).Returns(membersRole);
+
+		IDiscordMessage message = Substitute.For<IDiscordMessage>();
+		IDiscordUser user = Substitute.For<IDiscordUser>();
+		user.IsBot.Returns(false);
+
+		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
+		emoji.GetDiscordName().Returns(":other:");
+
+		IDiscordUser reactingUser = Substitute.For<IDiscordUser>();
+		reactingUser.IsBot.Returns(false);
+		message.GetReactionsAsync(emoji).Returns([reactingUser]);
+
+		// Act
+		await _handler.HandleMessageReactionAdded(message, _guildMock, rulesChannel, user, emoji);
+
+		// Assert
 		await message.Received(1).DeleteReactionAsync(emoji, reactingUser);
-		await member.Received(1).RevokeRoleAsync(mustReadRulesRole);
-		await _userServiceMock.Received(1).ChangeMemberNickname(member, "[] PlayerName");
-		await member.Received(1).GrantRoleAsync(membersRole);
-		await _generalChannelMock.Received(1).SendMessageAsync("@PlayerName, welkom op de NLBE discord server. Good luck, have fun!");
 	}
 
 	#endregion
@@ -252,61 +548,68 @@ public class MessageEventHandlerTests
 	#region HandleMessageReactionRemoved
 
 	[TestMethod]
-	public async Task HandleMessageReactionRemoved_ReAddsReaction_WhenNoUsersRemain()
+	public async Task HandleMessageReactionRemoved_DoesNotReAdd_WhenUsersRemain()
 	{
 		// Arrange
 		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
 
+		IDiscordChannel tournamentChannel = Substitute.For<IDiscordChannel>();
+		tournamentChannel.Id.Returns(_options.Value.ChannelIds.TournamentSignUp);
+		IDiscordChannel logChannel = Substitute.For<IDiscordChannel>();
+
+		_guildMock.GetChannel(_options.Value.ChannelIds.TournamentSignUp).Returns(tournamentChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.Log).Returns(logChannel);
+
 		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
 		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
 		msg.Id.Returns(123UL);
-		msg.GetReactionsAsync(emoji).Returns([]);
 
-		// Message in TournamentSignUp channel must belong to bot
 		IDiscordMessage messageTmp = Substitute.For<IDiscordMessage>();
 		IDiscordUser botUser = Substitute.For<IDiscordUser>();
 		botUser.Id.Returns(Constants.NLBE_BOT);
 		messageTmp.Author.Returns(botUser);
+		_tournamentSignUpChannelMock.GetMessageAsync(msg.Id).Returns(messageTmp);
 
-		_tournamentSignUpChannelMock.GetMessageAsync(Arg.Any<ulong>())
-			.Returns(Task.FromResult(messageTmp));
+		IDiscordUser remainingUser = Substitute.For<IDiscordUser>();
+		msg.GetReactionsAsync(emoji).Returns([remainingUser]);
 
-		// Log channel must return at least one message
-		IDiscordChannel logChannel = Substitute.For<IDiscordChannel>();
-		IDiscordMessage logMsg = Substitute.For<IDiscordMessage>();
-		logMsg.Content.Returns("2024|user|display|emoji");
-		logMsg.CreationTimestamp.Returns(DateTimeOffset.Now);
-
-		logChannel.GetMessagesAsync(100).Returns([logMsg]);
-
-		_guildMock.GetChannel(_options.Value.ChannelIds.TournamentSignUp).Returns(_tournamentSignUpChannelMock);
-		_guildMock.GetChannel(_options.Value.ChannelIds.Log).Returns(logChannel);
-
-		// SortMessages must return a valid dictionary
-		_discordMessageUtilsMock.SortMessages(Arg.Any<IReadOnlyList<IDiscordMessage>>())
-			.Returns(new Dictionary<DateTime, List<IDiscordMessage>>
-			{
-			{ DateTime.Now, new List<IDiscordMessage> { logMsg } }
-			});
-
-		// UserService must return a valid member
-		IDiscordMember member = Substitute.For<IDiscordMember>();
-		member.DisplayName.Returns("display");
-		_userServiceMock.GetDiscordMember(_guildMock, Arg.Any<ulong>())
-			.Returns(member);
-
-		// Emoji string conversion must not be null
-		_discordMessageUtilsMock.GetEmojiAsString(Arg.Any<string>())
-			.Returns("emoji");
+		logChannel.GetMessagesAsync(100).Returns([]);
 
 		IDiscordUser user = Substitute.For<IDiscordUser>();
 		user.Id.Returns(999UL);
 
 		// Act
-		await _handler.HandleMessageReactionRemoved(msg, _guildMock, _tournamentSignUpChannelMock, user, emoji);
+		await _handler.HandleMessageReactionRemoved(msg, _guildMock, tournamentChannel, user, emoji);
 
 		// Assert
-		await msg.Received(1).CreateReactionAsync(emoji);
+		await msg.DidNotReceive().CreateReactionAsync(emoji);
+	}
+
+	[TestMethod]
+	public async Task HandleMessageReactionRemoved_IgnoresNonTournamentChannel()
+	{
+		// Arrange
+		_handler.Register(_discordClientMock, Substitute.For<IBotState>());
+
+		IDiscordChannel tournamentChannel = Substitute.For<IDiscordChannel>();
+		tournamentChannel.Id.Returns(_options.Value.ChannelIds.TournamentSignUp);
+		IDiscordChannel logChannel = Substitute.For<IDiscordChannel>();
+
+		_guildMock.GetChannel(_options.Value.ChannelIds.TournamentSignUp).Returns(tournamentChannel);
+		_guildMock.GetChannel(_options.Value.ChannelIds.Log).Returns(logChannel);
+
+		IDiscordEmoji emoji = Substitute.For<IDiscordEmoji>();
+		IDiscordMessage msg = Substitute.For<IDiscordMessage>();
+		IDiscordChannel otherChannel = Substitute.For<IDiscordChannel>();
+		otherChannel.Id.Returns(123UL);
+
+		IDiscordUser user = Substitute.For<IDiscordUser>();
+
+		// Act
+		await _handler.HandleMessageReactionRemoved(msg, _guildMock, otherChannel, user, emoji);
+
+		// Assert
+		await msg.DidNotReceive().CreateReactionAsync(emoji);
 	}
 
 	#endregion

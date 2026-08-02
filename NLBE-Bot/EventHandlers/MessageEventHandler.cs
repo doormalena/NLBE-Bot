@@ -16,11 +16,13 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 using WorldOfTanksBlitzApi.Vehicles;
 
 internal class MessageEventHandler(IOptions<BotOptions> options,
 								   ILogger<MessageEventHandler> logger,
+								   IVehiclesRepository vehiclesRepository,
 								   IUserService userService,
 								   IDiscordMessageUtils discordMessageUtils,
 								   IWeeklyEventService weeklyEventService,
@@ -30,6 +32,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 								   IHallOfFameService hallOfFameService,
 								   IMessageService messageService) : EventHandlerBase(options), IMessageEventHandler
 {
+	private readonly IVehiclesRepository _vehiclesRepository = vehiclesRepository ?? throw new ArgumentNullException(nameof(vehiclesRepository));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IDiscordMessageUtils _discordMessageUtils = discordMessageUtils ?? throw new ArgumentNullException(nameof(discordMessageUtils));
 	private readonly IWeeklyEventService _weeklyEventService = weeklyEventService ?? throw new ArgumentNullException(nameof(weeklyEventService));
@@ -94,7 +97,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 				await ProcessSubmittedReplay(guild, channel, message, author, masteryChannel, replayChannel, botTestChannel);
 			}
 
-			if (author.IsBot && channel.IsPrivate)
+			if (channel.IsPrivate)
 			{
 				await HandleWeeklyEventDM(channel, message, weeklyEventChannel);
 			}
@@ -364,7 +367,7 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 						{
 							foreach (IDiscordMessage aMessage in messageList.Value)
 							{
-								IDiscordMember member = await _userService.GetDiscordMember(guild, user.Id);
+								IDiscordMember? member = await _userService.GetDiscordMember(guild, user.Id);
 								if (member != null)
 								{
 									string[] splitted = aMessage.Content.Split(Constants.LOG_SPLIT_CHAR);
@@ -398,43 +401,47 @@ internal class MessageEventHandler(IOptions<BotOptions> options,
 			return;
 		}
 
-		string vehiclesInString = await WGVehicle.vehiclesToString(_options.WotbApi.ApplicationId, ["name"]); // TODO: migrate to repository call where we search on tank name directly.
-		Json json = new(vehiclesInString, string.Empty);
-		List<string> tanks = [.. json.subJsons[1].subJsons.Select(item => item.tupleList[0].Item2.Item1.Trim('"').Replace("\\", string.Empty))];
+		Dictionary<string, WotbVehicle>? allVehicles = await _vehiclesRepository.GetAllAsync();
 
+		if (allVehicles == null)
+		{
+			await channel.SendMessageAsync("Er zijn geen tanks beschikbaar.");
+			return;
+		}
+
+		List<string> tanks = allVehicles.Select(v => v.Value.Name).ToList();
 		string? chosenTank = tanks.Find(tank => tank == lastMessage.Content);
 
-		if (string.IsNullOrEmpty(chosenTank))
-		{
-			//specifieker vragen
-			IEnumerable<string> containsStringList = tanks.Where(tank => tank.Contains(lastMessage.Content, StringComparison.OrdinalIgnoreCase));
-			if (containsStringList.Count() > 20)
-			{
-				await channel.SendMessageAsync("Wees iets specifieker want er werden te veel resultaten gevonden!");
-			}
-			else if (!containsStringList.Any())
-			{
-				await channel.SendMessageAsync("Die tank kon niet gevonden worden! Zoekterm: `" + lastMessage.Content + "`");
-			}
-			else
-			{
-				StringBuilder sb = new("```");
-				sb.Append(Environment.NewLine);
-				foreach (string tank in containsStringList)
-				{
-					sb.Append(tank + Environment.NewLine);
-				}
-				sb.AppendLine("```");
-				await channel.SendMessageAsync("Deze tanks bevatten je zoekterm. **Kopieer** de naam van de tank en stuur hem naar mij door om zo de juiste te selecteren. (**Hoofdlettergevoelig**):");
-				await channel.SendMessageAsync(sb.ToString());
-			}
-		}
-		else
+		if (!string.IsNullOrEmpty(chosenTank))
 		{
 			//tank was chosen
 			await channel.SendMessageAsync("Je hebt de **" + chosenTank + "** geselecteerd. Goede keuze!\nIk zal hem onmiddelijk instellen als nieuwe tank voor het wekelijks event.");
 			await _weeklyEventService.CreateNewWeeklyEvent(chosenTank, weeklyEventChannel);
 			_botState.WeeklyEventWinner = null;//dit vermijdt dat deze event telkens opnieuw zal opgeroepen worden + dat anderen het zomaar kunnen aanpassen
+			return;
+		}
+
+		//specifieker vragen
+		IEnumerable<string> containsStringList = tanks.Where(tank => tank.Contains(lastMessage.Content, StringComparison.OrdinalIgnoreCase));
+		if (containsStringList.Count() > 20)
+		{
+			await channel.SendMessageAsync("Wees iets specifieker want er werden te veel resultaten gevonden!");
+		}
+		else if (!containsStringList.Any())
+		{
+			await channel.SendMessageAsync("Die tank kon niet gevonden worden! Zoekterm: `" + lastMessage.Content + "`");
+		}
+		else
+		{
+			StringBuilder sb = new("```");
+			sb.Append(Environment.NewLine);
+			foreach (string tank in containsStringList)
+			{
+				sb.Append(tank + Environment.NewLine);
+			}
+			sb.AppendLine("```");
+			await channel.SendMessageAsync("Deze tanks bevatten je zoekterm. **Kopieer** de naam van de tank en stuur hem naar mij door om zo de juiste te selecteren. (**Hoofdlettergevoelig**):");
+			await channel.SendMessageAsync(sb.ToString());
 		}
 	}
 }
