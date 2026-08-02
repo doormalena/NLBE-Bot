@@ -6,11 +6,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -26,19 +26,16 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 									   IUserService userService,
 									   IMessageService messageService,
 									   IAccountsRepository accountRepository,
-									   IClansRepository clanRepository) : IGuildMemberEventHandler
+									   IClansRepository clanRepository) : EventHandlerBase(options), IGuildMemberEventHandler
 {
 	private readonly ILogger<GuildMemberEventHandler> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 
-	private IBotState _botState;
-
-	public void Register(IDiscordClient client, IBotState botState)
+	public override void Register(IDiscordClient client, IBotState botState)
 	{
 		_ = client ?? throw new ArgumentNullException(nameof(client));
 		_botState = botState ?? throw new ArgumentNullException(nameof(botState));
@@ -57,8 +54,10 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private async Task OnMemberUpdated(DiscordClient _, GuildMemberUpdateEventArgs e)
 	{
-		ReadOnlyCollection<IDiscordRole> rolesAfter = e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly();
-		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild), new DiscordMemberWrapper(e.Member), rolesAfter, e.NicknameAfter);
+		await HandleMemberUpdated(new DiscordGuildWrapper(e.Guild),
+								  new DiscordMemberWrapper(e.Member),
+								  e.RolesAfter.Select(r => (IDiscordRole) new DiscordRoleWrapper(r)).ToList().AsReadOnly(),
+								  e.NicknameAfter);
 	}
 
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
@@ -71,118 +70,33 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			IDiscordChannel welkomChannel = await _channelService.GetWelkomChannel();
-
-			if (welkomChannel == null)
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Welcome), _logger, "Welcome channel", out IDiscordChannel welcomeChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Rules), _logger, "Rules channel", out IDiscordChannel rulesChannel) ||
+				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Noob), _logger, "Noob role", out IDiscordRole noobRole) ||
+				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.MustReadRules), _logger, "MustReadRules role", out IDiscordRole rulesNotReadRole) ||
+				Guard.ReturnIfNull(await sender.GetUserAsync(member.Id), _logger, "User", out IDiscordUser user))
 			{
-				_logger.LogWarning("Could not find the welcome channel. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
-				return;
-			}
-
-			IDiscordUser user = await sender.GetUserAsync(member.Id);
-
-			if (user == null)
-			{
-				_logger.LogWarning("Could not find the user. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
-				return;
-			}
-
-			IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
-
-			if (noobRole == null)
-			{
-				_logger.LogWarning("Noob role not found. Cannot process newly added member {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
 			await member.GrantRoleAsync(noobRole);
+			await welcomeChannel.SendMessageAsync($"{member.Mention} welkom op de NLBE Discord-server! 👋\nBeantwoord eerst de vraag over je WoTB-spelersnaam en neem daarna even de tijd om de regels in {rulesChannel.Mention} goed door te lezen. Veel plezier!");
 
-			IDiscordChannel regelsChannel = await _channelService.GetRegelsChannel();
-			await welkomChannel.SendMessageAsync(member.Mention + " welkom op de NLBE discord server. Beantwoord eerst de vraag en lees daarna de " + (regelsChannel != null ? regelsChannel.Mention : "#regels") + " aub.");
+			IReadOnlyList<WotbAccountListItem> searchResults = await FindMatchingAccountsAsync(welcomeChannel, user, guild);
+			WotbAccountListItem selectedAccount = await SelectAccountAsync(searchResults, welcomeChannel, user);
+			await ProcessAccountInfoAsync(selectedAccount, member);
 
-			IReadOnlyList<WotbAccountListItem> searchResults = [];
-			bool resultFound = false;
-			StringBuilder sbDescription = new();
-			int counter = 0;
-			bool firstTime = true;
+			await member.SendMessageAsync("We zijn er bijna!\nNeem nog even een moment om de regels in **#regels** door te nemen, dan ben je helemaal klaar ✅.");
+			await member.RevokeRoleAsync(noobRole);
+			await member.GrantRoleAsync(rulesNotReadRole);
 
-			while (!resultFound)
-			{
-				string question = user.Mention + " Wat is je gebruikersnaam van je wargaming account?";
-				if (firstTime)
-				{
-					firstTime = false;
-				}
-				else
-				{
-					question = "**We konden dit Wargamingaccount niet vinden, probeer opnieuw! (Hoofdlettergevoelig)**\n" + question;
-				}
+			// Note: we do not remove the MustReadRules role here. When the user reacts on the rules message (see MessageEventHandler.HandleMessageReactionAdded):
+			// - The MustReadRules role will be removed.
+			// - The member will get the Members role.
+			// - The username will be updated (if needed).
+			// - The user will be welcomed in the general channel.
 
-				string ign = await _messageService.AskQuestion(welkomChannel, user, guild, question);
-				searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, ign);
-
-				if (searchResults == null || searchResults.Count <= 0)
-				{
-					continue;
-				}
-
-				resultFound = true;
-				foreach (WotbAccountListItem tempAccount in searchResults)
-				{
-					WotbAccountInfo accountInfo = await _accountRepository.GetByIdAsync(searchResults[0].AccountId);
-
-					if (accountInfo == null)
-					{
-						_logger.LogWarning("Account info not found for account ID {AccountId} while processing member {MemberName} ({MemberId})", searchResults[0].AccountId, member.DisplayName, member.Id);
-						continue;
-					}
-
-					WotbAccountClanInfo tempAccountClanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
-					string tempClanName = tempAccountClanInfo?.Clan.Tag;
-
-					sbDescription.AppendLine(++counter + ". " + accountInfo.Nickname + " " + (!string.IsNullOrEmpty(tempClanName) ? '`' + tempClanName + '`' : string.Empty));
-				}
-			}
-
-			int selectedAccount = 0;
-			if (searchResults.Count > 1)
-			{
-				selectedAccount = -1;
-				while (selectedAccount == -1)
-				{
-					selectedAccount = await _messageService.WaitForReply(welkomChannel, user, sbDescription.ToString(), counter);
-				}
-			}
-
-			WotbAccountListItem account = searchResults[selectedAccount];
-			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
-
-			string clanName = string.Empty;
-
-			if (accountClanInfo.Clan != null && accountClanInfo.Clan.Tag != null)
-			{
-				if (accountClanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || accountClanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID)) // TODO: move to configuration
-				{
-					await member.SendMessageAsync("Indien je echt van **" + accountClanInfo.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + accountClanInfo.Clan.Tag + "** rol wilt geven.");
-				}
-				else
-				{
-					clanName = accountClanInfo.Clan.Tag;
-				}
-			}
-
-			_userService.ChangeMemberNickname(member, "[" + clanName + "] " + account.Nickname).Wait();
-			await member.SendMessageAsync("We zijn er bijna. Als je nog even de regels wilt lezen in **#regels** dan zijn we klaar.");
-
-			IDiscordRole rulesNotReadRole = guild.GetRole(_options.RoleIds.MustReadRules);
-
-			if (rulesNotReadRole != null)
-			{
-				await member.RevokeRoleAsync(noobRole);
-				await member.GrantRoleAsync(rulesNotReadRole);
-			}
-
-			await CleanWelcomeChannel(guild, member, noobRole);
+			await _channelService.CleanChannelAsync(welcomeChannel, member);
 		});
 	}
 
@@ -190,26 +104,19 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			try
+			IEnumerable<IDiscordRole> roles = member.Roles;
+
+			// TODO: why do we check rolesAfter and nicknameAfter? Filtering out changes that do not effect the name of the member?
+			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
 			{
-				IEnumerable<IDiscordRole> roles = member.Roles;
-
-				// TODO: why do we check rolesAfter and nicknameAfter? Filtering out changes that do not effect the name of the member?
-				if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)) || !roles.Any() || rolesAfter.Count == 0 || string.IsNullOrEmpty(nicknameAfter))
-				{
-					return;
-				}
-
-				string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do? Does this update the display name based on the nickname or something else?
-
-				if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
-				{
-					await _userService.ChangeMemberNickname(member, editedName);
-				}
+				return;
 			}
-			catch (Exception ex)
+
+			string editedName = _userService.UpdateName(member, member.DisplayName); // TODO: what does this do? Does this update the display name based on the nickname or something else?
+
+			if (!string.IsNullOrEmpty(editedName) && !editedName.Equals(member.DisplayName, StringComparison.Ordinal))
 			{
-				_logger.LogError(ex, "An error occured while processing the updated member. {DisplayName} ({Id})", member.DisplayName, member.Id);
+				await _userService.ChangeMemberNickname(member, editedName);
 			}
 		});
 	}
@@ -218,28 +125,18 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 	{
 		await ExecuteIfAllowedAsync(guild, async () =>
 		{
-			IDiscordChannel oudLedenChannel = await _channelService.GetOudLedenChannel();
-
-			if (oudLedenChannel == null)
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.OldMembers), _logger, "Old Members channel", out IDiscordChannel oudLedenChannel) ||
+				Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Welcome), _logger, "Welcome channel", out IDiscordChannel welcomeChannel))
 			{
-				_logger.LogWarning("Could not find the Oud Leden channel. Cannot log member removal for {MemberName} ({MemberId})", member.DisplayName, member.Id);
 				return;
 			}
 
 			IReadOnlyDictionary<ulong, IDiscordRole> serverRoles = guild.Roles;
-
-			if (serverRoles == null || serverRoles.Count <= 0)
-			{
-				_logger.LogWarning("Could not find server roles. Cannot log member removal for {MemberName} ({MemberId})", member.DisplayName, member.Id);
-				return;
-			}
-
 			IEnumerable<IDiscordRole> roles = member.Roles;
 
 			if (roles.Any(role => role.Id.Equals(_options.RoleIds.Noob)))
 			{
-				IDiscordRole noobRole = guild.GetRole(_options.RoleIds.Noob);
-				await CleanWelcomeChannel(guild, member, noobRole);
+				await _channelService.CleanChannelAsync(welcomeChannel, member);
 			}
 
 			List<DEF> fields = [];
@@ -282,6 +179,87 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		});
 	}
 
+	private async Task<IReadOnlyList<WotbAccountListItem>> FindMatchingAccountsAsync(IDiscordChannel channel, IDiscordUser user, IDiscordGuild guild)
+	{
+		bool firstAttempt = true;
+
+		while (true) // TODO: add a retry limit to prevent a never ending loop.
+		{
+			string question;
+			if (firstAttempt)
+			{
+				question = $"{user.Mention} Wat is je WoTB-spelersnaam?";
+				firstAttempt = false;
+			}
+			else
+			{
+				question = $"**We konden je opgegeven WoTB-spelersnaam niet vinden. Kun je het nog eens proberen?** \n{user.Mention} Wat is je WoTB-spelersnaam?";
+			}
+
+			string playerName = await _messageService.AskQuestion(channel, user, guild, question);
+			IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, playerName);
+
+			if (searchResults.Count > 0)
+			{
+				return searchResults;
+			}
+		}
+	}
+	private async Task<WotbAccountListItem> SelectAccountAsync(IReadOnlyList<WotbAccountListItem> accounts, IDiscordChannel channel, IDiscordUser user)
+	{
+		if (accounts.Count == 1)
+		{
+			return accounts[0];
+		}
+
+		StringBuilder sb = new();
+		int counter = 0;
+
+		for (int i = 0; i < accounts.Count; i++)
+		{
+			WotbAccountListItem account = accounts[i];
+			WotbAccountInfo? accountInfo = await _accountRepository.GetByIdAsync(account.AccountId);
+			WotbAccountClanInfo? clanInfo = null;
+
+			if (accountInfo != null)
+			{
+				clanInfo = await _clanRepository.GetAccountClanInfoAsync(accountInfo.AccountId);
+			}
+
+			string? clanTag = clanInfo?.Clan?.Tag;
+			string clan = (!string.IsNullOrEmpty(clanTag) ? $" `{clanTag}`" : string.Empty);
+			sb.AppendLine($"{(++counter)}. {accountInfo?.Nickname}{clan}");
+		}
+
+		int selected = -1;
+		while (selected == -1) // TODO: add a retry limit to prevent a never ending loop.
+		{
+			selected = await _messageService.WaitForReply(channel, user, sb.ToString(), counter);
+		}
+
+		return accounts[selected];
+	}
+
+	private async Task ProcessAccountInfoAsync(WotbAccountListItem account, IDiscordMember member)
+	{
+		string clanTag = string.Empty;
+		WotbAccountClanInfo? clanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
+
+		if (clanInfo != null)
+		{
+			if (clanInfo.ClanId.Equals(Constants.NLBE_CLAN_ID) || clanInfo.ClanId.Equals(Constants.NLBE2_CLAN_ID)) // TODO: move to configuration
+			{
+				await member.SendMessageAsync("Indien je echt van **" + clanInfo.Clan.Tag + "** bent dan moet je even vragen of iemand jouw de **" + clanInfo.Clan.Tag + "** rol wilt geven."); // TODO: why is this manual, and not automated.
+			}
+			else if (clanInfo.Clan != null && clanInfo.Clan.Tag != null)
+			{
+				clanTag = clanInfo.Clan.Tag;
+			}
+		}
+
+		await _userService.ChangeMemberNickname(member, "[" + clanTag + "] " + account.Nickname);
+	}
+
 	private static string GetCommaSeperatedRoleList(IReadOnlyDictionary<ulong, IDiscordRole> serverRoles, IEnumerable<IDiscordRole> memberRoles)
 	{
 		StringBuilder sbRoles = new();
@@ -309,39 +287,5 @@ internal class GuildMemberEventHandler(ILogger<GuildMemberEventHandler> logger,
 		}
 
 		return sbRoles.ToString();
-	}
-
-	private async Task CleanWelcomeChannel(IDiscordGuild guild, IDiscordMember member, IDiscordRole noobRole)
-	{
-		IReadOnlyCollection<IDiscordMember> allMembers = await guild.GetAllMembersAsync();
-		bool atLeastOneOtherPlayerWithNoobRole = false;
-
-		foreach (var _ in from IDiscordMember m in allMembers
-						  where m.Roles.Contains(noobRole)
-						  select new
-						  {
-						  })
-		{
-			atLeastOneOtherPlayerWithNoobRole = true;
-		}
-
-		if (atLeastOneOtherPlayerWithNoobRole)
-		{
-			await _channelService.CleanWelkomChannel(member.Id);
-		}
-		else
-		{
-			await _channelService.CleanWelkomChannel();
-		}
-	}
-
-	private async Task ExecuteIfAllowedAsync(IDiscordGuild guild, Func<Task> action)
-	{
-		if (_botState.IgnoreEvents || guild.Id != _options.ServerId)
-		{
-			return;
-		}
-
-		await action();
 	}
 }

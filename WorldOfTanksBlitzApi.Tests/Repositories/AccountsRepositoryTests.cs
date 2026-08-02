@@ -121,10 +121,11 @@ public class AccountsRepositoryTests
 	}
 
 	[TestMethod]
-	public async Task GetByIdAsync_ReturnsNull_WhenDataIsMissing()
+	[DataRow("{\"data\": null}")]
+	[DataRow("{\"data\":{}}")]
+	public async Task GetByIdAsync_ReturnsNull_WhenDataIsMissing(string json)
 	{
 		// Arrange.
-		string json = "{\"data\":{}}";
 		_mockConnection!.PostAsync(Arg.Any<string>(), Arg.Any<MultipartFormDataContent>()).Returns(json);
 
 		// Act.

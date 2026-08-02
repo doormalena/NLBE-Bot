@@ -27,7 +27,7 @@ internal class UserService(ILogger<UserService> logger,
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
 
-	public async Task<IDiscordMember> GetDiscordMember(IDiscordGuild guild, ulong userID)
+	public async Task<IDiscordMember?> GetDiscordMember(IDiscordGuild guild, ulong userID)
 	{
 		return await guild.GetMemberAsync(userID);
 	}
@@ -43,7 +43,7 @@ internal class UserService(ILogger<UserService> logger,
 			}
 			await member.ModifyAsync(mem);
 		}
-		catch (UnauthorizedException ex)
+		catch (Exception ex) when (ex is UnauthorizedException or UnauthorizedAccessException)
 		{
 			throw new UnauthorizedAccessException("Failed to update member nickname due to insufficient permissions.", ex);
 		}
@@ -294,7 +294,7 @@ internal class UserService(ILogger<UserService> logger,
 		return new WotbPlayerNameInfo(string.Empty, displayName.Trim());
 	}
 
-	public async Task ShowMemberInfo(IDiscordChannel channel, object gebruiker)
+	public async Task ShowMemberInfo(IDiscordChannel channel, object? gebruiker)
 	{
 		if (gebruiker is IDiscordMember discordMember)
 		{
@@ -396,7 +396,7 @@ internal class UserService(ILogger<UserService> logger,
 		}
 		else if (gebruiker is WotbAccountInfo account)
 		{
-			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
+			WotbAccountClanInfo? accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
 			List<DEF> deflist = [];
 			try
@@ -947,7 +947,7 @@ internal class UserService(ILogger<UserService> logger,
 		return deflist;
 	}
 
-	public async Task<WotbAccountInfo> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
+	public async Task<WotbAccountInfo?> SearchPlayer(IDiscordChannel channel, IDiscordMember member, IDiscordUser user, string guildName, string naam)
 	{
 		IReadOnlyList<WotbAccountListItem> searchResults = await _accountRepository.SearchByNameAsync(SearchType.StartsWith, naam); // TODO: missing clan members and statistics
 		StringBuilder sb = new();
@@ -968,7 +968,7 @@ internal class UserService(ILogger<UserService> logger,
 
 			if (index >= 0 && searchResults.Count >= 1)
 			{
-				WotbAccountInfo account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId); // TODO: missing clan and statistics
+				WotbAccountInfo? account = await _accountRepository.GetByIdAsync(searchResults[index].AccountId); // TODO: missing clan and statistics
 				await ShowMemberInfo(channel, account);
 				return account;
 			}
@@ -987,6 +987,6 @@ internal class UserService(ILogger<UserService> logger,
 
 	private static double CalculateWinRate(int wins, int battles)
 	{
-		return wins / battles * 100;
+		return battles == 0 ? 0 : (double) wins / battles * 100;
 	}
 }

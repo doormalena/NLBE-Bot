@@ -9,5 +9,5 @@ public class WotbClanList
 	public List<WotbClanListItem> Data
 	{
 		get; internal set;
-	}
+	} = [];
 }

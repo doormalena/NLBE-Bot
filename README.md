@@ -16,6 +16,6 @@
 
 ### Configuration
 
-  ``NLBEBOT:DiscordToken`` --> create new app on https://discord.com/developers/applications. Settings unknown and need to be reverse engineered.
+  ``NLBEBOT:DiscordToken`` --> create new app on https://discord.com/developers/applications using [Discord Application Setup Guide](docs/discord-application-setup-guide.md)
   ``NLBEBOT:WarGamingAppId`` --> Create new app of type `Server` on https://developers.wargaming.net/applications/. Ensure all IP addresses of the running server are registered. Copy the ID into the configuration.
 

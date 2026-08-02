@@ -16,23 +16,23 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 
 	public async Task<IReadOnlyList<WotbClanListItem>> SearchByNameAsync(SearchType searchType, string term, bool loadMembers = false, int maxResults = 20)
 	{
-		string jsonText = await SearchByName(term, searchType, maxResults);
-		WotbClanList response = JsonSerializer.Deserialize<WotbClanList>(jsonText);
+		string json = await SearchByName(term, searchType, maxResults);
+		WotbClanList? response = JsonSerializer.Deserialize<WotbClanList>(json);
 
 		return response == null || response.Data == null ? [] : (IReadOnlyList<WotbClanListItem>) response.Data;
 	}
 
-	public async Task<WotbClanInfo> GetByIdAsync(long clanId, bool loadMembers = false)
+	public async Task<WotbClanInfo?> GetByIdAsync(long clanId, bool loadMembers = false)
 	{
-		string clanJson = await GetById(clanId, loadMembers);
+		string json = await GetById(clanId, loadMembers);
 
 		// The API returns: { "status": "...", "data": { "clan_id": { ...clan fields... } } }
-		JsonNode rootNode = JsonNode.Parse(clanJson);
-		JsonNode dataNode = rootNode?["data"];
+		JsonNode? rootNode = JsonNode.Parse(json);
+		JsonNode? dataNode = rootNode?["data"];
 
 		if (dataNode != null)
 		{
-			JsonNode clanNode = dataNode[clanId.ToString()];
+			JsonNode? clanNode = dataNode[clanId.ToString()];
 
 			if (clanNode != null && clanNode.ToJsonString() != "null")
 			{
@@ -43,17 +43,17 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 		return null;
 	}
 
-	public async Task<WotbAccountClanInfo> GetAccountClanInfoAsync(long accountId)
+	public async Task<WotbAccountClanInfo?> GetAccountClanInfoAsync(long accountId)
 	{
-		string accountClanJson = await GetAccountClanInfo(accountId);
+		string json = await GetAccountClanInfo(accountId);
 
 		// The API returns: { "status": "...", "data": { "account_id": { ...account-clan fields... } } }
-		JsonNode rootNode = JsonNode.Parse(accountClanJson);
-		JsonNode dataNode = rootNode?["data"];
+		JsonNode? rootNode = JsonNode.Parse(json);
+		JsonNode? dataNode = rootNode?["data"];
 
 		if (dataNode != null)
 		{
-			JsonNode accountClanNode = dataNode[accountId.ToString()];
+			JsonNode? accountClanNode = dataNode[accountId.ToString()];
 
 			if (accountClanNode != null && accountClanNode.ToJsonString() != "null")
 			{
@@ -68,7 +68,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 	{
 		const string relativeUrl = "/clans/accountinfo/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(accountId.ToString()), "account_id");
 		form.Add(new StringContent("clan"), "extra");
 
@@ -79,7 +79,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 	{
 		const string relativeUrl = "/clans/list/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(searchTerm), "search");
 		form.Add(new StringContent(limit.ToString()), "limit");
 		form.Add(new StringContent(searchType.ToString().ToLower()), "type");
@@ -91,7 +91,7 @@ public class ClansRepository(IWotbConnection connection) : IClansRepository
 	{
 		const string relativeUrl = "/clans/info/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(clanId.ToString()), "clan_id");
 
 		if (loadMembers)

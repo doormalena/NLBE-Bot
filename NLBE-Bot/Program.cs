@@ -23,6 +23,7 @@ using System.Threading.Tasks;
 using WorldOfTanksBlitzApi;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Repositories;
+using WorldOfTanksBlitzApi.Tools;
 
 public static class Program
 {
@@ -62,7 +63,7 @@ public static class Program
 					Bind(hostContext.Configuration.GetSection("NLBEBot")).
 					ValidateDataAnnotations().
 					ValidateOnStart();
-
+				services.AddMemoryCache();
 				services.AddSingleton(provider =>
 				{
 					return CreateDiscordClient(provider) as IDiscordClient;
@@ -70,6 +71,10 @@ public static class Program
 				services.AddHttpClient<IWotbConnection, WotbConnection>((client, provider) =>
 				{
 					return CreateWotbConnection(provider, client);
+				});
+				services.AddHttpClient<IWotInspectorConnection, WotInspectorConnection>((client, provider) =>
+				{
+					return CreateWotInspectorConnection(provider, client);
 				});
 				services.AddSingleton<IBotState>(provider =>
 				{
@@ -79,7 +84,7 @@ public static class Program
 				});
 				services.AddHostedService<Bot>();
 				services.AddSingleton<BotCommands>();
-				services.AddSingleton<IBotEventHandlers, BotEventHandlers>();
+				services.AddSingleton<IBotEventHandlers, BotEventHandler>();
 				services.AddSingleton<IWeeklyEventService, WeeklyEventService>();
 				services.AddSingleton<ICommandEventHandler, CommandEventHandler>();
 				services.AddSingleton<IGuildMemberEventHandler, GuildMemberEventHandler>();
@@ -98,21 +103,39 @@ public static class Program
 				services.AddSingleton<IDiscordMessageUtils, DiscordMessageUtils>();
 				services.AddHttpClient<IPublicIpAddress, PublicIpAddress>();
 				services.AddHttpClient<IApiRequester, ApiRequester>();
+				services.AddHttpClient<IAttachmentService, AttachmentService>();
 				services.AddSingleton<IAccountsRepository, AccountsRepository>();
 				services.AddSingleton<IClansRepository, ClansRepository>();
+				services.AddSingleton<IBattleRepository, BattleRepository>();
+				services.AddSingleton<IAchievementsRepository, AchievementsRepository>();
+				services.AddSingleton<IMapsRepository, MapsRepository>();
+				services.AddSingleton<IVehiclesRepository, VehiclesRepository>();
+				services.AddSingleton<IWotInspectorAchievementMappingProvider, WotInspectorAchievementMappingProvider>();
 			});
 	}
 
 	private static WotbConnection CreateWotbConnection(IServiceProvider provider, HttpClient client)
 	{
-		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
+		IOptions<BotOptions>? optionsWrapper = provider.GetService<IOptions<BotOptions>>() ?? throw new InvalidOperationException("IOptions<BotOptions> is not registered in the service provider.");
+		BotOptions options = optionsWrapper.Value;
 		ILogger<WotbConnection> logger = provider.GetRequiredService<ILogger<WotbConnection>>();
+
 		return new WotbConnection(client, logger, options.WotbApi.BaseUri, options.WotbApi.ApplicationId);
+	}
+
+	private static WotInspectorConnection CreateWotInspectorConnection(IServiceProvider provider, HttpClient client)
+	{
+		IOptions<BotOptions>? optionsWrapper = provider.GetService<IOptions<BotOptions>>() ?? throw new InvalidOperationException("IOptions<BotOptions> is not registered in the service provider.");
+		BotOptions options = optionsWrapper.Value;
+		ILogger<WotInspectorConnection> logger = provider.GetRequiredService<ILogger<WotInspectorConnection>>();
+
+		return new WotInspectorConnection(client, logger, options.WotInspectorApi.BaseUri);
 	}
 
 	private static DiscordClientWrapper CreateDiscordClient(IServiceProvider provider)
 	{
-		BotOptions options = provider.GetService<IOptions<BotOptions>>().Value;
+		IOptions<BotOptions>? optionsWrapper = provider.GetService<IOptions<BotOptions>>() ?? throw new InvalidOperationException("IOptions<BotOptions> is not registered in the service provider.");
+		BotOptions options = optionsWrapper.Value;
 
 		DiscordConfiguration config = new()
 		{

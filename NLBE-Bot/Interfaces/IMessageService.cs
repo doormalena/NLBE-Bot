@@ -3,13 +3,13 @@ namespace NLBE_Bot.Interfaces;
 using DSharpPlus.Entities;
 using NLBE_Bot.Models;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Models;
 
 internal interface IMessageService
 {
-	public Task<IDiscordMessage> SendMessage(IDiscordChannel channel, IDiscordMember member, string guildName, string message);
+	public Task<IDiscordMessage?> SendMessage(IDiscordChannel channel, IDiscordMember? member, string guildName, string message);
 
-	public Task<bool> SendPrivateMessage(IDiscordMember member, string guildName, string Message);
+	public Task<IDiscordMessage?> SendPrivateMessage(IDiscordMember member, string guildName, string message);
 
 	public Task SayTheUserIsNotAllowed(IDiscordChannel channel);
 
@@ -25,17 +25,17 @@ internal interface IMessageService
 
 	public Task SayNoResponse(IDiscordChannel channel);
 
-	public IDiscordMessage SayMultipleResults(IDiscordChannel channel, string description);
+	public Task<IDiscordMessage?> SayMultipleResults(IDiscordChannel channel, string description);
 
 	public Task SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName);
 
-	public Task<IDiscordMessage> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text);
+	public Task<IDiscordMessage?> SaySomethingWentWrong(IDiscordChannel channel, IDiscordMember member, string guildName, string text);
 
-	public Task<IDiscordMessage> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType);
+	public Task<IDiscordMessage?> SayCannotBePlayedAt(IDiscordChannel channel, IDiscordMember member, string guildName, string roomType);
 
-	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription);
+	public Task<IDiscordMessage> SayReplayNotWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription, IDiscordMessage lastCreatedDiscordMessage);
 
-	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WGBattle battle, string extraDescription, int position);
+	public Task<IDiscordMessage> SayReplayIsWorthy(IDiscordChannel channel, WotInspectorBattle battle, string extraDescription, int position, IDiscordMessage lastCreatedDiscordMessage);
 
 	public Task<int> WaitForReply(IDiscordChannel channel, IDiscordUser user, string description, int count);
 
@@ -47,5 +47,5 @@ internal interface IMessageService
 
 	public IDiscordEmbed CreateStandardEmbed(string title, string description, DiscordColor color);
 
-	public Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options);
+	public Task<IDiscordMessage> CreateEmbed(IDiscordChannel channel, EmbedOptions options, IDiscordMessage? lastCreatedDiscordMessage = null);
 }

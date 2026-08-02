@@ -19,8 +19,8 @@ public class PublicIpAddress(HttpClient client) : IPublicIpAddress
 		try
 		{
 			string response = await _client.GetStringAsync(ApiUrl);
-			IpResponse json = JsonConvert.DeserializeObject<IpResponse>(response);
-			return json.Ip;
+			IpResponse? ipResponse = JsonConvert.DeserializeObject<IpResponse>(response);
+			return ipResponse?.Ip ?? string.Empty;
 		}
 		catch (Exception ex)
 		{
@@ -29,7 +29,7 @@ public class PublicIpAddress(HttpClient client) : IPublicIpAddress
 	}
 	public class IpResponse
 	{
-		public string Ip
+		public string? Ip
 		{
 			get; set;
 		}

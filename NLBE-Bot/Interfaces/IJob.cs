@@ -5,5 +5,5 @@ using System.Threading.Tasks;
 
 internal interface IJob<T> where T : class
 {
-	public Task Execute(DateTime now);
+	public Task Execute(IDiscordGuild guild, DateTime now);
 }

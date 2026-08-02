@@ -17,22 +17,22 @@ public class AccountsRepository(IWotbConnection connection) : IAccountsRepositor
 	public async Task<IReadOnlyList<WotbAccountListItem>> SearchByNameAsync(SearchType searchType, string term, int maxResults = 20)
 	{
 		string jsonText = await SearchByName(term, searchType, maxResults);
-		WotbAccountList response = JsonSerializer.Deserialize<WotbAccountList>(jsonText);
+		WotbAccountList? response = JsonSerializer.Deserialize<WotbAccountList>(jsonText);
 
 		return response == null || response.Data == null ? [] : (IReadOnlyList<WotbAccountListItem>) response.Data;
 	}
 
-	public async Task<WotbAccountInfo> GetByIdAsync(long accountId)
+	public async Task<WotbAccountInfo?> GetByIdAsync(long accountId)
 	{
 		string accountJson = await GetById(accountId);
 
 		// The API returns: { "status": "...", "data": { "account_id": { ...account fields... } } }
-		JsonNode rootNode = JsonNode.Parse(accountJson);
-		JsonNode dataNode = rootNode?["data"];
+		JsonNode? rootNode = JsonNode.Parse(accountJson);
+		JsonNode? dataNode = rootNode?["data"];
 
 		if (dataNode != null)
 		{
-			JsonNode accountNode = dataNode[accountId.ToString()];
+			JsonNode? accountNode = dataNode[accountId.ToString()];
 
 			if (accountNode != null && accountNode.ToJsonString() != "null")
 			{
@@ -47,7 +47,7 @@ public class AccountsRepository(IWotbConnection connection) : IAccountsRepositor
 	{
 		const string relativeUrl = "/account/list/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(searchTerm), "search");
 		form.Add(new StringContent(limit.ToString()), "limit");
 		form.Add(new StringContent(searchType.ToString().ToLower()), "type");
@@ -59,7 +59,7 @@ public class AccountsRepository(IWotbConnection connection) : IAccountsRepositor
 	{
 		const string relativeUrl = "/account/info/";
 
-		MultipartFormDataContent form = [];
+		using MultipartFormDataContent form = [];
 		form.Add(new StringContent(accountId.ToString()), "account_id");
 		form.Add(new StringContent("statistics.rating"), "extra");
 

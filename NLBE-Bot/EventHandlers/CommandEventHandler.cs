@@ -29,20 +29,20 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 	private Task OnCommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
 	{
 		CommandContextWrapper contextInfo = new(e.Context);
-		IDiscordCommand commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
+		IDiscordCommand? commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
 		return HandleCommandError(contextInfo, commandInfo, e.Exception);
 	}
 
 	[ExcludeFromCodeCoverage(Justification = "Not testable due to DSharpPlus limitations.")]
 	private Task OnCommandExecuted(CommandsNextExtension sender, CommandExecutionEventArgs e)
 	{
-		IDiscordCommand commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
+		IDiscordCommand? commandInfo = e.Command != null ? new DiscordCommandWrapper(e.Command) : null;
 		return HandleCommandExecuted(commandInfo);
 	}
 
-	internal async Task HandleCommandError(IDiscordCommandContext context, IDiscordCommand command, Exception exception)
+	internal async Task HandleCommandError(IDiscordCommandContext context, IDiscordCommand? command, Exception exception)
 	{
-		if (!context.GuildId.Equals(_options.ServerId))
+		if (context.GuildId != _options.ServerId)
 		{
 			return;
 		}
@@ -53,8 +53,8 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 		}
 		else if (command != null)
 		{
-			IDiscordEmoji inProgressEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION);
-			IDiscordEmoji errorEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION);
+			IDiscordEmoji inProgressEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.IN_PROGRESS_REACTION)!;
+			IDiscordEmoji errorEmoji = _discordMessageUtils.GetDiscordEmoji(Constants.ERROR_REACTION)!;
 
 			await context.DeleteInProgressReactionAsync(inProgressEmoji);
 			await context.AddErrorReactionAsync(errorEmoji);
@@ -62,9 +62,9 @@ internal class CommandEventHandler(ILogger<CommandEventHandler> logger,
 		}
 	}
 
-	internal Task HandleCommandExecuted(IDiscordCommand command)
+	internal Task HandleCommandExecuted(IDiscordCommand? command)
 	{
-		_logger.LogInformation("Command executed: {CommandName}", command.Name);
+		_logger.LogInformation("Command executed: {CommandName}", command?.Name);
 		return Task.CompletedTask;
 	}
 }

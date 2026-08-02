@@ -4,12 +4,13 @@ using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
+using System.Threading.Tasks;
 
 internal class ApiRequester(HttpClient client) : IApiRequester
 {
 	private readonly HttpClient _client = client ?? throw new ArgumentNullException(nameof(client));
 
-	public string GetRequest(string url, Dictionary<string, string> parameters = null)
+	public async Task<string> GetRequest(string url, Dictionary<string, string>? parameters = null)
 	{
 		// Set the API key header
 		if (parameters != null)
@@ -20,7 +21,7 @@ internal class ApiRequester(HttpClient client) : IApiRequester
 			}
 		}
 
-		HttpResponseMessage response = _client.GetAsync(url).Result;
-		return response.Content.ReadAsStringAsync().Result;
+		HttpResponseMessage response = await _client.GetAsync(url);
+		return await response.Content.ReadAsStringAsync();
 	}
 }

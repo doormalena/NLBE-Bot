@@ -60,7 +60,7 @@ internal class BotState(string stateFile = "botstate.json", bool autoSave = true
 	}
 
 
-	public WeeklyEventWinner WeeklyEventWinner
+	public WeeklyEventWinner? WeeklyEventWinner
 	{
 		get
 		{
@@ -78,26 +78,6 @@ internal class BotState(string stateFile = "botstate.json", bool autoSave = true
 				{
 					Task.Run(() => SaveAsync());
 				}
-			}
-		}
-	}
-
-	private IDiscordMessage _lastCreatedDiscordMessage;
-
-	public IDiscordMessage LastCreatedDiscordMessage
-	{
-		get
-		{
-			lock (_lock)
-			{
-				return _lastCreatedDiscordMessage;
-			}
-		}
-		set
-		{
-			lock (_lock)
-			{
-				_lastCreatedDiscordMessage = value;
 			}
 		}
 	}
@@ -168,6 +148,11 @@ internal class BotState(string stateFile = "botstate.json", bool autoSave = true
 			return;
 		}
 
-		_data = JsonSerializer.Deserialize<BotStateData>(json);
+		BotStateData? data = JsonSerializer.Deserialize<BotStateData>(json);
+
+		if (data != null)
+		{
+			_data = data;
+		}
 	}
 }

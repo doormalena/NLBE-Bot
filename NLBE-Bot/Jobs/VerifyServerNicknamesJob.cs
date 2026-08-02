@@ -3,6 +3,7 @@ namespace NLBE_Bot.Jobs;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using System;
@@ -14,7 +15,6 @@ using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
 
 internal class VerifyServerNicknamesJob(IUserService userService,
-								 IChannelService channelService,
 								 IMessageService messageService,
 								 IAccountsRepository accountRepository,
 								 IClansRepository clanRepository,
@@ -23,7 +23,6 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 								 ILogger<VerifyServerNicknamesJob> logger) : IJob<VerifyServerNicknamesJob>
 {
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IMessageService _messageService = messageService ?? throw new ArgumentNullException(nameof(messageService));
 	private readonly IAccountsRepository _accountRepository = accountRepository ?? throw new ArgumentNullException(nameof(accountRepository));
 	private readonly IClansRepository _clanRepository = clanRepository ?? throw new ArgumentNullException(nameof(clanRepository));
@@ -31,14 +30,14 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 	private readonly ILogger<VerifyServerNicknamesJob> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 
-	public async Task Execute(DateTime now)
+	public async Task Execute(IDiscordGuild guild, DateTime now)
 	{
 		if (!ShouldVerifyServerNicknames(now, _botState.LasTimeServerNicknamesWereVerified))
 		{
 			return;
 		}
 
-		await VerifyServerNicknames(now);
+		await VerifyServerNicknames(guild, now);
 	}
 
 	private static bool ShouldVerifyServerNicknames(DateTime now, DateTime? lastUpdate)
@@ -47,27 +46,17 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		return !lastUpdate.HasValue || lastUpdate.Value.Date != now.Date;
 	}
 
-	private async Task VerifyServerNicknames(DateTime now)
+	private async Task VerifyServerNicknames(IDiscordGuild guild, DateTime now)
 	{
 		DateTime? lastSuccessfull = _botState.LasTimeServerNicknamesWereVerified; // Temporary store the last successful verification time.
 
 		try
 		{
 			_botState.LasTimeServerNicknamesWereVerified = now; // Update the last successful verification time to now to prevent multiple executions in parallel.
-			IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
 
-			if (bottestChannel == null)
+			if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel bottestChannel) ||
+				Guard.ReturnIfNull(guild.GetRole(_options.RoleIds.Members), _logger, $"Default member role with id `{_options.RoleIds.Members}`", out IDiscordRole memberRole))
 			{
-				_logger.LogWarning("Could not find the bot test channel. Aborting user update.");
-				return;
-			}
-
-			IDiscordGuild guild = bottestChannel.Guild;
-			IDiscordRole memberRole = guild.GetRole(_options.RoleIds.Members);
-
-			if (memberRole == null)
-			{
-				_logger.LogWarning("Could not find the default member role with id `{Id}`. Aborting user update.", _options.RoleIds.Members);
 				return;
 			}
 
@@ -106,9 +95,9 @@ internal class VerifyServerNicknamesJob(IUserService userService,
 		else
 		{
 			WotbAccountListItem account = wotbAccounts[0];
-			WotbAccountClanInfo accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
+			WotbAccountClanInfo? accountClanInfo = await _clanRepository.GetAccountClanInfoAsync(account.AccountId);
 
-			string clanTag = accountClanInfo?.Clan.Tag;
+			string clanTag = accountClanInfo?.Clan.Tag ?? string.Empty;
 			string expectedDisplayName = FormatExpectedDisplayName(account.Nickname, clanTag);
 
 			if (!member.DisplayName.Equals(expectedDisplayName))

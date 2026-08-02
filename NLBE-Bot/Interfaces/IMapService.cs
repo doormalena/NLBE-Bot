@@ -1,10 +1,10 @@
 namespace NLBE_Bot.Interfaces;
 
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Models;
 
-public interface IMapService
+internal interface IMapService
 {
-	public Task<List<Tuple<string, string>>> GetAllMaps(ulong guildId);
+	public Task<Dictionary<string, MapInfo>> GetAllMaps(IDiscordGuild guild);
 }

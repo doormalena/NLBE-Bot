@@ -28,7 +28,7 @@ internal class WeeklyEvent
 	public WeeklyEvent(string tank, List<WeeklyEventItem> weeklyEventItems)
 	{
 		Tank = tank;
-		WeeklyEventItems = weeklyEventItems;
+		WeeklyEventItems = weeklyEventItems ?? throw new ArgumentNullException(nameof(weeklyEventItems));
 		StartDate = StartOfWeek(DateTime.Now);
 	}
 

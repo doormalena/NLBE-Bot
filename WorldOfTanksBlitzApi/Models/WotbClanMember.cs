@@ -16,7 +16,7 @@ public class WotbClanMember
 	public string AccountName
 	{
 		get; internal set;
-	}
+	} = string.Empty;
 
 	[JsonInclude, JsonPropertyName("joined_at")]
 	[JsonConverter(typeof(UnixTimestampConverter))]
@@ -29,5 +29,5 @@ public class WotbClanMember
 	public string Role
 	{
 		get; internal set;
-	}
+	} = string.Empty;
 }

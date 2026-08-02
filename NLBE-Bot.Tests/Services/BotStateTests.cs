@@ -1,9 +1,7 @@
 namespace NLBE_Bot.Tests.Services;
 
-using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
 using NLBE_Bot.Services;
-using NSubstitute;
 
 [TestClass]
 public class BotStateTests
@@ -66,7 +64,8 @@ public class BotStateTests
 			// Assert.
 			Assert.IsTrue(state.IgnoreCommands);
 			Assert.IsFalse(state.IgnoreEvents);
-			Assert.AreEqual(99UL, state.WeeklyEventWinner.UserId);
+			Assert.IsNotNull(state!.WeeklyEventWinner);
+			Assert.AreEqual(99UL, state!.WeeklyEventWinner.UserId);
 			Assert.AreEqual(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), state.WeeklyEventWinner.LastEventDate);
 			Assert.AreEqual(new DateTime(2024, 2, 2, 0, 0, 0, DateTimeKind.Utc), state.LasTimeServerNicknamesWereVerified);
 			Assert.AreEqual(new DateTime(2024, 3, 3, 0, 0, 0, DateTimeKind.Utc), state.LastWeeklyWinnerAnnouncement);
@@ -167,15 +166,6 @@ public class BotStateTests
 			WeeklyEventWinner = weeklyEventWinner
 		};
 		Assert.AreEqual(weeklyEventWinner, state.WeeklyEventWinner);
-	}
-
-	[TestMethod]
-	public void LastCreatedDiscordMessage_GetSet_Works()
-	{
-		BotState state = new();
-		IDiscordMessage message = Substitute.For<IDiscordMessage>();
-		state.LastCreatedDiscordMessage = message;
-		Assert.AreEqual(message, state.LastCreatedDiscordMessage);
 	}
 
 	[TestMethod]

@@ -10,7 +10,7 @@ public class WotbClanListItem
 	public string Name
 	{
 		get; internal set;
-	}
+	} = string.Empty;
 
 	[JsonInclude, JsonPropertyName("clan_id")]
 	public long ClanId
@@ -22,7 +22,7 @@ public class WotbClanListItem
 	public string Tag
 	{
 		get; internal set;
-	}
+	} = string.Empty;
 
 	[JsonInclude, JsonPropertyName("members_count")]
 	public int MembersCount

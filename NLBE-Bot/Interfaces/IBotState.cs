@@ -15,11 +15,7 @@ internal interface IBotState
 		get; set;
 	}
 
-	public WeeklyEventWinner WeeklyEventWinner
-	{
-		get; set;
-	}
-	public IDiscordMessage LastCreatedDiscordMessage
+	public WeeklyEventWinner? WeeklyEventWinner
 	{
 		get; set;
 	}

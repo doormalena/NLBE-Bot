@@ -1,6 +1,8 @@
 namespace NLBE_Bot.Services;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
 using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using NLBE_Bot.Models;
@@ -8,38 +10,49 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using WorldOfTanksBlitzApi.Tools.Replays;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
-internal class WeeklyEventService(IChannelService channelService,
-								  IUserService userService,
+internal class WeeklyEventService(IUserService userService,
 								  IBotState botState,
-								  ILogger<WeeklyEventService> _logger) : IWeeklyEventService
+								  ILogger<WeeklyEventService> _logger,
+								  IOptions<BotOptions> options,
+								  IVehiclesRepository vehiclesRepository) : IWeeklyEventService
 {
 	private readonly ILogger<WeeklyEventService> _logger = _logger ?? throw new ArgumentNullException(nameof(_logger));
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
 	private readonly IBotState _botState = botState ?? throw new ArgumentNullException(nameof(botState));
 	private readonly IUserService _userService = userService ?? throw new ArgumentNullException(nameof(userService));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+	private readonly IVehiclesRepository _vehiclesRepository = vehiclesRepository ?? throw new ArgumentNullException(nameof(vehiclesRepository));
 
-	public IDiscordMessage DiscordMessage
+	public IDiscordMessage? DiscordMessage
 	{
 		get; set;
 	} //The last message in Weekly events
 
-	public WeeklyEvent WeeklyEvent
+	public WeeklyEvent? WeeklyEvent
 	{
 		get; set;
 	}
 
 	public async Task WeHaveAWinner(IDiscordGuild guild, WeeklyEventItem weeklyEventItemMostDMG, string tank)
 	{
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Bot Test channel", out IDiscordChannel botTestChannel) ||
+			Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.General), _logger, "General channel", out IDiscordChannel generalChannel))
+		{
+			return;
+		}
+
 		bool userNotFound = true;
 		IReadOnlyCollection<IDiscordMember> members = await guild.GetAllMembersAsync();
+
 		if (weeklyEventItemMostDMG.Player != null)
 		{
 			string weeklyEventItemMostDMGPlayer = weeklyEventItemMostDMG.Player
 				.Replace("\\", string.Empty)
 				.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 				.ToLower();
+
 			foreach (IDiscordMember member in members)
 			{
 				if (!member.IsBot)
@@ -49,6 +62,7 @@ internal class WeeklyEventService(IChannelService channelService,
 						.Replace("\\", string.Empty)
 						.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_')
 						.ToLower();
+
 					if (x == weeklyEventItemMostDMGPlayer)
 					{
 						userNotFound = false;
@@ -69,15 +83,11 @@ internal class WeeklyEventService(IChannelService channelService,
 						}
 						try
 						{
-							IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
-							if (algemeenChannel != null)
-							{
-								await algemeenChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
-																	   "\n" +
-																	   "`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
-																	   "\n\n" +
-																	   "We wachten nu af tot de winnaar een nieuwe tank kiest.");
-							}
+							await generalChannel.SendMessageAsync("Feliciteer **" + weeklyEventItemMostDMG.Player.Replace(Constants.UNDERSCORE_REPLACEMENT_CHAR, '_').AdaptToChat() + "** want hij heeft het wekelijkse event gewonnen! **Proficiat!**" +
+																	"\n" +
+																	"`" + tank + "` met `" + weeklyEventItemMostDMG.Value + "` damage" +
+																	"\n\n" +
+																	"We wachten nu af tot de winnaar een nieuwe tank kiest.");
 						}
 						catch (Exception ex)
 						{
@@ -90,73 +100,94 @@ internal class WeeklyEventService(IChannelService channelService,
 		}
 		else
 		{
-			IDiscordChannel algemeenChannel = await _channelService.GetAlgemeenChannel();
-			if (algemeenChannel != null)
-			{
-				await algemeenChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
-			}
+			await generalChannel.SendMessageAsync("Het wekelijkse event is gedaan, helaas heeft er __niemand__ deelgenomen en is er dus geen winnaar.");
 		}
-
-		IDiscordChannel bottestChannel = await _channelService.GetBotTestChannel();
 
 		if (userNotFound)
 		{
 			string message = "Een weekly event winnaar was niet gevonden. Je zal handmatig een nieuw weekly event moeten aanmaken middels het `weekly` commando.";
-			await bottestChannel.SendMessageAsync(message);
+			await botTestChannel.SendMessageAsync(message);
 
 			_logger.LogWarning("A weekly event winner was not found. You will have setup a new weeky event using the `weekly` command.");
 		}
 		else
 		{
 			string message = "Weekly event winnaar gevonden!";
-			await bottestChannel.SendMessageAsync(message);
+			await botTestChannel.SendMessageAsync(message);
 
 			_logger.LogInformation("Weekly event winner found and notified.");
 		}
 	}
 
-	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WGBattle battle)
+	public async Task<List<WeeklyEventType>> CheckAndHandleWeeklyEvent(WotInspectorBattle battle)
 	{
 		List<WeeklyEventType> weeklyEventTypes = [];
 
-		if (battle.vehicle == WeeklyEvent.Tank)
+		if (WeeklyEvent == null)
 		{
+			_logger.LogError("WeeklyEvent was null while executing CheckAndHandleWeeklyEvent method.");
+			return weeklyEventTypes;
+		}
+
+		WotbVehicle? vehicle = await _vehiclesRepository.GetByIdAsync(battle.VehicleDescr);
+
+		if (vehicle == null)
+		{
+			_logger.LogWarning("The vehicle could not be found in the vehicles repository.");
+			return weeklyEventTypes;
+		}
+
+		if (string.Equals(WeeklyEvent.Tank, vehicle.Name, StringComparison.OrdinalIgnoreCase))
+		{
+			WotInspectorPlayerData? protagonistPlayerData = battle.ProtagonistPlayerData;
+
+			if (protagonistPlayerData == null)
+			{
+				_logger.LogWarning("The player data could not be found in the replay data.");
+			}
+
 			//TODO: refactor into a switch statement
 
-			if (WeeklyEvent.WeeklyEventItems[0].Value < battle.details.damage_made)
+			if (WeeklyEvent.WeeklyEventItems[0].Value < battle.DamageMade)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_damage);
-				WeeklyEvent.WeeklyEventItems[0] = new WeeklyEventItem(battle.details.damage_made, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[0] = new WeeklyEventItem(battle.DamageMade, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[1].Value < battle.exp_base)
+
+			if (WeeklyEvent.WeeklyEventItems[1].Value < battle.ExpBase)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_exp);
-				WeeklyEvent.WeeklyEventItems[1] = new WeeklyEventItem(battle.exp_base, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[1] = new WeeklyEventItem(battle.ExpBase, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[2].Value < battle.credits_base)
+
+			if (WeeklyEvent.WeeklyEventItems[2].Value < battle.CreditsBase)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_credits);
-				WeeklyEvent.WeeklyEventItems[2] = new WeeklyEventItem(battle.credits_base, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[2] = new WeeklyEventItem(battle.CreditsBase, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[3].Value < battle.details.damage_blocked)
-			{
-				weeklyEventTypes.Add(WeeklyEventType.Most_damage_bounced);
-				WeeklyEvent.WeeklyEventItems[3] = new WeeklyEventItem(battle.details.damage_blocked, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
-			}
-			if (WeeklyEvent.WeeklyEventItems[4].Value < battle.details.damage_assisted + battle.details.damage_assisted_track)
+
+			if (WeeklyEvent.WeeklyEventItems[4].Value < protagonistPlayerData?.DamageAssistedCombined)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_assist_damage);
-				WeeklyEvent.WeeklyEventItems[4] = new WeeklyEventItem(battle.details.damage_assisted + battle.details.damage_assisted_track, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[4] = new WeeklyEventItem(protagonistPlayerData.DamageAssistedCombined, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[5].Value < battle.details.enemies_destroyed)
+
+			if (WeeklyEvent.WeeklyEventItems[3].Value < protagonistPlayerData?.DamageBlocked)
+			{
+				weeklyEventTypes.Add(WeeklyEventType.Most_damage_bounced);
+				WeeklyEvent.WeeklyEventItems[3] = new WeeklyEventItem(protagonistPlayerData.DamageBlocked, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+			}
+
+			if (WeeklyEvent.WeeklyEventItems[5].Value < protagonistPlayerData?.EnemiesDestroyed)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_destroyed);
-				WeeklyEvent.WeeklyEventItems[5] = new WeeklyEventItem(battle.details.enemies_destroyed, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[5] = new WeeklyEventItem(protagonistPlayerData.EnemiesDestroyed, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
-			if (WeeklyEvent.WeeklyEventItems[6].Value < battle.details.shots_pen)
+
+			if (WeeklyEvent.WeeklyEventItems[6].Value < protagonistPlayerData?.ShotsPen)
 			{
 				weeklyEventTypes.Add(WeeklyEventType.Most_hits);
-				WeeklyEvent.WeeklyEventItems[6] = new WeeklyEventItem(battle.details.shots_pen, battle.player_name, battle.view_url, weeklyEventTypes[weeklyEventTypes.Count - 1]);
+				WeeklyEvent.WeeklyEventItems[6] = new WeeklyEventItem(protagonistPlayerData.ShotsPen, battle.PlayerName, battle.DetailsUrl, weeklyEventTypes[weeklyEventTypes.Count - 1]);
 			}
 
 			await UpdateLastWeeklyEvent();
@@ -164,12 +195,25 @@ internal class WeeklyEventService(IChannelService channelService,
 
 		return weeklyEventTypes;
 	}
-	public async Task<string> GetStringForWeeklyEvent(WGBattle battle)
+
+	public async Task<string> GetStringForWeeklyEvent(IDiscordGuild guild, WotInspectorBattle battle)
 	{
 		string content = string.Empty;
-		await ReadWeeklyEvent();
+		await ReadWeeklyEvent(guild);
+		WotbVehicle? vehicle = await _vehiclesRepository.GetByIdAsync(battle.VehicleDescr);
 
-		if (WeeklyEvent != null && WeeklyEvent.Tank == battle.vehicle && DiscordMessage != null && battle.room_type is 1 or 5 or 7 or 4 && battle.battle_start_time.HasValue && WeeklyEvent.StartDate < battle.battle_start_time.Value && WeeklyEvent.StartDate.AddDays(7) > battle.battle_start_time.Value)
+		if (vehicle == null)
+		{
+			_logger.LogWarning("The vehicle could not be found in the vehicles repository.");
+			return content;
+		}
+
+		if (WeeklyEvent != null &&
+			DiscordMessage != null &&
+			string.Equals(WeeklyEvent.Tank, vehicle.Name, StringComparison.OrdinalIgnoreCase) &&
+			battle.RoomType is 1 or 5 or 7 or 4 &&
+			WeeklyEvent.StartDate < battle.BattleStartTime &&
+			WeeklyEvent.StartDate.AddDays(7) > battle.BattleStartTime)
 		{
 			List<WeeklyEventType> weeklyEventTypes = await CheckAndHandleWeeklyEvent(battle);
 
@@ -197,30 +241,30 @@ internal class WeeklyEventService(IChannelService channelService,
 		return content + (content.Length > 0 ? Environment.NewLine : string.Empty);
 	}
 
-	public async Task ReadWeeklyEvent()
+	public async Task ReadWeeklyEvent(IDiscordGuild guild)
 	{
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.BotTest), _logger, "Weekly Event channel", out IDiscordChannel weeklyEventChannel))
+		{
+			return;
+		}
+
 		try
 		{
-			IDiscordChannel weeklyEventChannel = await _channelService.GetWeeklyEventChannel();
+			IReadOnlyList<IDiscordMessage> msgs = await weeklyEventChannel.GetMessagesAsync(1);
 
-			if (weeklyEventChannel != null)
+			if (msgs.Count > 0)
 			{
-				IReadOnlyList<IDiscordMessage> msgs = weeklyEventChannel.GetMessagesAsync(1).Result;
+				//hier lastmessage bij dm
+				IDiscordMessage message = msgs[0];
 
-				if (msgs.Count > 0)
+				if (message != null)
 				{
-					//hier lastmessage bij dm
-					IDiscordMessage message = msgs[0];
-
-					if (message != null)
-					{
-						DiscordMessage = message;
-						WeeklyEvent = new WeeklyEvent(message);
-					}
-					else
-					{
-						_logger.LogError("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
-					}
+					DiscordMessage = message;
+					WeeklyEvent = new WeeklyEvent(message);
+				}
+				else
+				{
+					_logger.LogError("The last DiscordMessage in weeklyEventChannel was null while executing ReadWeeklyEvent method.");
 				}
 			}
 		}
@@ -235,6 +279,12 @@ internal class WeeklyEventService(IChannelService channelService,
 
 	public async Task UpdateLastWeeklyEvent()
 	{
+		if (DiscordMessage == null || WeeklyEvent == null)
+		{
+			_logger.LogError("DiscordMessage or WeeklyEvent was null while executing UpdateLastWeeklyEvent method.");
+			return;
+		}
+
 		try
 		{
 			await DiscordMessage.ModifyAsync(WeeklyEvent.GenerateEmbed());

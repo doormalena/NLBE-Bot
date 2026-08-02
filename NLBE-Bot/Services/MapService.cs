@@ -1,53 +1,74 @@
 namespace NLBE_Bot.Services;
 
-using DSharpPlus.Entities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using NLBE_Bot.Configuration;
+using NLBE_Bot.Helpers;
 using NLBE_Bot.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using WorldOfTanksBlitzApi.Interfaces;
+using WorldOfTanksBlitzApi.Models;
 
-internal class MapService(ILogger<MapService> logger, IChannelService channelService) : IMapService
+internal class MapService(IOptions<BotOptions> options, ILogger<MapService> logger, IMapsRepository mapsRepository) : IMapService
 {
-	private readonly IChannelService _channelService = channelService ?? throw new ArgumentNullException(nameof(channelService));
+	private readonly BotOptions _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
 	private readonly ILogger<MapService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+	private readonly IMapsRepository _mapsRepository = mapsRepository ?? throw new ArgumentNullException(nameof(mapsRepository));
 
-	public async Task<List<Tuple<string, string>>> GetAllMaps(ulong guildId)
+	public async Task<Dictionary<string, MapInfo>> GetAllMaps(IDiscordGuild guild)
 	{
-		IDiscordChannel mapChannel = await _channelService.GetMappenChannel();
-
-		if (mapChannel == null)
+		if (Guard.ReturnIfNull(guild.GetChannel(_options.ChannelIds.Maps), _logger, "Maps channel", out IDiscordChannel mapChannel))
 		{
-			return null;
+			return [];
 		}
+
+		IReadOnlyList<IDiscordMessage> messages = await mapChannel.GetMessagesAsync(100);
+		// TODO: investigate to move images to embeded resources or download them from a site such as https://wottactic.com/
 
 		List<Tuple<string, string>> images = [];
-		try
+		foreach (IDiscordMessage message in messages)
 		{
-			IReadOnlyList<IDiscordMessage> xMessages = mapChannel.GetMessagesAsync(100).Result;
-			foreach (IDiscordMessage message in xMessages)
-			{
-				IReadOnlyList<DiscordAttachment> attachments = message.Attachments;
-				foreach (DiscordAttachment item in attachments)
-				{
-					images.Add(new Tuple<string, string>(GetProperFileName(item.Url), item.Url));
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			_logger.LogError(ex, "Error while getting map images from channel {ChannelName}.", mapChannel.Name);
+			images.AddRange(from IDiscordAttachment attachment in message.Attachments
+							let fileName = GetProperFileName(attachment.Url)
+							select new Tuple<string, string>(fileName, attachment.Url));
 		}
 
-		images.Sort((x, y) => y.Item1.CompareTo(x.Item1));
-		images.Reverse();
-		return images;
+		Dictionary<string, MapInfo>? maps = await _mapsRepository.GetAllAsync();
+		if (maps == null)
+		{
+			return [];
+		}
+
+		foreach ((MapInfo map, Tuple<string, string> match) in from KeyValuePair<string, MapInfo> entry in maps
+															   let map = entry.Value
+															   let match = images.FirstOrDefault(x => x.Item1.Equals(map.Name, StringComparison.OrdinalIgnoreCase))
+															   select (map, match))
+		{
+			if (match != null)
+			{
+				map.ImageUrl = match.Item2;
+			}
+			else
+			{
+				_logger.LogWarning("Map image not found for map {MapName} in guild {GuildName}", map.Name, guild.Name);
+			}
+		}
+
+		return maps;
 	}
-	public static string GetProperFileName(string file)
+
+	private static string GetProperFileName(string file)
 	{
+		// Examples:
+		// https://cdn.discordapp.com/attachments/{channel_id}/{attachment_id}/Yamato_Harbor.png?ex={expiry}&is={signature}&hm={hash}&
+		// https://cdn.discordapp.com/attachments/{channel_id}/{attachment_id}/Canyon.png?ex={expiry}&is={signature}&hm={hash}&
+
 		string[] splitted = file.Split('\\');
-		string name = splitted[splitted.Length - 1];
+		string name = splitted[^1];
 		return Path.GetFileNameWithoutExtension(name).Replace('_', ' ');
 	}
 }
