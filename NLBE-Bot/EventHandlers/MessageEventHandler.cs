@@ -18,7 +18,6 @@ using System.Text;
 using System.Threading.Tasks;
 using WorldOfTanksBlitzApi.Interfaces;
 using WorldOfTanksBlitzApi.Models;
-using WorldOfTanksBlitzApi.Vehicles;
 
 internal class MessageEventHandler(IOptions<BotOptions> options,
 								   ILogger<MessageEventHandler> logger,
